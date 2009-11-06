@@ -1,3 +1,4 @@
+# Adapt GUINCLUDE and GULIB to point to your gurobi installation.
 GUINCLUDE=/home/vis/sheld6/progs/gurobi200/linux64/include
 GULIB=/home/vis/sheld6/progs/gurobi200/linux64/lib/libgurobi.so.2.0.0
 CC=gcc
