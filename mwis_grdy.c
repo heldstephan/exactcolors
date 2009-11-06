@@ -88,8 +88,10 @@ static int tighten_neighbours(solution* sol,int i)
    for( j = 0; j < nodelist[i].degree; ++j)
    {
       int k = nodelist[i].adj[j];
+#ifdef MWIS_GRDY_DEBUG
       printf("Increasing %d from %d to %d\n",
              k,sol->tightness[k],sol->tightness[k]+1);
+#endif
 
       sol->tightness[k]++;
       assert(!is_basis(sol,k));
@@ -111,8 +113,10 @@ static int relax_neighbours(solution* sol,int i)
    for( j = 0; j < nodelist[i].degree; ++j)
    {
       int k = nodelist[i].adj[j];
+#ifdef MWIS_GRDY_DEBUG
       printf("Decreasing %d from %d to %d\n",
              k,sol->tightness[k],sol->tightness[k]-1);
+#endif
       sol->tightness[k]--;
       if (sol->tightness[k] < 0) {
          printf("tightness if %d dropped to %d\n",
@@ -136,7 +140,10 @@ static int add_iff_free(solution* sol,int i)
    }
    
    if (is_free(sol,i)) {
-      if (COLORdbg_lvl()) printf("Adding %d\n",i);
+
+#ifdef MWIS_GRDY_DEBUG
+      printf("Adding %d\n",i);
+#endif
       assert(sol->tightness[i] == 0);
       swap_nodelist(sol,i, sol->nperm[sol->solcount]);
       sol->solcount++;
@@ -184,6 +191,7 @@ static void init_solution(solution* sol)
 
 static void print_solution(solution* sol)
 {
+#ifdef MWIS_GRDY_DEBUG
    int i;
    printf("WEIGHTS   ");
    for (i = 0;i < sol->ncount;++i) {
@@ -202,6 +210,7 @@ static void print_solution(solution* sol)
       printf(" %5d",sol->tightness[i]);
    }
    printf("\n");
+#endif
 }
 
 static int greedy_improvement(solution* sol)
@@ -426,8 +435,11 @@ static int perform_1_2_path(solution* sol, int* nodestack, int v)
    const graph* G     = sol->G;
    const node*  nodes = G->nodelist;
    int changes = 0;
-   
-   printf("Starting 1_2 path search with %d\n",v);
+
+         
+   if (COLORdbg_lvl()) {
+      printf("Starting 1_2 path search with %d\n",v);
+   }
 
    weight = .0;
    for (i = 0; i < sol->ncount; ++i) {
@@ -469,15 +481,17 @@ static int perform_1_2_path(solution* sol, int* nodestack, int v)
       }
    }
    if (weight > DBL_EPSILON) {
-      printf("Found replacement (");
-      for (rm_i = 0; sol->work_path[rm_i] != -1;++rm_i) {
-         printf(" %d", sol->work_path[rm_i]);
+      if (COLORdbg_lvl()) {
+         printf("Found replacement (");
+         for (rm_i = 0; sol->work_path[rm_i] != -1;++rm_i) {
+            printf(" %d", sol->work_path[rm_i]);
+         }
+         printf(") <- (");
+         for (add_i = sol->ncount-1; sol->work_path[add_i] != -1;--add_i) {
+            printf(" %d",sol->work_path[add_i]);
+         }
+         printf(") weight %f\n",weight);
       }
-      printf(") <- (");
-      for (add_i = sol->ncount-1; sol->work_path[add_i] != -1;--add_i) {
-         printf(" %d",sol->work_path[add_i]);
-      }
-      printf(") weight %f\n",weight);
 
       for (rm_i = 0; sol->work_path[rm_i] != -1;++rm_i) {
          int x = sol->work_path[rm_i];
@@ -535,14 +549,14 @@ static int perform_1_2_paths(solution* sol)
 static double solution_value(solution* sol)
 {
    int i;
-   double lower = .0;
+   double lower = 0.0;
    int current_rounding = fegetround();
    fesetround(FE_DOWNWARD);
    for (i = 0; i < sol->solcount;++i) 
-   {
-      lower += sol->nweights[sol->nperm[i]];
+      {
+         lower += sol->nweights[sol->nperm[i]];
    }
-   lower -= sol->solcount * DBL_EPSILON;
+
    if (COLORdbg_lvl())
    {
       double upper = .0;
@@ -645,7 +659,7 @@ int COLORstable_LS(COLORset** newsets, int* nnewsets, int ncount,
    COLORcheck_rval(rval,"build_solution failed");
 
    sval = solution_value(&sol);
-   if (COLORdbg_lvl()) printf("Greedy MWIS: %f\n",sval);
+   if (COLORdbg_lvl()) printf("Greedy MWIS: %20.16f\n",sval);
 
 
    while (changes && sval < 1.1) {
@@ -654,7 +668,7 @@ int COLORstable_LS(COLORset** newsets, int* nnewsets, int ncount,
       COLORcheck_rval(rval,"perform_2_improvements");
       
       sval = solution_value(&sol);
-      if (COLORdbg_lvl()) printf("perform_2_improvements MWIS: %f\n",sval);
+      if (COLORdbg_lvl()) printf("perform_2_improvements MWIS: %20.16f\n",sval);
       
       if (sval < 1.1) {
          int change = perform_1_2_paths(&sol);
@@ -666,13 +680,15 @@ int COLORstable_LS(COLORset** newsets, int* nnewsets, int ncount,
          }
          
          sval = solution_value(&sol);
-         if (COLORdbg_lvl()) printf("perform_1_2_paths MWIS: %f\n",sval);
+         if (COLORdbg_lvl()) printf("perform_1_2_paths MWIS: %20.16f\n",sval);
       }
    }
 
-   if (COLORdbg_lvl()) print_solution(&sol);
-
-   if (sval > 1.0) {
+   /* As long as the dual PI values are not rounded down
+      to a value such that all already collected stable sets
+      are dual feasible, we are more conservative here.
+   */
+   if (sval > 1) {
       transfer_solution(newsets,nnewsets,&sol);
       rval = COLORcheck_set(newsets[0],ncount,ecount,elist);
       COLORcheck_rval(rval,"COLORcheck_set failed");

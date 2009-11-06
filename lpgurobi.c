@@ -134,6 +134,23 @@ CLEANUP:
     return rval;
 }
 
+int COLORlp_set_all_coltypes (COLORlp *p, char sense)
+{
+   int nvars,i;
+   int rval= GRBgetintattr(p->model,GRB_INT_ATTR_NUMVARS,&nvars);
+   COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_NUMVARS failed",
+                        p->env);
+   
+   for (i = 0; i < nvars; i++) {
+      rval = GRBsetcharattrelement(p->model,GRB_CHAR_ATTR_VTYPE,i,sense);
+      COLORcheck_rval_grb (rval, "GRBsetintattrelement GRB_CHAR_ATTR_VTYPE failed",
+                           p->env);
+   }
+ CLEANUP:
+   return rval;
+}
+
+
 int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;

@@ -1,8 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <float.h>
 #include <getopt.h>
 #include <string.h>
+#include <fenv.h>
+
 #include "color.h"
 #include "lp.h"
 #include "graph.h"
@@ -34,21 +37,82 @@ static void print_objective(double* pi,int ncount)
    }
    printf("Current primal LP objective: %f.\n",obj);
 }
+
+static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
+{
+   int c;
+   int current_rounding = fegetround();
+   fesetround(FE_UPWARD);
+
+   for (c = 0; c < gcount;++c) {
+      int i;
+      double colsum = .0;
+      double newcolsum = .0;
+      for (i = 0; i < gcolors[c].count;++i) {
+         if  (pi[gcolors[c].members[i]] < 0) {
+            pi[gcolors[c].members[i]] = 0.0;
+         }
+         colsum += pi[gcolors[c].members[i]];
+      }
+      if (colsum > 1.0) {
+         fesetround(FE_DOWNWARD);
+         for (i = 0; i < gcolors[c].count;++i) {
+            pi[gcolors[c].members[i]] /= colsum;
+            newcolsum += pi[gcolors[c].members[i]];
+         }
+         printf("Decreased column sum of %5d from  %30.20f to  %30.20f\n",c,colsum,newcolsum);
+         fesetround(FE_UPWARD);
+      }
+      fesetround(current_rounding);
+   }
+}
+
+   static int concat_newsets(COLORset** gcolors, int* gcount, int* gallocated,
+                          COLORset** newsets, int* nnewsets)
+   {
+   int rval = 0;
+   COLORset* tmpsets = (COLORset*) NULL;
+   
+   if (*nnewsets == 0) return rval;
+   
+   if (*gcount + *nnewsets > *gallocated) {
+      /* Double size */
+      tmpsets = malloc(2 * (*gallocated) * sizeof(COLORset));
+      COLORcheck_NULL (tmpsets, "out of memory for tmpsets");
+      memcpy(tmpsets,*gcolors, (*gcount) * sizeof(COLORset));
+      free(*gcolors);
+      *gallocated *= 2;
+      *gcolors = tmpsets;
+      tmpsets = NULL;
+   }
+   memcpy(*gcolors + *gcount, *newsets, (*nnewsets) * sizeof(COLORset));
+   *gcount +=  *nnewsets;
+ CLEANUP:
+   if (rval) {
+      if (*gcolors) free(*gcolors);
+   }
+   if (*newsets) free(*newsets);
+   *newsets = (COLORset*) NULL;
+   *nnewsets = 0;
+   return rval;
+}
+
 int main (int ac, char **av)
 {
     int rval = 0;
     int iterations = 0;
     int maxiterations = 1000000;
-    int ncount = 0, ecount = 0, gcount, i, j;
+    int ncount = 0, ecount = 0, gcount, gallocated, i, j;
     int *elist = (int *) NULL;
     double *coef = (double *) NULL;
     double *pi = (double *) NULL;
     double lower_bound = 0;
     COLORset *gcolors = (COLORset *) NULL;
     COLORset *newsets = (COLORset*) NULL;   
-    int       nnewsets = 0;
     COLORlp *lp       = (COLORlp *) NULL;
-
+    int       nnewsets = 0;
+    int break_while_loop = 1;
+    
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
@@ -63,7 +127,7 @@ int main (int ac, char **av)
     COLORcheck_rval (rval, "COLORgreedy failed");
 
 /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
-    
+    gallocated = gcount;
     printf ("Greedy Colors: %d\n", gcount); fflush (stdout);
     for (i = 0; i < gcount; i++) {
         printf ("Color %d:", i);
@@ -103,17 +167,20 @@ int main (int ac, char **av)
     do {
         ++ iterations;
 
+
         rval = COLORlp_optimize(lp);
         COLORcheck_rval (rval, "COLORlp_optimize failed");
        
         rval = COLORlp_pi (lp, pi);
         COLORcheck_rval (rval, "COLORlp_pi failed");
 
+        make_pi_feasible(pi,gcolors,gcount);
+
         print_objective(pi,ncount);
 
         {
             int set_i;
-            COLORfree_sets(&newsets,&nnewsets);
+
             rval = COLORstable_wrapper(&newsets, &nnewsets, ncount, ecount,
                                        elist, pi);
             COLORcheck_rval (rval, "COLORstable_gurobi failed");
@@ -123,15 +190,34 @@ int main (int ac, char **av)
                       newsets[set_i].members, coef, 1.0, 0.0, 1.0,
                       COLORlp_CONTINUOUS, NULL);
             }
+            break_while_loop = (nnewsets == 0);
+
+            concat_newsets(&gcolors,&gcount,&gallocated,
+                           &newsets, &nnewsets);
         }
-    } while ( (iterations < maxiterations) && newsets);
+    } while ( (iterations < maxiterations) && !break_while_loop);
 
     if (iterations < maxiterations) {
+       double incumbent;
        rval = COLORlp_objval (lp, &lower_bound);
        COLORcheck_rval (rval, "COLORlp_objval failed");
     
        printf ("Found bound of %g (%g), greedy coloring %d (iterations = %d).\n", 
                ceil(lower_bound),lower_bound, gcount,iterations);
+
+       COLORlp_set_all_coltypes(lp,GRB_BINARY);
+       COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
+
+       rval = COLORlp_optimize(lp);
+       COLORcheck_rval (rval, "COLORlp_optimize failed");
+
+       rval = COLORlp_objval (lp, &incumbent);
+       COLORcheck_rval (rval, "COLORlp_objval failed");
+
+       printf ("Found lower bound of %g and upper bound of %g.\n", 
+               ceil(lower_bound), incumbent);
+       
+       
     } else {
        printf ("Lower bound could not be found in %d iterations!\n", iterations);
     }

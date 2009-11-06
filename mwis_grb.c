@@ -20,6 +20,30 @@ static int mwis_optimize_model(COLORset** newsets, int* nnewsets, int ncount,
                                int ecount, const int elist[], double nweights[]);
 
 
+static int intercept_grb_cb(GRBmodel *model, void *cbdata, int where, void *usrdata)
+{
+   int rval = 0;
+   
+   if (where ==GRB_CB_MIPSOL) {
+      double objective;
+      
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBST,(void*) &objective);
+      COLORcheck_rval (rval, "GRBcbget OBJBST failed");
+      
+      if (objective > 1 + int_tolerance) {
+         if(COLORdbg_lvl()) {
+            printf("Terminating gurobi based on current objective value %f\n",
+                   objective);
+         }
+         GRBterminate(model);
+      }
+   }
+   
+ CLEANUP:
+   return rval;
+}
+
+
 /** Solve the maximum weighted independent set problem given
     by ncount, ecount, elist, nweights, with gurobi and store newly
     generated solution(s) in newsets, nnewsets.
@@ -29,28 +53,15 @@ int COLORstable_gurobi(COLORset** newsets, int* nnewsets, int ncount,
     int ecount, const int elist[], double nweights[])
 {
    int    rval;
-   double nodelimit = 1.0;/* B&B nodelimit.*/
+   double nodelimit = DBL_MAX;
 
    assert(*newsets == (COLORset*) NULL);
    
-   /* First try w/o branching.*/
    rval = mwis_optimize_model(newsets,nnewsets,ncount,nodelimit,ecount,elist,
-                             nweights);
-   if (rval ) {
-      fprintf (stderr, "mwis_optimize_model 1 failed.\n");
+                              nweights);
+   if (rval) {
+      fprintf (stderr, "mwis_optimize_model  failed.\n");
       goto CLEANUP;
-   }
-   
-   if (! *newsets) {
-      /* no success without branching => try with  branching:*/
-      nodelimit = DBL_MAX;
-      printf("Trying 2nd MWIS.\n");
-      rval = mwis_optimize_model(newsets,nnewsets,ncount,nodelimit,ecount,elist,
-                                 nweights);
-      if (rval) {
-         fprintf (stderr, "mwis_optimize_model 2 failed.\n");
-         goto CLEANUP;
-      }
    }
  CLEANUP:
    return rval;
@@ -143,6 +154,10 @@ static int mwis_optimize_model(COLORset** newsets, int* nnewsets, int ncount,
                GRBgeterrormsg(env));
       goto CLEANUP;
    }
+
+   rval  = GRBsetcallbackfunc(model, intercept_grb_cb, NULL);
+   COLORcheck_rval (rval, "GRBsetcallbackfunc failed");
+
 
    /* We are dealing with a maximization  problem. */
    rval = GRBsetintattr(model,GRB_INT_ATTR_MODELSENSE, -1);
