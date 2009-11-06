@@ -56,6 +56,7 @@ static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
       }
       if (colsum > 1.0) {
          fesetround(FE_DOWNWARD);
+         
          for (i = 0; i < gcolors[c].count;++i) {
             pi[gcolors[c].members[i]] /= colsum;
             newcolsum += pi[gcolors[c].members[i]];
@@ -112,6 +113,7 @@ int main (int ac, char **av)
     COLORlp *lp       = (COLORlp *) NULL;
     int       nnewsets = 0;
     int break_while_loop = 1;
+    MWISenv* mwis_env  = (MWISenv*) NULL;
     
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
@@ -181,7 +183,7 @@ int main (int ac, char **av)
         {
             int set_i;
 
-            rval = COLORstable_wrapper(&newsets, &nnewsets, ncount, ecount,
+            rval = COLORstable_wrapper(&mwis_env,&newsets, &nnewsets, ncount, ecount,
                                        elist, pi);
             COLORcheck_rval (rval, "COLORstable_gurobi failed");
 
@@ -231,7 +233,7 @@ CLEANUP:
 
     COLORfree_sets(&newsets,&nnewsets);
     COLORfree_sets(&gcolors,&gcount);
-    
+    COLORstable_freeenv(&mwis_env);
     return rval;
 }
 

@@ -66,6 +66,9 @@ CLEANUP:
 {
     if (G->nodelist) free (G->nodelist);
     if (G->adjspace) free (G->adjspace);
+        
+    G->nodelist = (node*) NULL;
+    G->adjspace = (int*)  NULL;
 }
 
 static int comp_node_ids(const void* v1, const void* v2)

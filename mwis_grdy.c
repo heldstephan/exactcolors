@@ -30,6 +30,11 @@ typedef struct{
    int*  work_path;
 } solution;
 
+struct _MWISls_env {
+   graph    G;
+   solution sol;
+};
+
 
 static void clean_solution(solution* sol)
 {
@@ -636,50 +641,63 @@ CLEANUP:
    return rval;
 }
 
-int COLORstable_LS(COLORset** newsets, int* nnewsets, int ncount, 
+int COLORstable_LS(MWISls_env** env,
+                   COLORset** newsets, int* nnewsets, int ncount, 
                    int ecount, const int elist[], double nweights[])
 {
    int rval = 0;
-   graph G;
-   solution sol;
    double sval;
    int changes = 1;
+   graph*     G  = (graph*) NULL;
+   solution* sol = (solution*) NULL;
+   
+   if (! *env) {
+      (*env) = (MWISls_env*) malloc (sizeof(MWISls_env));
+      COLORcheck_NULL(*env,"Allocating *env failed.");
+      
+      G   = &((*env)->G);
+      G->nodelist = (node*) NULL;
+      G->adjspace = (int*) NULL;
+      COLORadjgraph_free(G);
 
-   init_solution(&sol);
+      rval =  COLORadjgraph_build(G, ncount, ecount, elist);
+      COLORcheck_rval(rval,"COLORbuild_adjgraph failed");
+      
+      rval = COLORadjgraph_simplify(G);
+      
+      COLORadjgraph_sort_adjlists_by_id(G);
+   }
 
-   rval =  COLORadjgraph_build(&G, ncount, ecount, elist);
-   COLORcheck_rval(rval,"COLORbuild_adjgraph failed");
+   G   = &((*env)->G);
+   sol = &((*env)->sol);
+   
+   init_solution(sol);
 
-   rval = COLORadjgraph_simplify(&G);
-
-   COLORadjgraph_sort_adjlists_by_id(&G);
-
-
-   rval = build_initial_solution(&sol,&G,ncount,nweights);
+   rval = build_initial_solution(sol,G,ncount,nweights);
    COLORcheck_rval(rval,"build_solution failed");
 
-   sval = solution_value(&sol);
+   sval = solution_value(sol);
    if (COLORdbg_lvl()) printf("Greedy MWIS: %20.16f\n",sval);
 
 
    while (changes && sval < 1.1) {
       
-      changes = perform_2_improvements(&sol);
+      changes = perform_2_improvements(sol);
       COLORcheck_rval(rval,"perform_2_improvements");
       
-      sval = solution_value(&sol);
+      sval = solution_value(sol);
       if (COLORdbg_lvl()) printf("perform_2_improvements MWIS: %20.16f\n",sval);
       
       if (sval < 1.1) {
-         int change = perform_1_2_paths(&sol);
+         int change = perform_1_2_paths(sol);
          changes *= change;
          COLORcheck_rval(rval,"perform_1_2_paths");
                   
          if (change) {
-            greedy_improvement(&sol);
+            greedy_improvement(sol);
          }
          
-         sval = solution_value(&sol);
+         sval = solution_value(sol);
          if (COLORdbg_lvl()) printf("perform_1_2_paths MWIS: %20.16f\n",sval);
       }
    }
@@ -689,17 +707,29 @@ int COLORstable_LS(COLORset** newsets, int* nnewsets, int ncount,
       are dual feasible, we are more conservative here.
    */
    if (sval > 1) {
-      transfer_solution(newsets,nnewsets,&sol);
+      transfer_solution(newsets,nnewsets,sol);
       rval = COLORcheck_set(newsets[0],ncount,ecount,elist);
       COLORcheck_rval(rval,"COLORcheck_set failed");
    }
    
  CLEANUP:
-   clean_solution(&sol);
-   COLORadjgraph_free(&G);
    if (rval) {
       COLORfree_sets (newsets,nnewsets);
+      clean_solution(sol);
+      COLORadjgraph_free(G);
    }                                            
 
    return rval;
+}
+
+
+int COLORstable_free_ls_env(MWISls_env** env)
+{
+   if (*env) {
+      COLORadjgraph_free(&((*env)->G));
+      clean_solution(&((*env)->sol));
+      free(*env);
+      *env = (MWISls_env*) NULL;
+   }
+   return 0;
 }
