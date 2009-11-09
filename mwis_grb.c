@@ -77,14 +77,12 @@ static int mwis_init_model(MWISgrb_env** env,
       COLORcheck_rval (rval, "GRBsetintparam OUTPUTFLAG failed");
       grb_env = (*env)->grb_env;
 
-#ifdef SINGLE_THREAD   
       rval = GRBsetintparam (grb_env,GRB_INT_PAR_THREADS , 1);
       if (rval ) {
          fprintf (stderr, "GRBsetintparam GRB_INT_PAR_THREADS failed: %s\n",
                   GRBgeterrormsg(grb_env));
          goto CLEANUP;
       }
-#endif
 
       /* Clique cuts should be helpful here, though I didn't see much of
          a difference.
