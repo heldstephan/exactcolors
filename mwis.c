@@ -46,10 +46,10 @@ int COLORstable_wrapper(MWISenv** env,
    }
 
 
-/*    rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, ncount, ecount, elist, nweights); */
-/*    COLORcheck_rval(rval,"COLORstable_LS failed"); */
-/*    rtime = COLORcpu_time() - rtime; */
-/*    if (COLORdbg_lvl()) { printf("Greedy took %f seconds\n",rtime);} */
+   rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, ncount, ecount, elist, nweights);
+   COLORcheck_rval(rval,"COLORstable_LS failed");
+   rtime = COLORcpu_time() - rtime;
+   if (COLORdbg_lvl()) { printf("Greedy took %f seconds\n",rtime);}
    
 /*    COLORfree_sets(newsets,nnewsets); */
 
