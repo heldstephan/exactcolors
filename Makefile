@@ -1,9 +1,11 @@
-# Adapt GUINCLUDE and GULIB
-GUINCLUDE=/home/vis/sheld6/progs/gurobi200/linux64/include
-GULIB=/home/vis/sheld6/progs/gurobi200/linux64/lib/libgurobi.so.2.0.0
+# Adapt GUPATH to point to your gurobi installation
+GUPATH=/home/vis/sheld6/progs/gurobi200/linux64/
+
+GUINCLUDE=$(GUPATH)/include
+GULIB=$(GUPATH)/lib/libgurobi.so.2.0.0
 
 CC=gcc
-CFLAGS= -O3 -ansi -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
+CFLAGS= -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
 OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o
 
 color: $(OBJFILES)

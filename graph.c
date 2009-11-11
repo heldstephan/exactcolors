@@ -62,6 +62,81 @@ CLEANUP:
     return rval;
 }
 
+int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc)
+{
+   /* This is a fast too implement version using ecxisting functions.
+      Copying graphs couls be done faster.
+      S. Held.
+   */
+   int rval = 0;
+   int* elist = (int*) NULL;
+   int ecount = 0;
+   
+   rval = COLORadjgraph_extract_edgelist(&ecount,&elist,Gsrc);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_extract_edgelist");
+   
+   rval = COLORadjgraph_build(Gdst,Gsrc->ncount,ecount,elist);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
+   
+ CLEANUP:
+   if (rval) COLORadjgraph_free(Gdst);
+   if (elist) free(elist);
+   return rval;   
+}
+
+int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
+{
+   int rval = 0;
+   int v_i, a_i,na;
+   int*  elist = (int*) NULL;
+   int  ecount = 0, ecount_chk = 0;
+   
+   rval = COLORadjgraph_copy(Gc, G);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_copy.");
+
+   /* Simplify will also sort the adjaceny lists.*/
+   rval = COLORadjgraph_simplify(Gc);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_simplify.");
+   
+   ecount_chk = (Gc->ncount * (Gc->ncount - 1) )/ 2 - Gc->ecount;
+   
+
+   elist = (int*) malloc ( 2 * ecount_chk * sizeof(int));
+   COLORcheck_NULL(elist,"Failed to allocate elist.");
+   
+   
+   ecount = 0;  
+   for (v_i = 0; v_i < Gc->ncount; ++ v_i) {
+      node* v = &(Gc->nodelist[v_i]);
+      int a = -1;
+      a_i  = 0;
+      for (na = v_i + 1; na < Gc->ncount; ++ na) {
+         while (a_i < v->degree && a < na) {
+            a = v->adj[a_i];
+            ++a_i;
+         }
+         if (na != a) {
+            elist[2*ecount]   = v_i;
+            elist[2*ecount+1] = na;
+            ++ecount;
+         }
+      }
+   }
+   assert(ecount == ecount_chk);
+
+   COLORadjgraph_free(Gc);
+   
+   rval = COLORadjgraph_build(Gc, G->ncount,ecount,elist);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
+ CLEANUP:
+   if (rval) {
+      COLORadjgraph_free(Gc);
+   }
+   if (elist) free(elist);
+   return rval;
+}
+
+
  void COLORadjgraph_free (graph *G)
 {
     if (G->nodelist) free (G->nodelist);
@@ -111,6 +186,7 @@ int COLORadjgraph_simplify(graph* G)
    int i,j;
    int rval = 0;
    int* tmp_adjlist = (int* ) NULL;
+   int ncount, ecount;
 
    assert(G);
 
@@ -143,9 +219,22 @@ int COLORadjgraph_simplify(graph* G)
       }
       if (nloops) {
          printf("Removed %d loop(s) from node %d.\n", nloops,i);
-      }
-            
+      }            
    }
+
+   /* Re-allocate graph to generate correct ecount.*/
+   if (tmp_adjlist) {
+      free(tmp_adjlist);
+      tmp_adjlist = (int*) NULL;
+   }
+   ncount = G->ncount;
+   rval = COLORadjgraph_extract_edgelist(&ecount,&tmp_adjlist,G);
+   COLORcheck_rval(rval, "Failed in COLORadjgraph_extract_edgelist");
+
+   COLORadjgraph_free(G);
+   
+   rval = COLORadjgraph_build(G, ncount,ecount,tmp_adjlist);
+   COLORcheck_rval(rval, "Failed in COLORadjgraph_build");
  CLEANUP:
    if (tmp_adjlist) {free(tmp_adjlist);}
    return rval;
@@ -187,3 +276,68 @@ void COLORadjgraph_sort_adjlists_by_id(graph* G)
    }
 }
 
+int  COLORadjgraph_delete_unweighted(graph* G, 
+                                     int** new_nweights,
+                                     const int nweights[])
+{
+   int rval = 0;
+   int* nmap = (int*) NULL;
+   int* newelist = (int*) NULL;
+   int i,a_i;
+   int ncount = 0;
+   int ecount = 0;
+
+   nmap = (int*) malloc (G->ncount * sizeof(int));
+   COLORcheck_NULL(nmap,"Failed to allocate nmap");
+
+   newelist = (int*) malloc (2 * G->ecount * sizeof(int));
+   COLORcheck_NULL(nmap,"Failed to allocate newelist");
+
+   for (i = 0; i < G->ncount; ++i) {
+      if (nweights[i] == 0) {
+         nmap[i] = -1;
+         G->nodelist[i].degree = 0;
+      } else {
+         int a = 0;
+         nmap[i] = ncount++;
+         
+         for (a_i = 0; a_i < G->nodelist[i].degree && a < i; ++a_i) {
+            a = G->nodelist[i].adj[a_i];
+            if (a < i && nmap[a] != -1) {
+               newelist[2*ecount] = nmap[a];
+               newelist[2*ecount+1] = nmap[i];
+               ++ ecount;
+            }
+         }
+      }
+   }
+   *new_nweights = (int*) malloc(ncount * sizeof(int));
+   COLORcheck_NULL(*new_nweights,"Failed to allocate nmap");
+
+   for (i = 0; i < G->ncount; ++i) {
+      int ni = nmap[i];
+      if (ni != -1) {
+         (*new_nweights)[ni] = nweights[i];
+      }
+   }
+              
+   COLORadjgraph_free(G);
+
+   rval = COLORadjgraph_build(G,ncount,ecount,newelist);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
+
+   
+   printf("Reduced graph has %d nodes and %d edges.\n",
+          ncount,ecount);
+
+   
+
+ CLEANUP:
+   if (nmap) free(nmap);
+   if (newelist) free(newelist);
+   if (rval) {
+      if (*new_nweights) free(*new_nweights);
+      *new_nweights = (int*) NULL;
+   }
+   return rval;
+}

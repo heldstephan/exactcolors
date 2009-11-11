@@ -16,13 +16,13 @@ static char *edgefile = (char *) NULL;
 static char *outfile = (char *) NULL;
 
 static int debug = 0;
-
+static int write_mwis = 0;
 
 int main (int ac, char **av);
 static int parseargs (int ac, char **av);
 static void usage (char *f);
 static int read_dimacs (char *f, int *pncount, int *pecount, int **pelist);
-
+static int get_problem_name(char* pname,const char* efname);
 
 int COLORdbg_lvl() {
    return debug;
@@ -100,6 +100,7 @@ static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
 
 int main (int ac, char **av)
 {
+    char pname[256] = "";
     int rval = 0;
     int iterations = 0;
     int maxiterations = 1000000;
@@ -118,9 +119,13 @@ int main (int ac, char **av)
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
+    get_problem_name(pname,edgefile);
+
+
     if (debug) printf ("Debugging turned on\n");
     if (outfile) printf ("Output File: %s\n", outfile);
     fflush (stdout);
+
 
     rval = read_dimacs (edgefile, &ncount, &ecount, &elist);
     COLORcheck_rval (rval, "read_diamcs failed");
@@ -201,11 +206,20 @@ int main (int ac, char **av)
 
     if (iterations < maxiterations) {
        double incumbent;
+       char   mps_fname[256];
        rval = COLORlp_objval (lp, &lower_bound);
        COLORcheck_rval (rval, "COLORlp_objval failed");
     
        printf ("Found bound of %g (%g), greedy coloring %d (iterations = %d).\n", 
                ceil(lower_bound),lower_bound, gcount,iterations);
+
+       if (write_mwis) {
+          sprintf(mps_fname,"%s.mwis.mps",pname);
+          COLORstable_write_mps(mps_fname,ncount,ecount,elist,pi);
+          
+          sprintf(mps_fname,"%s.mwclq.dimacs",pname);
+          rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,pi);
+       }
 
        COLORlp_set_all_coltypes(lp,GRB_BINARY);
        COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
@@ -242,7 +256,7 @@ static int parseargs (int ac, char **av)
     int c;
     int rval = 0;
 
-    while ((c = getopt (ac, av, "do:")) != EOF) {
+    while ((c = getopt (ac, av, "dmo:")) != EOF) {
         switch (c) {
         case 'd':
             debug = 1;
@@ -250,6 +264,9 @@ static int parseargs (int ac, char **av)
         case 'o':
             outfile = optarg;
             break;
+        case 'm':
+           write_mwis = 1;
+           break;
         default:
             usage (av[0]);
             rval = 1;  goto CLEANUP;
@@ -273,6 +290,34 @@ static void usage (char *f)
     fprintf (stderr, "Usage %s: [-see below-] edge_file\n", f);
     fprintf (stderr, "   -d    turn on debugging\n");
     fprintf (stderr, "   -o f  write coloring to file f\n");
+    fprintf (stderr, "   -m    write final stable set and clique instances\n");
+}
+
+ static int get_problem_name(char* pname,const char* efname)
+{
+   int    rval = 0;
+   int    len = 0;
+   const char * fname = strrchr(efname,'/');
+   char * lastdot = strrchr(efname,'.');
+   if(!fname) {
+      /* no slashes in efname.*/
+      fname = efname;
+   } else {
+      fname++;
+   }
+   
+   if (lastdot) {
+      len = lastdot - fname + 1;
+   } else {
+      len = strlen(fname);
+   }
+
+   if (snprintf(pname,len,"%s",fname) < 0) {
+      rval = 1;
+   }
+   printf("Extracted problem name %s\n",pname);
+
+   return 0;
 }
 
 static int read_dimacs (char *f, int *pncount, int *pecount, int **pelist)

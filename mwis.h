@@ -21,6 +21,14 @@ int COLORstable_gurobi(MWISgrb_env** env,
                        COLORset** newsets, int* nnewsets,
                        int ncount, int ecount, const int elist[], double nweights[]);
 
+int COLORstable_write_mps(const char*  filename,
+                          int ncount, int ecount, const int elist[], double nweights[]);
+
+
+int COLORstable_write_dimacs_clique(const char*  filename,
+                                    int ncount, int ecount, const int elist[], double nweights[]);
+
+
 int COLORstable_freeenv(MWISenv** env);
 int COLORstable_free_ls_env(MWISls_env** env);
 int COLORstable_free_grb_env(MWISgrb_env** env);

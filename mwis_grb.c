@@ -345,3 +345,24 @@ int COLORstable_free_grb_env(MWISgrb_env** env)
    }
    return rval;
 }
+
+
+int COLORstable_write_mps(const char*  filename,
+                          int ncount, int ecount, const int elist[], double nweights[])
+{
+   int rval = 0;
+   MWISgrb_env* env = (MWISgrb_env*) NULL;
+   rval = mwis_init_model(&env,1,ncount,ecount,elist,nweights);
+   COLORcheck_rval(rval,"Failed in mwis_init_model");
+
+   
+   rval = GRBwrite (env->grb_model, filename);
+   if (rval) {
+      fprintf (stderr, "GRPwrite failed: %s\n",
+               GRBgeterrormsg(env->grb_env));
+      goto CLEANUP;
+   }
+
+ CLEANUP:
+   return rval;
+}
