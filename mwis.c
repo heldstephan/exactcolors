@@ -126,7 +126,7 @@ int COLORstable_write_dimacs_clique(const char*  filename,
    
    fprintf(file,"c Maximum weighted clique instances generated from exactcolor.\n");
    fprintf(file,"c scalef: %d.\n",scalef);
-   fprintf(file,"A clique of value > scalef (%d) is a \n",scalef);
+   fprintf(file,"c A clique of value > scalef (%d) defines an improving stable sets for coloring.\n",scalef);
 
    fprintf(file,"p clq %d %d\n",Gc.ncount, ecountc);
    for (i = 0; i < ecountc;++i) {
