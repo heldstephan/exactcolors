@@ -51,7 +51,7 @@ static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
       double colsum = .0;
       double newcolsum = .0;
       for (i = 0; i < gcolors[c].count;++i) {
-         if  (pi[gcolors[c].members[i]] < 0) {
+         if  (signbit(pi[gcolors[c].members[i]])) {
             pi[gcolors[c].members[i]] = 0.0;
          }
          colsum += pi[gcolors[c].members[i]];
@@ -218,9 +218,12 @@ int main (int ac, char **av)
        if (write_mwis) {
           sprintf(mps_fname,"%s.mwis.mps",pname);
           COLORstable_write_mps(mps_fname,ncount,ecount,elist,pi);
-          
+
+          sprintf(mps_fname,"%s.mwis.dimacs",pname);
+          rval = COLORstable_write_dimacs(mps_fname,ncount,ecount,elist,pi);
+
           sprintf(mps_fname,"%s.mwclq.dimacs",pname);
-          rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,pi);
+          rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,pi); 
        }
 
        COLORlp_set_all_coltypes(lp,GRB_BINARY);

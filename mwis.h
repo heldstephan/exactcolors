@@ -25,6 +25,9 @@ int COLORstable_write_mps(const char*  filename,
                           int ncount, int ecount, const int elist[], double nweights[]);
 
 
+int COLORstable_write_dimacs(const char*  filename,
+                             int ncount, int ecount, const int elist[], double nweights[]);
+
 int COLORstable_write_dimacs_clique(const char*  filename,
                                     int ncount, int ecount, const int elist[], double nweights[]);
 
