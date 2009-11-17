@@ -1,8 +1,8 @@
 # Adapt GUPATH to point to your gurobi installation
-GUPATH=/home/vis/sheld6/progs/gurobi200/linux64/
+GUPATH=/home/vis/sheld6/progs/gurobi201/linux64/
 
 GUINCLUDE=$(GUPATH)/include
-GULIB=$(GUPATH)/lib/libgurobi.so.2.0.0
+GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
 
 CC=gcc
 CFLAGS= -O3 -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
