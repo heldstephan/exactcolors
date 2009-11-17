@@ -113,7 +113,6 @@ int COLORstable_write_dimacs_clique(const char*  filename,
    ncount = G.ncount;
    
 
-
    rval = COLORadjgraph_build_complement(&Gc, &G);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build_complement.");
 

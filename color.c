@@ -28,14 +28,16 @@ int COLORdbg_lvl() {
    return debug;
 }
 
-static void print_objective(double* pi,int ncount)
+static void print_objective(double* lower_bound,
+                            const double* pi,
+                            int ncount)
 {
    int i;
-   double obj = .0;
+   *lower_bound = .0;
    for (i = 0; i < ncount;++i) {
-      obj += pi[i];
+      *lower_bound += pi[i];
    }
-   printf("Current primal LP objective: %f.\n",obj);
+   printf("Current primal LP objective: %25.20g.\n",*lower_bound);
 }
 
 static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
@@ -183,7 +185,7 @@ int main (int ac, char **av)
 
         make_pi_feasible(pi,gcolors,gcount);
 
-        print_objective(pi,ncount);
+        print_objective(&lower_bound,pi,ncount);
 
         {
             int set_i;
@@ -207,10 +209,10 @@ int main (int ac, char **av)
     if (iterations < maxiterations) {
        double incumbent;
        char   mps_fname[256];
-       rval = COLORlp_objval (lp, &lower_bound);
-       COLORcheck_rval (rval, "COLORlp_objval failed");
+/*        rval = COLORlp_objval (lp, &lower_bound); */
+/*        COLORcheck_rval (rval, "COLORlp_objval failed"); */
     
-       printf ("Found bound of %g (%g), greedy coloring %d (iterations = %d).\n", 
+       printf ("Found bound of %g (%25.20g), greedy coloring %d (iterations = %d).\n", 
                ceil(lower_bound),lower_bound, gcount,iterations);
 
        if (write_mwis) {

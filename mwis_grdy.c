@@ -237,6 +237,49 @@ static int greedy_improvement(solution* sol)
    return changes;
 }
 
+static int greedy_improvement_2(solution* sol)
+{
+   int i;
+   int changes = 0;
+   int nnodes = sol->freecount;
+   node* nodelist = sol->G->nodelist;
+   memcpy(sol->sort_work,sol->nperm + sol->solcount, 
+          sol->freecount * sizeof(int));
+   
+   for (i = 0; i < sol->freecount;++i) {
+      sol->sort_len[sol->sort_work[i]] = 1.0;
+   }
+
+   for (i = 0; i < sol->freecount;++i) {
+      int x = sol->nperm[sol->sort_work[i]];
+      int j;
+      for(j = 0; j < nodelist[x].degree; ++j) {
+         int w_j = nodelist[x].adj[j];
+         if (is_free(sol,w_j)) {
+            sol->sort_len[sol->sort_work[i]] += 
+               sol->nweights[w_j];
+         }
+      }
+   }
+
+   for (i = 0; i < sol->freecount;++i) {
+      sol->sort_len[sol->sort_work[i]] =
+         sol->nweights[sol->sort_work[i]]/ sol->sort_len[sol->sort_work[i]] ;
+   }
+
+      
+   perm_dbl_rquicksort(sol->sort_work,
+                       sol->sort_len,
+                       sol->freecount);
+   
+   for (i = 0; i < nnodes; ++i) {
+      int v = sol->sort_work[i];
+      changes += add_iff_free(sol,v);
+   }
+   return changes;
+}
+
+
 static int build_initial_solution(solution*  sol, 
                                   graph*     G,
                                   int          ncount, 
