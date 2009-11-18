@@ -24,10 +24,10 @@ typedef struct{
    int   freecount;   
    const graph*   G;
    const double*  nweights;
-   int*  sort_work;
+   int*     sort_work;
    double*  sort_len;
-   int*  work_marker;
-   int*  work_path;
+   int*     work_marker;
+   int*     work_path;  
 } solution;
 
 struct _MWISls_env {
@@ -44,7 +44,8 @@ static void clean_solution(solution* sol)
    if (sol->sort_work)   free(sol->sort_work);
    if (sol->sort_len)    free(sol->sort_len);
    if (sol->work_marker) free(sol->work_marker);
-   if (sol->work_path) free(sol->work_path);
+   if (sol->work_path)   free(sol->work_path);
+
 }
 
 
@@ -186,9 +187,13 @@ static void perm_dbl_rquicksort (int *perm, const double *len, int n)
 
 static void init_solution(solution* sol)
 {
-   sol->nperm     = (int*) NULL;
-   sol->inperm    = (int*) NULL;
-   sol->tightness = (int*) NULL;
+   sol->nperm       =    (int*) NULL;
+   sol->inperm      =    (int*) NULL;
+   sol->tightness   =    (int*) NULL;
+   sol->sort_work   =    (int*) NULL;  
+   sol->sort_len    = (double*) NULL;   
+   sol->work_marker =    (int*) NULL;
+   sol->work_path   =    (int*) NULL;
    sol->ncount    = 0;
    sol->solcount  = 0;
    sol->freecount = 0;      
@@ -292,27 +297,39 @@ static int build_initial_solution(solution*  sol,
    sol->freecount = ncount;
    sol->G         = G;
    sol->nweights  = nweights;
-   sol->nperm = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->nperm,"Allocating sol->nperm failed.");
+
+   if (!sol->nperm) {
+      sol->nperm = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->nperm,"Allocating sol->nperm failed.");
+   }
    
-   sol->inperm = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->inperm,"Allocating sol->inperm failed.");
+   if (!sol->inperm) {
+      sol->inperm = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->inperm,"Allocating sol->inperm failed.");
+   }
+   
+   if (!sol->tightness) {
+      sol->tightness = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->tightness,"Allocating sol->tightness failed.");
+   }
+   
+   if(!sol->sort_work) {
+      sol->sort_work = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->sort_work,"Allocating sol->sort_work failed.");
+   }
 
-   sol->tightness = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->tightness,"Allocating sol->tightness failed.");
-
-   sol->sort_work = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->sort_work,"Allocating sol->sort_work failed.");
-
-   sol->sort_len = (double*) malloc(ncount * sizeof(double));
-   COLORcheck_NULL(sol->sort_len,"Allocating sol->sort_len failed.");
-
-   sol->work_marker = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->work_marker,"Allocating sol->work_marker failed.");
-
-   sol->work_path = (int*) malloc(ncount * sizeof(int));
-   COLORcheck_NULL(sol->work_path,"Allocating sol->work_path failed.");
-
+   if (!sol->sort_len) {
+      sol->sort_len = (double*) malloc(ncount * sizeof(double));
+      COLORcheck_NULL(sol->sort_len,"Allocating sol->sort_len failed.");
+   }
+   if (!sol->work_marker) {
+      sol->work_marker = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->work_marker,"Allocating sol->work_marker failed.");
+   }
+   if(!sol->work_path) {
+      sol->work_path = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->work_path,"Allocating sol->work_path failed.");
+   }
    
    for (i = 0;i < ncount;++i) {
       sol->nperm[i] = i;
@@ -697,6 +714,8 @@ int COLORstable_LS(MWISls_env** env,
    if (! *env) {
       (*env) = (MWISls_env*) malloc (sizeof(MWISls_env));
       COLORcheck_NULL(*env,"Allocating *env failed.");
+
+      init_solution(&((*env)->sol));
       
       G   = &((*env)->G);
       G->nodelist = (node*) NULL;
@@ -714,7 +733,6 @@ int COLORstable_LS(MWISls_env** env,
    G   = &((*env)->G);
    sol = &((*env)->sol);
    
-   init_solution(sol);
 
    rval = build_initial_solution(sol,G,ncount,nweights);
    COLORcheck_rval(rval,"build_solution failed");
