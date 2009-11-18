@@ -351,7 +351,7 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist)
     int *elist = (int *) NULL;
     char buf[256], *p;
     FILE *in = (FILE *) NULL;
-    graph G;/* used to simplify graph.*/
+    graph G; /* used to simplify graph.*/
 
     in = fopen (f, "r");
     if (!in) {
