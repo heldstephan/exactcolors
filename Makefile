@@ -1,5 +1,6 @@
 # Adapt GUPATH to point to your gurobi installation
-GUPATH=/home/vis/sheld6/progs/gurobi201/linux64/
+#GUPATH=/home/vis/sheld6/progs/gurobi201/linux64/
+GUPATH=/home/fac/bico/GU/gurobi201/linux64/
 
 GUINCLUDE=$(GUPATH)/include
 GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
@@ -11,8 +12,12 @@ OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plott
 color: $(OBJFILES)
 	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread
 
+stable: stable.o
+	$(CC) $(CFLAGS) -o stable stable.o $(GULIB) -lm -lpthread
+
+
 clean:
-	rm -f *.o color mwis_gurobi.log look.lp
+	rm -f *.o color stable mwis_gurobi.log look.lp
 
 color.o:     color.c color.h lp.h
 graph.o:     graph.c graph.h
@@ -22,4 +27,5 @@ mwis.o:      mwis.c mwis.h color.h
 mwis_grdy.o: mwis_grdy.c color.h graph.h
 mwis_grb.o:  mwis_grb.c color.h lp.h
 plotting.o:  plotting.c color.h
+stable.o:    stable.c color.h lp.h
 

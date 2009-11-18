@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <string.h>
 
 #include "color.h"
 #include "graph.h"
@@ -341,3 +342,94 @@ int  COLORadjgraph_delete_unweighted(graph* G,
    }
    return rval;
 }
+
+int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist)
+{
+    int rval = 0;
+    int ncount, ecount, icount = 0, haveprob = 0;
+    int end0, end1;
+    int *elist = (int *) NULL;
+    char buf[256], *p;
+    FILE *in = (FILE *) NULL;
+    graph G;/* used to simplify graph.*/
+
+    in = fopen (f, "r");
+    if (!in) {
+        fprintf (stderr, "Unable to open %s for input\n", f);
+        rval = 1;  goto CLEANUP;
+    }
+
+    while (fgets (buf, 254, in) != (char *) NULL) {
+        p = buf;
+        if (p[0] == 'c') {
+            printf ("Comment: %s", p+1);
+        } else if (p[0] == 'p') {
+            const char* delim = " \t\n";
+            char* data = (char *) NULL;
+            if (haveprob) {
+                fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
+                rval = 1;  goto CLEANUP;
+            }
+            haveprob = 1;
+            data = strtok(p,delim); /* get 'p' */
+            
+            data = strtok(NULL,delim); /* get type */
+            if ( strcmp(data,"edge") && strcmp(data,"edges") &&
+                                        strcmp(data,"col") ) {
+                fprintf (stderr, "ERROR in Dimacs file -- not an edge file\n");
+                rval = 1;  goto CLEANUP;
+            }
+            data = strtok(NULL,delim);
+            sscanf (data, "%d", &ncount);
+            data = strtok(NULL,delim);
+            sscanf (data, "%d", &ecount);
+
+            printf ("Number of Nodes: %d\n", ncount);
+            printf ("Number of Edges: %d\n", ecount);
+            elist = (int *) malloc (2 * ecount * sizeof (int));
+            if (!elist) {
+                fprintf (stderr, "out of memory for elist\n");
+                rval = 1; goto CLEANUP;
+            }
+        } else if (p[0] == 'e') {
+            if (!haveprob) {
+                fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
+                rval = 1;  goto CLEANUP;
+            }
+            if (icount >= ecount) {
+                fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
+                rval = 1;  goto CLEANUP;
+            }
+            p++;
+            sscanf (p, "%d %d", &end0, &end1);
+/*          printf("Found edge %i %d %d\n", icount, end0,end1); */
+            elist[2*icount] = end0-1;    /* Number nodes from 0, not 1 */
+            elist[2*icount+1] = end1-1;
+            icount++;
+        }
+    }
+
+    rval = COLORadjgraph_build(&G, ncount,icount,elist);
+    COLORcheck_rval(rval,"COLORadjgraph_build failed");                                     
+
+    rval = COLORadjgraph_simplify(&G);
+    COLORcheck_rval(rval,"COLORadjgraph_simplify failed");                                     
+
+    COLORadjgraph_extract_edgelist(&icount, &elist,&G);
+    COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");                                     
+    *pncount = ncount;
+    /* Some col-instances are buggy => reduce # edges to icount*/
+    *pecount = icount; 
+    *pelist = elist;
+
+CLEANUP:
+
+    COLORadjgraph_free(&G);
+    if (rval) {
+        if (elist) free (elist);
+    }
+    if (in) fclose (in);
+
+    return rval;
+}
+
