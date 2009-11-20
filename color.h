@@ -4,6 +4,7 @@
 typedef struct COLORset {
     int count;
     int *members;
+    struct COLORset *next;
 } COLORset;
 
 int COLORdbg_lvl(void);
@@ -11,12 +12,26 @@ int COLORdbg_lvl(void);
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses);
 
+void *COLORutil_allocrus (size_t size);
+void COLORutil_freerus (void *p);
 void COLORinit_set (COLORset *s);
 void COLORfree_set (COLORset *s);
 void COLORfree_sets (COLORset **s,int* nsets);
 int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
 
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
+
+#define COLOR_SAFE_MALLOC(nnum,type)                                       \
+    (type *) COLORutil_allocrus (((size_t) (nnum)) * sizeof (type))
+
+#define COLOR_FREE(object,type) {                                          \
+    COLORutil_freerus ((void *) (object));                                 \
+    object = (type *) NULL;                                                \
+}
+
+#define COLOR_IFFREE(object,type) {                                        \
+    if ((object)) COLOR_FREE ((object),type);                              \
+}
 
 #define COLORcheck_rval(rval,msg) {                                        \
     if ((rval)) {                                                          \
