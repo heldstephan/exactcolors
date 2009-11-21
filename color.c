@@ -1,3 +1,20 @@
+/**
+    This file is part of exactcolors.
+
+    exactcolors is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    exactcolors is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -5,12 +22,14 @@
 #include <getopt.h>
 #include <string.h>
 #include <fenv.h>
+#include <sys/resource.h>
+#include <time.h>
 
 #include "color.h"
 #include "lp.h"
 #include "graph.h"
 #include "mwis.h"
-
+#include "plotting.h"
 
 static char *edgefile = (char *) NULL;
 static char *outfile = (char *) NULL;
@@ -62,7 +81,7 @@ static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
             pi[gcolors[c].members[i]] /= colsum;
             newcolsum += pi[gcolors[c].members[i]];
          }
-         printf("Decreased column sum of %5d from  %30.20f to  %30.20f\n",c,colsum,newcolsum);
+         if (COLORdbg_lvl()> 1) {printf("Decreased column sum of %5d from  %30.20f to  %30.20f\n",c,colsum,newcolsum);}
          fesetround(FE_UPWARD);
       }
       fesetround(current_rounding);
@@ -116,6 +135,8 @@ int main (int ac, char **av)
     int       nnewsets = 0;
     int break_while_loop = 1;
     MWISenv* mwis_env  = (MWISenv*) NULL;
+    double tot_rtime;
+   
     
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
@@ -130,6 +151,8 @@ int main (int ac, char **av)
 
     rval = COLORread_dimacs (edgefile, &ncount, &ecount, &elist);
     COLORcheck_rval (rval, "COLORread_diamcs failed");
+
+    tot_rtime = COLORcpu_time();
 
     rval = COLORgreedy (ncount, ecount, elist, &gcount, &gcolors);
     COLORcheck_rval (rval, "COLORgreedy failed");
@@ -188,6 +211,7 @@ int main (int ac, char **av)
 
         {
             int set_i;
+            char mps_fname[256];
 
             rval = COLORstable_wrapper(&mwis_env,&newsets, &nnewsets, ncount, ecount,
                                        elist, pi);
@@ -208,12 +232,13 @@ int main (int ac, char **av)
     if (iterations < maxiterations) {
        double incumbent;
        char   mps_fname[256];
-/*        rval = COLORlp_objval (lp, &lower_bound); */
-/*        COLORcheck_rval (rval, "COLORlp_objval failed"); */
     
        printf ("Found bound of %g (%25.20g), greedy coloring %d (iterations = %d).\n", 
                ceil(lower_bound),lower_bound, gcount,iterations);
 
+       tot_rtime = COLORcpu_time() - tot_rtime;
+       printf("Computing initial lower bound took %f seconds.\n",tot_rtime);
+       fflush(stdout);
        if (write_mwis) {
           sprintf(mps_fname,"%s.mwis.mps",pname);
           COLORstable_write_mps(mps_fname,ncount,ecount,elist,pi);
@@ -223,8 +248,12 @@ int main (int ac, char **av)
 
           sprintf(mps_fname,"%s.mwclq.dimacs",pname);
           rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,pi); 
-       }
 
+            sprintf(mps_fname,"%s.graphviz.%d.dot",pname,iterations);
+            COLORplot_graphviz(mps_fname,ncount,ecount,elist,(int*) NULL); 
+
+       }
+       tot_rtime = COLORcpu_time();
        COLORlp_set_all_coltypes(lp,GRB_BINARY);
        COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
 
@@ -236,6 +265,8 @@ int main (int ac, char **av)
 
        printf ("Found lower bound of %g and upper bound of %g.\n", 
                ceil(lower_bound), incumbent);
+       tot_rtime = COLORcpu_time() - tot_rtime;
+       printf("Computing final upper bound took %f seconds.\n",tot_rtime);
        
        
     } else {
@@ -263,7 +294,8 @@ static int parseargs (int ac, char **av)
     while ((c = getopt (ac, av, "dmo:")) != EOF) {
         switch (c) {
         case 'd':
-            debug = 1;
+           /* each -d increases the verbosity by one.*/
+           ++debug;
             break;
         case 'o':
             outfile = optarg;
@@ -322,5 +354,22 @@ static void usage (char *f)
    printf("Extracted problem name %s\n",pname);
 
    return 0;
+}
+
+double COLORwall_time (void)
+{
+    return (double) time (0);
+}
+
+double COLORcpu_time (void)
+{
+    struct rusage ru;
+    double t;
+
+    getrusage (RUSAGE_SELF, &ru);
+
+    t = ((double) ru.ru_utime.tv_sec) +
+        ((double) ru.ru_utime.tv_usec) / 1000000.0;
+    return t;
 }
 

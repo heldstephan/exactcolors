@@ -30,14 +30,18 @@ static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *
    int rval = 0;
    
    if (where ==GRB_CB_MIPSOL) {
-      double objective;
+      double objective, objbound;
       
       rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBST,(void*) &objective);
       COLORcheck_rval (rval, "GRBcbget OBJBST failed");
+
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBND,(void*) &objbound);
+      COLORcheck_rval (rval, "GRBcbget OBJBND failed");
+
       
-      if (objective > 1 + int_tolerance) {
+      if (objective < objbound && objective > 1 + int_tolerance) {
          if(COLORdbg_lvl()) {
-            printf("Terminating gurobi based on current objective value %f\n",
+            printf("Terminating gurobi based on current objective value %f\n.",
                    objective);
          }
          GRBterminate(grb_model);
@@ -354,6 +358,8 @@ int COLORstable_write_mps(const char*  filename,
    MWISgrb_env* env = (MWISgrb_env*) NULL;
    rval = mwis_init_model(&env,1,ncount,ecount,elist,nweights);
    COLORcheck_rval(rval,"Failed in mwis_init_model");
+
+   printf("Writing %s.\n",filename);
 
    
    rval = GRBwrite (env->grb_model, filename);

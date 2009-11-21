@@ -17,7 +17,7 @@ stable: stable.o
 
 
 clean:
-	rm -f *.o color stable mwis_gurobi.log look.lp
+	rm -f *.o color stable mwis_gurobi.log look.lp vg.log*
 
 color.o:     color.c color.h lp.h
 graph.o:     graph.c graph.h

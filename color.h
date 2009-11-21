@@ -19,6 +19,10 @@ void COLORfree_set (COLORset *s);
 void COLORfree_sets (COLORset **s,int* nsets);
 int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
 
+double COLORwall_time (void);
+double COLORcpu_time (void);
+
+
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
 #define COLOR_SAFE_MALLOC(nnum,type)                                       \

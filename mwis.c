@@ -2,35 +2,19 @@
 #include<stdio.h>
 #include<limits.h>
 #include<assert.h>
-#include <sys/resource.h>
-#include<time.h>
+#include<math.h>
+#include<float.h>
 
 #include "graph.h"
 
 #include "mwis.h"
-
-static double COLORwall_time (void)
-{
-    return (double) time (0);
-}
-
-static double COLORcpu_time (void)
-{
-    struct rusage ru;
-    double t;
-
-    getrusage (RUSAGE_SELF, &ru);
-
-    t = ((double) ru.ru_utime.tv_sec) +
-        ((double) ru.ru_utime.tv_usec) / 1000000.0;
-    return t;
-}
 
 
 struct _MWISenv{
    MWISgrb_env* grb_env;
    MWISls_env*  ls_env;
 };
+
 
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets, int ncount, 
@@ -41,6 +25,8 @@ int COLORstable_wrapper(MWISenv** env,
 
    if (!*env) {
       *env = (MWISenv*) malloc(sizeof(MWISenv));
+      COLORcheck_NULL(*env,"Failed to allocate *env");
+
       (*env)->grb_env = (MWISgrb_env*) NULL;
       (*env)->ls_env = (MWISls_env*) NULL;
    }
@@ -49,7 +35,7 @@ int COLORstable_wrapper(MWISenv** env,
    rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, ncount, ecount, elist, nweights);
    COLORcheck_rval(rval,"COLORstable_LS failed");
    rtime = COLORcpu_time() - rtime;
-   if (COLORdbg_lvl()) { printf("Greedy took %f seconds\n",rtime);}
+   if (COLORdbg_lvl() >= 0 ) { printf("Greedy took %f seconds\n",rtime);}
    
 /*    COLORfree_sets(newsets,nnewsets); */
 
@@ -58,10 +44,13 @@ int COLORstable_wrapper(MWISenv** env,
       rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets, ncount, ecount, elist, nweights);
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl()) { printf("Gurobi took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() >= 0) { printf("Gurobi took %f seconds\n",rtime);}
    }
 
  CLEANUP:
+   if (rval) {
+      COLORstable_freeenv(env);
+   }
    return rval;
 }
 
@@ -82,19 +71,27 @@ int COLORstable_freeenv(MWISenv** env)
 }
 
 int COLORstable_write_dimacs(const char*  filename,
-                             int ncount, int ecount, const int elist[], double nweights[])
+                             int ncount, 
+                             int ecount, 
+                             const int elist[], 
+                             double nweights[])
 {
    int    rval = 0; 
    FILE*  file = (FILE*)  NULL;
-
       
    int    i;
+   
+   int       lscalef  = (INT_MAX) / ncount;
+   double     scalef  = (double) lscalef;
+
+
 
    file = fopen(filename,"w");
    COLORcheck_NULL(file,"Failed to open clique file"); 
-
+   
    fprintf(file,"c Maximum weighted independent set instances generated from exactcolors.\n");
-   fprintf(file,"c An independent set of value > 1 defines an improving stable sets for coloring.\n");
+   fprintf(file,"c scalef: %d (== (INT_MAX) / ncount).\n",lscalef);
+   fprintf(file,"c An independent set of value > %d defines an improving stable sets for coloring.\n",lscalef);
 
    fprintf(file,"p graph %d %d\n",ncount, ecount);
    for (i = 0; i < ecount;++i) {
@@ -103,9 +100,8 @@ int COLORstable_write_dimacs(const char*  filename,
 
    for (i = 0; i < ncount;++i) {
       assert(nweights[i] <= 1.0);
-      fprintf(file,"n %d %.20lf\n",i+1,nweights[i]);
+      fprintf(file,"n %d %llu\n",i+1,(long long) (scalef * nweights[i]));
    }
-
 
  CLEANUP:
    if (file) fclose(file);
@@ -126,9 +122,9 @@ int COLORstable_write_dimacs_clique(const char*  filename,
    int*   new_nweights = (int*)  NULL;
       
    int    i,ecountc = 0;
-   int    scalef;
+   double scalef  = exp2(DBL_MANT_DIG-1) / ncount;
    
-   scalef = (double) (INT_MAX / (ncount + 1));
+   scalef = (double) (LLONG_MAX / (ncount + 1));
    
    old_nweights = (int*) malloc (ncount * sizeof(int));
    COLORcheck_NULL(old_nweights,"Failed to allocate old_nweights");
@@ -155,8 +151,8 @@ int COLORstable_write_dimacs_clique(const char*  filename,
 
    
    fprintf(file,"c Maximum weighted clique instances generated from exactcolors.\n");
-   fprintf(file,"c scalef: %d.\n",scalef);
-   fprintf(file,"c A clique of value > scalef (%d) defines an improving stable sets for coloring.\n",scalef);
+   fprintf(file,"c scalef: %u.\n",(unsigned int)scalef);
+   fprintf(file,"c A clique of value > scalef (%u) defines an improving stable sets for coloring.\n",(unsigned int) scalef);
 
    fprintf(file,"p clq %d %d\n",Gc.ncount, ecountc);
    for (i = 0; i < ecountc;++i) {
