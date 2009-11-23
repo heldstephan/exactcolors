@@ -25,9 +25,10 @@
 #include <sys/resource.h>
 #include <time.h>
 
-#include "color.h"
 #include "lp.h"
 #include "graph.h"
+#include "color.h"
+
 #include "mwis.h"
 #include "plotting.h"
 
@@ -46,16 +47,19 @@ int COLORdbg_lvl() {
    return debug;
 }
 
-static void print_objective(double* lower_bound,
-                            const double* pi,
-                            int ncount)
+static void print_objective(COLORNWT*       lower_bound,
+                            const COLORNWT* mwis_pi,
+                            COLORNWT        mwis_pi_scalef,
+                            int             ncount)
 {
    int i;
    *lower_bound = .0;
    for (i = 0; i < ncount;++i) {
-      *lower_bound += pi[i];
+      *lower_bound += (double) mwis_pi[i];
    }
-   printf("Current primal LP objective: %25.20g.\n",*lower_bound);
+
+   printf("Current primal LP objective: %f.\n",
+          COLORsafe_lower_dbl(*lower_bound,mwis_pi_scalef));
 }
 
 static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
@@ -69,7 +73,7 @@ static void make_pi_feasible(double* pi,COLORset* gcolors,int gcount)
       double colsum = .0;
       double newcolsum = .0;
       for (i = 0; i < gcolors[c].count;++i) {
-         if  (signbit(pi[gcolors[c].members[i]])) {
+         if (signbit(pi[gcolors[c].members[i]])) {
             pi[gcolors[c].members[i]] = 0.0;
          }
          colsum += pi[gcolors[c].members[i]];
@@ -128,7 +132,10 @@ int main (int ac, char **av)
     int *elist = (int *) NULL;
     double *coef = (double *) NULL;
     double *pi = (double *) NULL;
-    double lower_bound = 0;
+    COLORNWT  mwis_pi_scalef;
+    COLORNWT *mwis_pi = (COLORNWT *) NULL;
+    COLORNWT  lower_bound = 0;
+    COLORNWT  lower_scaled_bound = 0;
     COLORset *gcolors = (COLORset *) NULL;
     COLORset *newsets = (COLORset*) NULL;   
     COLORlp *lp       = (COLORlp *) NULL;
@@ -157,6 +164,10 @@ int main (int ac, char **av)
     rval = COLORgreedy (ncount, ecount, elist, &gcount, &gcolors);
     COLORcheck_rval (rval, "COLORgreedy failed");
 
+    rval = COLORstable_initenv (&mwis_env,pname,write_mwis);
+    COLORcheck_rval (rval, "COLORgreedy failed");
+    
+
 /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
     gallocated = gcount;
     printf ("Greedy Colors: %d\n", gcount); fflush (stdout);
@@ -173,8 +184,9 @@ int main (int ac, char **av)
     COLORcheck_rval (rval, "COLORlp_init failed");
 
     for (i = 0; i < ncount; i++) {
-        rval = COLORlp_addrow (lp, 0, (int *) NULL, (double *) NULL, 'G',
-                               1.0, NULL);
+       char sense = 'G';
+        rval = COLORlp_addrow (lp, 0, (int *) NULL, (double *) NULL, sense,
+                               1.0, (char*) NULL);
         COLORcheck_rval (rval, "COLORlp_addrow failed");
     }
 
@@ -184,7 +196,7 @@ int main (int ac, char **av)
 
     for (i = 0; i < gcount; i++) {
         rval = COLORlp_addcol (lp, gcolors[i].count, gcolors[i].members,
-                          coef, 1.0, 0.0, 1.0, COLORlp_CONTINUOUS, NULL);
+                               coef, 1.0, 0.0, 1.0, COLORlp_CONTINUOUS, (char*) NULL);
         if (rval) COLORlp_printerrorcode (rval);
         COLORcheck_rval (rval, "COLORlp_addcol failed");
     }
@@ -194,6 +206,10 @@ int main (int ac, char **av)
 
     pi = (double *) malloc (ncount * sizeof (double));
     COLORcheck_NULL (pi, "out of memory for pi");
+
+    mwis_pi = (COLORNWT *) malloc (ncount * sizeof (COLORNWT));
+    COLORcheck_NULL (mwis_pi, "out of memory for mwis_pi");
+
     
     do {
         ++ iterations;
@@ -207,14 +223,16 @@ int main (int ac, char **av)
 
         make_pi_feasible(pi,gcolors,gcount);
 
-        print_objective(&lower_bound,pi,ncount);
+        COLOR_double2COLORNWT(mwis_pi,&mwis_pi_scalef,
+                              pi,ncount);
+
+        print_objective(&lower_scaled_bound,mwis_pi,mwis_pi_scalef,ncount);
 
         {
             int set_i;
-            char mps_fname[256];
 
             rval = COLORstable_wrapper(&mwis_env,&newsets, &nnewsets, ncount, ecount,
-                                       elist, pi);
+                                       elist, mwis_pi,mwis_pi_scalef);
             COLORcheck_rval (rval, "COLORstable_gurobi failed");
 
             for (set_i = 0; set_i < nnewsets; ++set_i) {
@@ -232,25 +250,29 @@ int main (int ac, char **av)
     if (iterations < maxiterations) {
        double incumbent;
        char   mps_fname[256];
-    
-       printf ("Found bound of %g (%25.20g), greedy coloring %d (iterations = %d).\n", 
-               ceil(lower_bound),lower_bound, gcount,iterations);
+       double dbl_lower_bound = COLORsafe_lower_dbl(lower_scaled_bound,mwis_pi_scalef);
+       lower_bound = ceil(dbl_lower_bound);
+       printf ("Found bound of %lld (%20.16g), greedy coloring %d (iterations = %d).\n", 
+               (long long) lower_bound,dbl_lower_bound, gcount,iterations);
 
        tot_rtime = COLORcpu_time() - tot_rtime;
        printf("Computing initial lower bound took %f seconds.\n",tot_rtime);
        fflush(stdout);
        if (write_mwis) {
-          sprintf(mps_fname,"%s.mwis.mps",pname);
-          COLORstable_write_mps(mps_fname,ncount,ecount,elist,pi);
+          sprintf(mps_fname,"%s.mwis.lp",pname);
+          COLORstable_write_mps(mps_fname,ncount,ecount,elist,
+                                mwis_pi,mwis_pi_scalef);
 
           sprintf(mps_fname,"%s.mwis.dimacs",pname);
-          rval = COLORstable_write_dimacs(mps_fname,ncount,ecount,elist,pi);
+          rval = COLORstable_write_dimacs(mps_fname,ncount,ecount,elist,
+                                          mwis_pi,mwis_pi_scalef);
 
           sprintf(mps_fname,"%s.mwclq.dimacs",pname);
-          rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,pi); 
+          rval = COLORstable_write_dimacs_clique(mps_fname,ncount,ecount,elist,
+                                                 mwis_pi,mwis_pi_scalef);
 
-            sprintf(mps_fname,"%s.graphviz.%d.dot",pname,iterations);
-            COLORplot_graphviz(mps_fname,ncount,ecount,elist,(int*) NULL); 
+          sprintf(mps_fname,"%s.graphviz.dot",pname);
+          COLORplot_graphviz(mps_fname,ncount,ecount,elist,(int*) NULL); 
 
        }
        tot_rtime = COLORcpu_time();
@@ -263,8 +285,8 @@ int main (int ac, char **av)
        rval = COLORlp_objval (lp, &incumbent);
        COLORcheck_rval (rval, "COLORlp_objval failed");
 
-       printf ("Found lower bound of %g and upper bound of %g.\n", 
-               ceil(lower_bound), incumbent);
+       printf ("Found lower bound of %lld and upper bound of %g.\n", 
+               (long long) lower_bound, incumbent);
        tot_rtime = COLORcpu_time() - tot_rtime;
        printf("Computing final upper bound took %f seconds.\n",tot_rtime);
        
@@ -279,6 +301,7 @@ CLEANUP:
     if (elist) free (elist);
     if (coef) free (coef);
     if (pi) free (pi);
+    if (mwis_pi) free(mwis_pi);
 
     COLORfree_sets(&newsets,&nnewsets);
     COLORfree_sets(&gcolors,&gcount);

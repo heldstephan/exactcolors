@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include "color.h"
 
+#include "plotting.h"
+
 typedef unsigned char RGBColor_t[3];
 
 #define COLORS 16
@@ -31,8 +33,7 @@ const char* ColorTable[COLORS] =
 
 int COLORplot_graphviz(const char* filename,
                        int ncount, int ecount, const int elist[], 
-                       int sets[],
-                       double nweigths[])
+                       int sets[])
 {
    int rval = 0,i;
 

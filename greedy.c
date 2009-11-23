@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "graph.h"
+
 #include "color.h"
 
-#include "graph.h"
 
 static void color_node (graph *G, int n);
 static void perm_quicksort (int *perm, int *len, int n);

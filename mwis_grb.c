@@ -16,6 +16,8 @@ const double int_tolerance = 0.0000001;
 struct _MWISgrb_env {
    GRBenv*   grb_env;
    GRBmodel* grb_model;
+   double*   cutoff;
+   double*   dbl_nweights;
    double*   x_opt;
 };
 
@@ -23,12 +25,16 @@ struct _MWISgrb_env {
 static int mwis_optimize_model(MWISgrb_env** env,
                                COLORset** newsets, int* nnewsets, int ncount, 
                                double nodelimit,
-                               int ecount, const int elist[], double nweights[]);
+                               int ecount, const int elist[], 
+                               const COLORNWT nweights[], COLORNWT cutoff);
 
 static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *usrdata)
 {
    int rval = 0;
    
+   /* Avoid warning on unused parameter usrdata:*/
+   (void) usrdata;
+
    if (where ==GRB_CB_MIPSOL) {
       double objective, objbound;
       
@@ -55,7 +61,7 @@ static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *
 
 static int mwis_init_model(MWISgrb_env** env,
                            double nodelimit, int ncount,
-                           int ecount, const int elist[], double nweights[])
+                           int ecount, const int elist[])
 {
    int rval = 0,i;
    char     *vtype = (char *) NULL;     /* variable types*/
@@ -68,7 +74,8 @@ static int mwis_init_model(MWISgrb_env** env,
       COLORcheck_NULL(*env,"Allocating *env failed.");
       (*env)->grb_env   = (GRBenv*) NULL;
       (*env)->grb_model = (GRBmodel*) NULL;
-      (*env)->x_opt = (double*) NULL;
+      (*env)->dbl_nweights = (double*) NULL;
+      (*env)->x_opt        = (double*) NULL;
       
       rval = GRBloadenv (&((*env)->grb_env), "mwis_gurobi.log");
       if (rval) {
@@ -97,7 +104,7 @@ static int mwis_init_model(MWISgrb_env** env,
                   GRBgeterrormsg(grb_env));
          goto CLEANUP;
       }
-      
+
       rval = GRBsetdblparam (grb_env,GRB_DBL_PAR_NODELIMIT , nodelimit);
       if (rval ) {
          fprintf (stderr, "GRBsetdblparam GRB_DBL_PAR_NODELIMIT failed: %s\n",
@@ -111,15 +118,16 @@ static int mwis_init_model(MWISgrb_env** env,
          rval = 1;  goto CLEANUP;
       }
       for (i = 0; i < ncount; i++) vtype[i] = GRB_BINARY;
+
+
+      (*env)->dbl_nweights = (double *) malloc (ncount * sizeof (double));
+      COLORcheck_NULL((*env)->dbl_nweights, "out of memory for (*env)->dbl_nweights");
       
       (*env)->x_opt = (double *) malloc (ncount * sizeof (double));
-      if (!(*env)->x_opt) {
-         fprintf (stderr, "out of memory for vtype\n");
-         rval = 1;  goto CLEANUP;
-      }
+      COLORcheck_NULL((*env)->x_opt, "out of memory for (*env)->x_opt");
 
       rval = GRBnewmodel (grb_env, &((*env)->grb_model), 
-                          "mwisme", ncount, (double*) nweights,
+                          "mwisme", ncount, (*env)->dbl_nweights,
                           (double *) NULL, (double *) NULL, vtype, (char**) NULL);
       if (rval) {
          fprintf (stderr, "GRBnewmodel failed: %s\n",
@@ -128,7 +136,7 @@ static int mwis_init_model(MWISgrb_env** env,
       }
       grb_model = (*env)->grb_model;
       
-      rval  = GRBsetcallbackfunc(grb_model, intercept_grb_cb, NULL);
+      rval  = GRBsetcallbackfunc(grb_model, intercept_grb_cb, * env);
       COLORcheck_rval (rval, "GRBsetcallbackfunc failed");
 
 
@@ -191,7 +199,8 @@ static int mwis_init_model(MWISgrb_env** env,
  */
 int COLORstable_gurobi(MWISgrb_env** env,
                        COLORset** newsets, int* nnewsets, int ncount, 
-    int ecount, const int elist[], double nweights[])
+                       int ecount, const int elist[], COLORNWT nweights[],
+                       COLORNWT cutoff)
 {
    int    rval;
    double nodelimit = DBL_MAX;
@@ -201,7 +210,7 @@ int COLORstable_gurobi(MWISgrb_env** env,
    rval = mwis_optimize_model(env,
                               newsets,nnewsets,
                               ncount,nodelimit,ecount,elist,
-                              nweights);
+                              nweights, cutoff);
    if (rval) {
       fprintf (stderr, "mwis_optimize_model  failed.\n");
       goto CLEANUP;
@@ -231,21 +240,22 @@ static int value_is_zero(double v)
 static int mwis_optimize_model(MWISgrb_env** env,
                                COLORset** newsets, int* nnewsets, int ncount, 
                                double nodelimit,
-                               int ecount, const int elist[], double nweights[])
+                               int ecount, const int elist[], 
+                               const COLORNWT nweights[], COLORNWT cutoff)
 {
    int       rval = 0,i,j;
    double    objective;
    
    if (!*env) {
-      rval = mwis_init_model(env,nodelimit,ncount,ecount,elist,nweights);
+      rval = mwis_init_model(env,nodelimit,ncount,ecount,elist);
       COLORcheck_rval (rval, "mwis_init_model failed");
-   } else { /* Set to new objective. */
-      rval = GRBsetdblattrarray((*env)->grb_model,GRB_DBL_ATTR_OBJ,
-                                0,ncount,nweights);
-   }
-   
+   } 
 
+   COLOR_COLORNWT2double((*env)->dbl_nweights,nweights,cutoff,ncount);
    
+   rval = GRBsetdblattrarray((*env)->grb_model,GRB_DBL_ATTR_OBJ,
+                             0,ncount,(*env)->dbl_nweights);
+
 
    rval = GRBoptimize((*env)->grb_model);
    if (rval) {
@@ -337,6 +347,7 @@ int COLORstable_free_grb_env(MWISgrb_env** env)
    if (env) {
       if (*env) {
          if ((*env)->x_opt) free ((*env)->x_opt);
+         if ((*env)->dbl_nweights) free ((*env)->dbl_nweights);
          if ((*env)->grb_model) {
             rval = GRBfreemodel((*env)->grb_model);
             if(rval) printf("GRBfreemodel failed.\n");
@@ -352,12 +363,22 @@ int COLORstable_free_grb_env(MWISgrb_env** env)
 
 
 int COLORstable_write_mps(const char*  filename,
-                          int ncount, int ecount, const int elist[], double nweights[])
+                          int ncount, int ecount, const int elist[], 
+                          const COLORNWT nweights[], COLORNWT cutoff)
 {
    int rval = 0;
    MWISgrb_env* env = (MWISgrb_env*) NULL;
-   rval = mwis_init_model(&env,1,ncount,ecount,elist,nweights);
+   rval = mwis_init_model(&env,1,ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in mwis_init_model");
+
+   COLOR_COLORNWT2double(env->dbl_nweights,nweights,cutoff,ncount);
+   
+   rval = GRBsetdblattrarray(env->grb_model,GRB_DBL_ATTR_OBJ,
+                             0,ncount,env->dbl_nweights);
+   COLORcheck_rval(rval,"Failed in GRBsetdblattrarray");
+
+   rval = GRBupdatemodel (env->grb_model);
+   COLORcheck_rval(rval,"Failed in GRBupdatemodel");
 
    printf("Writing %s.\n",filename);
 
@@ -370,5 +391,6 @@ int COLORstable_write_mps(const char*  filename,
    }
 
  CLEANUP:
+   COLORstable_free_grb_env(&env);
    return rval;
 }

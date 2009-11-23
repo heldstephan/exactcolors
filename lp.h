@@ -20,10 +20,11 @@ int COLORlp_objval (COLORlp *p, double *obj);
 int COLORlp_pi (COLORlp *p, double *pi);
 
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,                  char sense, double rhs, char *name);
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
+                    char sense, double rhs, char *name);
 
 int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,   
-       double obj, double lb, double ub, char vartype, char *name);
+                    double obj, double lb, double ub, char vartype, char *name);
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense);
 
