@@ -454,8 +454,8 @@ MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
       COLORNWT key = sol->grdy_nweights[v];
       int*     pos = &(sol->heappos[v]);
       minv_ptr     = &(sol->inperm[v]);
-      printf("Inserting key %lld ptr %p node %d\n",
-             (long long)key, (void*) minv_ptr, v);
+/*       printf("Inserting key %lld ptr %p node %d\n", */
+/*              (long long)key, (void*) minv_ptr, v); */
          
       COLORNWTheap_insert(sol->heap, pos,
                           key, (void*) minv_ptr);
@@ -465,8 +465,8 @@ MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
    while(minv_ptr) {     
       if (!s) {
          int v = sol->nperm[*minv_ptr];
-         printf("Retrieved key %lld ptr %p node %d\n",
-                (long long)sol->grdy_nweights[v], (void*)minv_ptr, v);
+/*          printf("Retrieved key %lld ptr %p node %d\n", */
+/*                 (long long)sol->grdy_nweights[v], (void*)minv_ptr, v); */
          if (sol->nweights[v] > 0) {
             int added = add_iff_free(sol,v);
             if (added) {
@@ -479,7 +479,7 @@ MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
       }
       minv_ptr = (int*) COLORNWTheap_min(sol->heap);
    }
-   printf("Retrieved last key\n");
+/*    printf("Retrieved last key\n"); */
 
    changes += greedy_improvement_2(sol,0);
    return changes;
@@ -994,6 +994,7 @@ static int repeated_greedy_followed_by_ls(solution*  sol)
    int start_vertex;
    int nsolutions = 0;
    int last_improving_start = 0;
+   int last_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
       reinit_solutions(sol);
@@ -1032,12 +1033,14 @@ static int repeated_greedy_followed_by_ls(solution*  sol)
       if (sol->cclasses.cnt > nsolutions) {
          nsolutions = sol->cclasses.cnt;
          last_improving_start = start_vertex;
+         if (last_valid_start == -1) 
+            last_valid_start = start_vertex;
 /*          num_starts /=2; */
       }
    }
-   printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy solutions: %d, last improvement in iteration %d\n",
+   printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy solutions: %d, first valid it. %d last improving iteration %d\n",
           COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
-          sol->cclasses.cnt,last_improving_start);
+          sol->cclasses.cnt, last_valid_start,last_improving_start);
  CLEANUP:
    return rval;
 }
