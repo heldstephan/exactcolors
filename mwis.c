@@ -4,6 +4,7 @@
 #include<float.h>
 #include<math.h>
 #include<assert.h>
+#include <string.h>
 
 #include "graph.h"
 
@@ -23,8 +24,11 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
                         int write_mwis)
 {
    int rval = 0;
-   *env = (MWISenv*) malloc(sizeof(MWISenv));
-   COLORcheck_NULL(*env,"Failed to allocate *env");
+
+   if (!*env) {
+      *env = (MWISenv*) malloc(sizeof(MWISenv));
+      COLORcheck_NULL(*env,"Failed to allocate *env");
+   }
    
    (*env)->grb_env = (MWISgrb_env*) NULL;
    (*env)->ls_env  = (MWISls_env*) NULL;
@@ -62,23 +66,24 @@ int COLORstable_wrapper(MWISenv** env,
    /*    COLORfree_sets(newsets,nnewsets); */
 
    if (*nnewsets == 0) {
-      char filename [256];
-      sprintf(filename,"%s.mwclq.%d.dimacs",(*env)->pname,it);
-      COLORstable_write_dimacs_clique(filename,
-                                          ncount, ecount, elist, 
-                                          nweights,cutoff);
-
-      sprintf(filename,"%s.mwis.%d.dimacs",(*env)->pname,it);
-      COLORstable_write_dimacs(filename,
+      if( (*env)->write_mwis) {
+         char filename [256];
+         sprintf(filename,"%s.mwclq.%d.dimacs",(*env)->pname,it);
+         COLORstable_write_dimacs_clique(filename,
+                                         ncount, ecount, elist, 
+                                         nweights,cutoff);
+         
+         sprintf(filename,"%s.mwis.%d.dimacs",(*env)->pname,it);
+         COLORstable_write_dimacs(filename,
+                                  ncount, ecount, elist, 
+                                  nweights,cutoff);
+         
+         
+         sprintf(filename,"%s.mwis.%d.lp",(*env)->pname,it);
+         COLORstable_write_mps(filename,
                                ncount, ecount, elist, 
                                nweights,cutoff);
-      
-      
-      sprintf(filename,"%s.mwis.%d.lp",(*env)->pname,it);
-      COLORstable_write_mps(filename,
-                            ncount, ecount, elist, 
-                            nweights,cutoff);
-      
+      }
 
       rtime = COLORcpu_time();
       rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets, 
@@ -161,7 +166,7 @@ int COLORstable_write_dimacs_clique(const char*  filename,
 
    rval = COLORadjgraph_build(&G,ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build.");
-
+   
    COLORadjgraph_delete_unweighted(&G,&new_nweights,nweights);
    ncount = G.ncount;
 
@@ -257,3 +262,126 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
    
    return 0;
 }
+
+int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
+                                 int ncount,
+                                 const char* fname,
+                                 const char* problem_name)
+{
+   int rval = 0;
+
+   FILE* ifile = (FILE*) NULL;    
+   char* buf = (char*) NULL;
+   char* p;
+   int  bufsize = 2 * ncount * (2 + (int) ceil(log((double)ncount + 10)));
+   int* setbuffer = (int*) NULL;
+   const char* delim = " \t\n";
+   char* token = (char* ) NULL;
+
+   buf = (char*) malloc(bufsize);
+   COLORcheck_NULL(buf,"Failed to allocate buf");
+
+   setbuffer = (int*) malloc(ncount * sizeof(int));
+   COLORcheck_NULL(setbuffer,"Failed to allocate setbuffer");
+   
+   ifile = fopen(fname,"r");
+   if(!ifile) {
+      fprintf(stderr, "Failed to open %s for reading",fname);
+      rval = 1; goto CLEANUP;
+   }
+
+   *nnewsets = 0;
+   while (fgets (buf, bufsize, ifile) != (char *) NULL) {
+      p = buf;
+      if (p[0] == 's') {
+         (*nnewsets)++;
+      }
+   }
+   *newsets = (COLORset*) malloc(*nnewsets * sizeof(COLORset));
+   COLORcheck_NULL(newsets,"Failed to allocate *newsets");
+   while( *nnewsets > 0) {
+      (*nnewsets)--;
+      (*newsets)[*nnewsets].members = (int*) NULL;
+   }
+
+   
+
+   rewind(ifile);
+   while (fgets (buf, bufsize, ifile) != (char *) NULL) {
+      p = buf;
+      if (p[0] == 'c') {
+         printf ("Comment: %s", p+1);
+      } else if (p[0] == 'p') {
+         token = strtok(p,delim); /* get 'p' */ 
+         
+         token = strtok((char*) NULL,delim); /* get problem name */
+         if(strcmp(token,problem_name)) {
+            fprintf(stderr,"Stable set file problem %s does not match instance problem %s",
+                    token, problem_name);
+            rval = 1; goto CLEANUP;
+         }
+         token = strtok(NULL,delim);
+
+      } else if( p[0] == 's') {
+         int  setsize = 0;
+         token = strtok(p,delim);
+         while( (token = strtok((char*) NULL,delim)) != (char*) NULL) {
+            sscanf (token, "%d", &(setbuffer[setsize++]));
+         }
+         (*newsets)[*nnewsets].count = setsize;
+         (*newsets)[*nnewsets].members = (int*) malloc(setsize * sizeof(int));
+         COLORcheck_NULL((*newsets)[*nnewsets].members,
+                         "Failed to allocate (*newsets)[*nnewsets].members");
+         memcpy((*newsets)[*nnewsets].members, setbuffer,setsize * sizeof(int));
+         (*nnewsets)++;
+      }
+   }
+
+   if (! (*nnewsets)) {
+      fprintf(stderr,"Failed to read any sets");
+      rval = 1; goto CLEANUP;
+   }
+   
+ CLEANUP:
+   if (ifile) fclose(ifile);
+   return rval; 
+}
+
+int COLORstable_write_stable_sets(const COLORset* sets, int nsets,
+                                  int   ncount,
+                                  const char* fname,
+                                  const char* problem_name)
+{
+   int rval = 0;
+   int i;
+   FILE* ofile = (FILE*) NULL;
+   
+   ofile = fopen(fname,"w");
+   if(!ofile) {
+      fprintf(stderr, "Failed to open %s for writing",fname);
+      rval = 1; goto CLEANUP;
+   }
+   
+
+   fprintf(ofile,"c Stable sets from exactcolors on instance %s:\n",problem_name);
+   fprintf(ofile,"c Syntax:\n");
+   fprintf(ofile,"c \t p <problem name> <node count>\n");
+   fprintf(ofile,"c \t s <list of intergers ( = nodes of a stable set)>\n");
+
+   fprintf(ofile,"p %s %d\n",problem_name,ncount);
+   for(i = 0; i < nsets; ++i) {
+      int j;
+      int  count   = sets[i].count;
+      int* members = sets[i].members;
+      fprintf(ofile,"s");
+      for(j = 0; j < count; ++j) {
+         fprintf(ofile," %d",members[j]);
+      }
+      fprintf(ofile,"\n");
+   }
+   
+ CLEANUP:
+   if (ofile) fclose(ofile);
+   return rval; 
+}
+

@@ -34,6 +34,9 @@
 
 static char *edgefile = (char *) NULL;
 static char *outfile = (char *) NULL;
+static char *cclasses_outfile = (char *) NULL;
+static char *cclasses_infile = (char *) NULL;
+
 
 static int debug = 0;
 static int write_mwis = 0;
@@ -161,24 +164,29 @@ int main (int ac, char **av)
 
     tot_rtime = COLORcpu_time();
 
-    rval = COLORgreedy (ncount, ecount, elist, &gcount, &gcolors);
-    COLORcheck_rval (rval, "COLORgreedy failed");
+    if (cclasses_infile != (char*) NULL) {
+       rval = COLORstable_read_stable_sets(&gcolors,&gcount,ncount,cclasses_infile,pname); 
+       COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
+    } else {
+       rval = COLORgreedy (ncount, ecount, elist, &gcount, &gcolors);
+       COLORcheck_rval (rval, "COLORgreedy failed");    
+
+       /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
+       printf ("Greedy Colors: %d\n", gcount); fflush (stdout);
+       for (i = 0; i < gcount; i++) {
+          printf ("Color %d:", i);
+          for (j = 0; j < gcolors[i].count; j++) {
+             printf (" %d", gcolors[i].members[j]);
+        }
+          printf ("\n");
+       }
+       fflush (stdout);
+    }
+    
+    gallocated = gcount;
 
     rval = COLORstable_initenv (&mwis_env,pname,write_mwis);
     COLORcheck_rval (rval, "COLORgreedy failed");
-    
-
-/*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
-    gallocated = gcount;
-    printf ("Greedy Colors: %d\n", gcount); fflush (stdout);
-    for (i = 0; i < gcount; i++) {
-        printf ("Color %d:", i);
-        for (j = 0; j < gcolors[i].count; j++) {
-            printf (" %d", gcolors[i].members[j]);
-        }
-        printf ("\n");
-    }
-    fflush (stdout);
 
     rval = COLORlp_init (&lp, "colorme");
     COLORcheck_rval (rval, "COLORlp_init failed");
@@ -245,6 +253,7 @@ int main (int ac, char **av)
             concat_newsets(&gcolors,&gcount,&gallocated,
                            &newsets, &nnewsets);
         }
+        
     } while ( (iterations < maxiterations) && !break_while_loop);
 
     if (iterations < maxiterations) {
@@ -273,7 +282,10 @@ int main (int ac, char **av)
 
           sprintf(mps_fname,"%s.graphviz.dot",pname);
           COLORplot_graphviz(mps_fname,ncount,ecount,elist,(int*) NULL); 
-
+       }
+       if (cclasses_outfile != (char*) NULL) {
+          rval = COLORstable_write_stable_sets(gcolors,gcount,ncount,cclasses_outfile,pname); 
+          COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
        }
        tot_rtime = COLORcpu_time();
        COLORlp_set_all_coltypes(lp,GRB_BINARY);
@@ -294,7 +306,7 @@ int main (int ac, char **av)
     } else {
        printf ("Lower bound could not be found in %d iterations!\n", iterations);
     }
-
+    
 CLEANUP:
 
     if (lp) COLORlp_free (&lp);
@@ -314,7 +326,7 @@ static int parseargs (int ac, char **av)
     int c;
     int rval = 0;
 
-    while ((c = getopt (ac, av, "dmo:")) != EOF) {
+    while ((c = getopt (ac, av, "dmo:r:w:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
@@ -325,6 +337,12 @@ static int parseargs (int ac, char **av)
             break;
         case 'm':
            write_mwis = 1;
+           break;
+        case 'r':
+           cclasses_infile = optarg;
+           break;
+        case 'w':
+           cclasses_outfile = optarg;
            break;
         default:
             usage (av[0]);
@@ -350,6 +368,8 @@ static void usage (char *f)
     fprintf (stderr, "   -d    turn on debugging\n");
     fprintf (stderr, "   -o f  write coloring to file f\n");
     fprintf (stderr, "   -m    write final stable set and clique instances\n");
+    fprintf (stderr, "   -r f  write initial stable sets from file f\n");
+    fprintf (stderr, "   -w f  write stable sets from file f\n");
 }
 
  static int get_problem_name(char* pname,const char* efname)

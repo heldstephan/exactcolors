@@ -35,6 +35,16 @@ int COLORstable_write_mps(const char*  filename,
                           const COLORNWT nweights[],
                           COLORNWT cutoff);
 
+int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
+                                 int ncount,
+                                 const char* fname,
+                                 const char* proplem_name);
+
+int COLORstable_write_stable_sets(const COLORset* sets, int nsets,
+                                  int ncount,
+                                  const char* fname,
+                                  const char* problem_name);
+
 
 /*
   Passes the node weights of type double from dbl_nweights to weights
