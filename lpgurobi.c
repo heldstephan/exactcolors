@@ -134,6 +134,34 @@ CLEANUP:
     return rval;
 }
 
+int COLORlp_x (COLORlp *p, double *x)
+{
+    int rval = 0;
+    int ncols;
+    int solstat;
+
+    rval = GRBgetintattr(p->model, GRB_INT_ATTR_STATUS, &solstat);
+    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_STATUS failed", 
+                         p->env);
+    if (solstat == GRB_INFEASIBLE) {
+        fprintf (stderr, "Problem is infeasible\n");
+        rval = 1;  goto CLEANUP;
+    }
+
+    rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMVARS, &ncols);
+    if (ncols == 0) {
+        fprintf (stderr, "No columns in LP\n");
+        rval = 1;  goto CLEANUP;
+    }
+
+    rval = GRBgetdblattrarray(p->model, GRB_DBL_ATTR_X, 0, ncols, x);
+    COLORcheck_rval_grb (rval, "GRBgetdblattrarray GRB_DBL_ATTR_X failed", 
+                         p->env);
+
+CLEANUP:
+    return rval;
+}
+
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
 {
    int nvars,i;
@@ -150,6 +178,37 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense)
    return rval;
 }
 
+int COLORlp_objective_sense (COLORlp *p, int sense)
+{
+    int rval = 0;
+
+    /* Min = 1   Max = -1 */
+    rval = GRBsetintattr (p->model, GRB_INT_ATTR_MODELSENSE, sense);
+    COLORcheck_rval_grb (rval, "GRBsetintattr failed", p->env);
+
+CLEANUP:
+
+    return rval;
+}
+
+int COLORlp_setbound (COLORlp *p, int col, char lower_or_upper, double bnd)
+{
+    int rval = 0;
+
+    if (lower_or_upper == 'L') {
+        rval = GRBsetdblattrelement (p->model, GRB_DBL_ATTR_LB, col, bnd);
+    } else {
+        rval = GRBsetdblattrelement (p->model, GRB_DBL_ATTR_UB, col, bnd);
+    }
+    COLORcheck_rval (rval, "GRBsetdblattr LB or UB failed");
+
+    rval = GRBupdatemodel (p->model);
+    COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
+
+CLEANUP:
+
+    return rval;
+}
 
 int COLORlp_write (COLORlp *p, const char *fname)
 {
@@ -161,6 +220,16 @@ int COLORlp_write (COLORlp *p, const char *fname)
 CLEANUP:
 
     return rval;
+}
+
+void COLORlp_free_warmstart (COLORlp_warmstart **w)
+{
+    if (*w != (COLORlp_warmstart *) NULL) {
+        COLOR_IFFREE ((*w)->cstat, int);
+        COLOR_IFFREE ((*w)->rstat, int);
+        COLOR_IFFREE ((*w)->dnorm, double);
+        COLOR_FREE (*w, COLORlp_warmstart);
+    }
 }
 
 void COLORlp_printerrorcode (int c)

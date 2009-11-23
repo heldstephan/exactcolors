@@ -6,14 +6,18 @@ GUINCLUDE=$(GUPATH)/include
 GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
 
 CC=gcc
-CFLAGS= -O3 -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
-OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o
+CFLAGS= -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
+OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o util.o plotting.o
+STABFILES=stable.o graph.o greedy.o util.o lpgurobi.o
 
 color: $(OBJFILES)
 	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread
 
-stable: stable.o
-	$(CC) $(CFLAGS) -o stable stable.o $(GULIB) -lm -lpthread
+stable: $(STABFILES)
+	$(CC) $(CFLAGS) -o stable $(STABFILES) $(GULIB) -lm -lpthread
+
+joke: joke.o
+	$(CC) $(CFLAGS) -o joke joke.o $(GULIB) -lm -lpthread
 
 
 clean:
@@ -27,5 +31,6 @@ mwis.o:      mwis.c mwis.h color.h
 mwis_grdy.o: mwis_grdy.c color.h graph.h
 mwis_grb.o:  mwis_grb.c color.h lp.h
 plotting.o:  plotting.c color.h
-stable.o:    stable.c color.h lp.h
+stable.o:    stable.c color.h graph.h lp.h
+util.o:      util.c color.h
 
