@@ -1,11 +1,26 @@
-#include <stdio.h>
+/**
+    This file is part of exactcolors.
 
+    exactcolors is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    exactcolors is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <stdio.h>
 #include "color.h"
 
+#include "plotting.h"
+
 typedef unsigned char RGBColor_t[3];
-
-int COLORplot_graphviz(int ncount, int ecount, const int elist[], int sets[]);
-
 
 #define COLORS 16
 const char* ColorTable[COLORS] = 
@@ -16,11 +31,12 @@ const char* ColorTable[COLORS] =
    };
 
 
-int COLORplot_graphviz(int ncount, int ecount, const int elist[], int sets[])
+int COLORplot_graphviz(const char* filename,
+                       int ncount, int ecount, const int elist[], 
+                       int sets[])
 {
    int rval = 0,i;
 
-   const char* filename = "graph.dot";
 
    FILE* file = fopen(filename,"w");
    if (!file) {
@@ -33,14 +49,13 @@ int COLORplot_graphviz(int ncount, int ecount, const int elist[], int sets[])
       fprintf(file,"    %d -- %d;\n",elist[2*i],elist[2*i+1]);
    }
 
-
-   for (i = 0; i < ncount;++i) {
-      if (sets) {
-         int c = sets[i] % COLORS;
-         printf("node %d color %d;\n",i, c);
-         fprintf(file,"    %d [style=filled,fillcolor=%s];\n",
-                 i,ColorTable[c]);
-      }
+      for (i = 0; i < ncount;++i) {
+         if (sets) {
+            int c = sets[i] % COLORS;
+            printf("node %d color %d;\n",i, c);
+            fprintf(file,"    %d [style=filled,fillcolor=%s];\n",
+                    i,ColorTable[c]);
+         }
    }
 
    
