@@ -80,11 +80,13 @@ MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denom
 {
    double result;
    int oldround = fegetround();
-   double denom_mult;
-   fesetround(FE_DOWNWARD);
-   denom_mult = denominator;
+
    fesetround(FE_UPWARD);
+   double denom_mult  = denominator;
+
+   fesetround(FE_DOWNWARD);
    denom_mult = 1 / denom_mult;
+
    result = (double) numerator * denom_mult;
    fesetround(oldround);
    return result;

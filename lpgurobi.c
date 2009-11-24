@@ -106,6 +106,20 @@ CLEANUP:
     return rval;
 }
 
+int COLORlp_deletecol (COLORlp *p, int cind)
+{
+   int rval = 0;
+
+   rval = GRBdelvars(p->model,1,&cind);
+   COLORcheck_rval_grb (rval, "GRBdelvars failed", p->env);
+   rval = GRBupdatemodel (p->model);
+   COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
+ CLEANUP:
+   
+   return rval;
+}
+
+
 int COLORlp_pi (COLORlp *p, double *pi)
 {
     int rval = 0;
