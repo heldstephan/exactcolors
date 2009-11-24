@@ -5,6 +5,7 @@
 
 typedef struct COLORset {
     int count;
+    int age;
     int *members;
     struct COLORset *next;
 } COLORset;
@@ -21,7 +22,7 @@ typedef struct COLORrandstate {
 int COLORdbg_lvl(void);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
-        COLORset **colorclasses);
+                 COLORset **colorclasses);
 
 void *COLORutil_allocrus (size_t size);
 void COLORutil_freerus (void *p);
