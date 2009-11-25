@@ -255,7 +255,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
    
    rval = GRBsetdblattrarray((*env)->grb_model,GRB_DBL_ATTR_OBJ,
                              0,ncount,(*env)->dbl_nweights);
-
+   COLORcheck_rval(rval,"Failed in GRBsetdblattrarray");
 
    rval = GRBoptimize((*env)->grb_model);
    if (rval) {

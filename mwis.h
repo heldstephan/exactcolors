@@ -45,6 +45,9 @@ int COLORstable_write_stable_sets(const COLORset* sets, int nsets,
                                   const char* fname,
                                   const char* problem_name);
 
+int COLORstable_round_down_weights(MWISls_env* env,
+                                   COLORNWT nweights[],
+                                   COLORNWT cutoff);
 
 /*
   Passes the node weights of type double from dbl_nweights to weights
