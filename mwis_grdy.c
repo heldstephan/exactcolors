@@ -808,8 +808,8 @@ static int perform_2_improvement(soldata* sol, int x)
    }
    if (best_v != -1) {
 
-      if(COLORdbg_lvl()) printf("Found improving swap %d <- (%d,%d) (delta %f)\n",x,
-                           best_v,best_w,best_weight - nweights[x]);
+      if(COLORdbg_lvl() > 1) printf("Found improving swap %d <- (%d,%d) (delta %f)\n",x,
+                                    best_v,best_w,best_weight - nweights[x]);
 
       swap_nodelist(sol,x, best_v);
 
@@ -821,7 +821,7 @@ static int perform_2_improvement(soldata* sol, int x)
       sol->solcount++;
       sol->freecount--;
 
-      if(COLORdbg_lvl()) print_soldata(sol);
+      if(COLORdbg_lvl() > 1) print_soldata(sol);
 
       return 1;
    }
@@ -851,7 +851,7 @@ static int perform_2_improvements(soldata* sol)
          int changed = sol->greedy_improvement(sol,0);
          totnswaps += iternswaps;
          if (changed) {
-            if(COLORdbg_lvl()) print_soldata(sol);
+            if(COLORdbg_lvl() > 1) print_soldata(sol);
          }
       }
    }  while (iternswaps);
@@ -880,7 +880,7 @@ static int perform_1_2_path(soldata* sol, int* nodestack, int v)
    int changes = 0;
 
 
-   if (COLORdbg_lvl()) {
+   if (COLORdbg_lvl() > 1) {
       printf("Starting 1_2 path search with %d\n",v);
    }
 
@@ -924,7 +924,7 @@ static int perform_1_2_path(soldata* sol, int* nodestack, int v)
       }
    }
    if (weight > 0) {
-      if (COLORdbg_lvl()) {
+      if (COLORdbg_lvl() > 1) {
          printf("Found replacement (");
          for (rm_i = 0; sol->work_path[rm_i] != -1;++rm_i) {
             printf(" %d", sol->work_path[rm_i]);
@@ -993,7 +993,7 @@ static COLORNWT soldata_value(soldata* sol)
          sval += sol->nweights[sol->nperm[i]];
    }
 
-   if (COLORdbg_lvl())
+   if (COLORdbg_lvl() > 1)
    {
       printf("mwis_greedy found  %20.15f ( %lld / %lld ).\n",
              COLORunsafe_dbl(sval,sol->cutoff),
@@ -1085,7 +1085,7 @@ static int transfer_soldata(COLORset** newsets,
 
    if (cclasses->cnt == 0) goto CLEANUP;
 
-   if (COLORdbg_lvl()) {
+   if (COLORdbg_lvl() > 1) {
       printf("Transferring %d greedy soldatas.\n",cclasses->cnt);
    }
 
@@ -1113,7 +1113,7 @@ static int inspect_soldata(soldata* sol, COLORNWT* best_sval,
 {
    int    rval = 0;
    COLORNWT sval = soldata_value(sol);
-   if (COLORdbg_lvl()) printf("%s: %lld\n",logstring,(long long) sval);
+   if (COLORdbg_lvl() > 1) printf("%s: %lld\n",logstring,(long long) sval);
 
    if(sval > sol->cutoff && sval > *best_sval) {
       add_zero_weigthed(sol);
@@ -1228,7 +1228,7 @@ int COLORstable_LS(MWISls_env** env,
    rval = init_mwis_grdy(sol,G,ncount,nweights,cutoff);
    COLORcheck_rval(rval,"init_mwis_grdy");
 
-   if (COLORdbg_lvl())
+   if (COLORdbg_lvl() > 1)
       printf("Starting new round of repeated_greedy_followed_by_ls...\n");
 
    sol->greedy_improvement = greedy_improvement_2;
