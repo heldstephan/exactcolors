@@ -6,6 +6,8 @@
 
 #include <assert.h>
 
+#include "lp.h"
+
 #include "graph.h"
 #include "heap.h"
 
@@ -69,8 +71,8 @@ static int COLORclasses_expand(COLORclasses* classes)
  F. Werneck: Fast Local Search for the Maximum Independent Set
  Problem.  WEA 2008, 220-234.
 */
-typedef struct solution_t solution;
-struct solution_t {
+typedef struct soldata_t soldata;
+struct soldata_t {
    int*  nperm;   /* node permutation.*/
    int*  inperm;  /* inverse node permutation.*/
    int*  tightness;
@@ -81,9 +83,9 @@ struct solution_t {
    const COLORNWT*  nweights;
    COLORNWT    cutoff;
    COLORclasses cclasses;
-   
+
    /* Following arrays are used in diverse subroutines
-      and kept in solution avoid too many mallocs.
+      and kept in soldata avoid too many mallocs.
    */
    int*      sort_work;
    COLORNWT* grdy_nweights;
@@ -93,21 +95,24 @@ struct solution_t {
 
    int*          heappos;
    COLORNWTHeap* heap;
-   
-   int (* greedy_improvement)(solution*,int);
+
+   int (* greedy_improvement)(soldata*,int);
+
+   COLORlp *lp;
+   double*  dbl_nweights;
 };
 
 struct _MWISls_env {
    graph    G;
-   solution sol;
+   soldata sol;
 };
 
 
-static void remove_from_solution(solution* sol, int v);
-static void set_ptrs_to_zero(solution* sol);
+static void remove_from_soldata(soldata* sol, int v);
+static void set_ptrs_to_zero(soldata* sol);
 
 
-static void clean_solution(solution* sol)
+static void clean_soldata(soldata* sol)
 {
    if (sol->nperm)       free(sol->nperm);
    if (sol->inperm)      free(sol->inperm);
@@ -119,14 +124,14 @@ static void clean_solution(solution* sol)
    if (sol->nodestack)   free(sol->nodestack);
    if (sol->heappos)     free(sol->heappos);
    if (sol->cclasses.sets) free(sol->cclasses.sets);
-   if (sol->heap) 
+   if (sol->heap)
       COLORNWTheap_free(sol->heap);
 
    set_ptrs_to_zero(sol);
 }
 
 
-/* static int build_inverse_perm(solution* sol) */
+/* static int build_inverse_perm(soldata* sol) */
 /* { */
 /*    int i = 0; */
 /*    for (i = 0; i < sol->freecount; ++i) { */
@@ -136,18 +141,18 @@ static void clean_solution(solution* sol)
 /*    return 0; */
 /* } */
 
-static int is_free(solution* sol,int i)
+static int is_free(soldata* sol,int i)
 {
    return (sol->solcount <= sol->inperm[i] &&
            sol->inperm[i] < sol->solcount + sol->freecount);
 }
 
-static int is_basis(solution* sol,int i)
+static int is_basis(soldata* sol,int i)
 {
    return (sol->inperm[i] < sol->solcount);
 }
 
-static int swap_nodelist(solution* sol,int i,int j)
+static int swap_nodelist(soldata* sol,int i,int j)
 {
    if (i == j) return 0;
    {
@@ -164,7 +169,7 @@ static int swap_nodelist(solution* sol,int i,int j)
    return 0;
 }
 
-static int tighten_neighbours(solution* sol,int i)
+static int tighten_neighbours(soldata* sol,int i)
 {
    int j;
    node* nodelist = sol->G->nodelist;
@@ -189,7 +194,7 @@ static int tighten_neighbours(solution* sol,int i)
 
 
 
-static int relax_neighbours(solution* sol,int i)
+static int relax_neighbours(soldata* sol,int i)
 {
    int j;
    node* nodelist = sol->G->nodelist;
@@ -216,7 +221,7 @@ static int relax_neighbours(solution* sol,int i)
    return 0;
 }
 
-static int add_iff_free(solution* sol,int i)
+static int add_iff_free(soldata* sol,int i)
 {
    if (is_free(sol,i)) {
 
@@ -258,7 +263,7 @@ static void perm_nwt_rquicksort (int *perm, const COLORNWT *len, int n)
    perm_nwt_rquicksort (perm + i, len, n - i);
 }
 
-static void set_ptrs_to_zero(solution* sol)
+static void set_ptrs_to_zero(soldata* sol)
 {
    sol->nperm         =      (int*) NULL;
    sol->inperm        =      (int*) NULL;
@@ -274,12 +279,15 @@ static void set_ptrs_to_zero(solution* sol)
 
    COLORclasses_init(&(sol->cclasses));
 
+   sol->lp            = (COLORlp *) NULL;
+   sol->dbl_nweights  = (double*) NULL;
+
    sol->ncount    = 0;
    sol->solcount  = 0;
    sol->freecount = 0;
 }
 
-static void print_solution(solution* sol)
+static void print_soldata(soldata* sol)
 {
    if (COLORdbg_lvl() > 1) {
 
@@ -291,7 +299,7 @@ static void print_solution(solution* sol)
       }
       printf("\n");
 
-      printf("SOLUTION  ");
+      printf("SOLDATA  ");
       for (i = 0;i < sol->solcount;++i) {
          printf(" %5d",sol->nperm[i]);
       }
@@ -305,7 +313,7 @@ static void print_solution(solution* sol)
    }
 }
 
-static int add_zero_weigthed(solution* sol)
+static int add_zero_weigthed(soldata* sol)
 {
    int i;
    int changes = 0;
@@ -327,7 +335,7 @@ static int add_zero_weigthed(solution* sol)
    return changes;
 }
 
-static int remove_zero_weigthed(solution* sol)
+static int remove_zero_weigthed(soldata* sol)
 {
    int i;
    int changes = 0;
@@ -336,29 +344,76 @@ static int remove_zero_weigthed(solution* sol)
    memcpy(sol->sort_work,sol->nperm,
           sol->solcount * sizeof(int));
    if (COLORdbg_lvl() > 1) {
-      printf("There are %d solution vertices.\n",nnodes);
+      printf("There are %d soldata vertices.\n",nnodes);
    }
    for (i = 0; i < nnodes; ++i) {
       int v = sol->sort_work[i];
       if (sol->nweights[v] == 0.0) {
          if (COLORdbg_lvl() > 1) {
-            printf ("Removing zero weight vertex %d from solution.\n",v);
+            printf ("Removing zero weight vertex %d from soldata.\n",v);
          }
 
          changes++;
-         remove_from_solution(sol,v);
+         remove_from_soldata(sol,v);
       }
    }
    return changes;
 }
 
 
-MAYBE_UNUSED static void init_greedy_neighbour_weigths(solution* sol)
+static int build_LP(soldata*  sol)
+{
+   int rval = 0;
+   int i;
+   int ncount = sol->ncount;
+   node* nodelist = sol->G->nodelist;
+
+   sol->dbl_nweights = (double*) malloc(ncount * sizeof(double));
+   COLORcheck_NULL(sol->dbl_nweights,"Failed to allocate sol->dbl_nweights");
+
+   COLORlp_free (&(sol->lp));
+   rval = COLORlp_init (&(sol->lp), "GreedyLP");
+   COLORcheck_rval(rval,"Failed in COLORlp_init for \"GreedyLP\"");
+
+   rval =  COLORlp_objective_sense (sol->lp, -1);
+   COLORcheck_rval(rval,"Failed in COLORlp_objective_sense");
+
+   for (i = 0; i < ncount; i++) {
+      double w = 0.0;
+      rval = COLORlp_addcol (sol->lp, 0, (int *) NULL, (double *) NULL,
+                             w, 0.0, 1.0, COLORlp_CONTINUOUS, NULL);
+      COLORcheck_rval (rval, "COLORlp_addcol failed");
+   }
+
+   for (i = 0; i < ncount; i++) {
+      int numnz     = 2;
+      int v[2];
+      double coef[2] = {1.0, 1.0};
+      char sense = COLORlp_LESS_EQUAL;
+      int j;
+      v[0] = i;
+      for( j = 0; j < nodelist[i].degree; ++j) {
+         int w_j = nodelist[i].adj[j];
+         if (w_j > i) {
+            j = nodelist[i].degree;
+         } else {
+            v[1] = w_j;
+            rval = COLORlp_addrow (sol->lp, numnz,v,coef,sense,1,(char *) NULL);
+            COLORcheck_rval (rval, "COLORlp_addrow failed");
+         }
+      }
+   }
+ CLEANUP:
+   return rval;
+}
+
+
+MAYBE_UNUSED static void init_greedy_neighbour_weigths(soldata* sol)
 {
    int i;
 
    node* nodelist = sol->G->nodelist;
-   
+
    for (i = sol->solcount; i < sol->solcount + sol->freecount;++i) {
       int x = sol->nperm[i];
       int j;
@@ -373,7 +428,7 @@ MAYBE_UNUSED static void init_greedy_neighbour_weigths(solution* sol)
    }
 }
 
-MAYBE_UNUSED static int greedy_improvement_1(solution* sol, int s)
+MAYBE_UNUSED static int greedy_improvement_1(soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -381,13 +436,13 @@ MAYBE_UNUSED static int greedy_improvement_1(solution* sol, int s)
 
    if (!nnodes) {return changes;}
 
-   memcpy(sol->sort_work,sol->nperm + sol->solcount, 
+   memcpy(sol->sort_work,sol->nperm + sol->solcount,
           sol->freecount * sizeof(int));
 
    perm_nwt_rquicksort(sol->sort_work,
                        sol->nweights,
                        sol->freecount);
-   
+
    for (i = 0; i < nnodes + s; ++i) {
       int v = sol->sort_work[(i + s) % nnodes];
       if (sol->nweights[v] > 0) {
@@ -399,7 +454,7 @@ MAYBE_UNUSED static int greedy_improvement_1(solution* sol, int s)
    return changes;
 }
 
-MAYBE_UNUSED static int greedy_improvement_2(solution* sol, int s)
+MAYBE_UNUSED static int greedy_improvement_2(soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -424,7 +479,7 @@ MAYBE_UNUSED static int greedy_improvement_2(solution* sol, int s)
    return changes;
 }
 
-MAYBE_UNUSED static void adjust_neighbors(solution* sol, int x)
+MAYBE_UNUSED static void adjust_neighbors(soldata* sol, int x)
 {
    int i;
    node* nodelist = sol->G->nodelist;
@@ -436,12 +491,12 @@ MAYBE_UNUSED static void adjust_neighbors(solution* sol, int x)
          sol->grdy_nweights[w_i] -= weight;
          COLORNWTheap_decrease_key(sol->heap,
                                    sol->heappos[w_i],
-                                   sol->grdy_nweights[w_i]);                          
+                                   sol->grdy_nweights[w_i]);
       }
    }
 }
 
-MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
+MAYBE_UNUSED static int greedy_improvement_dyn(soldata* sol, int s)
 {
    int  i;
    int  changes = 0;
@@ -456,13 +511,13 @@ MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
       minv_ptr     = &(sol->inperm[v]);
 /*       printf("Inserting key %lld ptr %p node %d\n", */
 /*              (long long)key, (void*) minv_ptr, v); */
-         
+
       COLORNWTheap_insert(sol->heap, pos,
                           key, (void*) minv_ptr);
    }
-   
+
    minv_ptr = (int*) COLORNWTheap_min(sol->heap);
-   while(minv_ptr) {     
+   while(minv_ptr) {
       if (!s) {
          int v = sol->nperm[*minv_ptr];
 /*          printf("Retrieved key %lld ptr %p node %d\n", */
@@ -486,7 +541,95 @@ MAYBE_UNUSED static int greedy_improvement_dyn(solution* sol, int s)
 }
 
 
-static void reinit_solutions(solution*  sol)
+MAYBE_UNUSED static int greedy_improvement_LP(soldata*  sol, int s)
+{
+   int rval = 0;
+   int i;
+   COLORNWT scalef;
+   int ncount = sol->ncount;
+   int nnodes = sol->freecount;
+   int* minv_ptr;
+
+   int changes = 0;
+
+   memcpy(sol->sort_work,sol->nperm + sol->solcount,
+          sol->freecount * sizeof(int));
+
+   rval = build_LP(sol);
+   COLORcheck_rval(rval,"Failed in build_LP");
+
+   COLOR_COLORNWT2double(sol->dbl_nweights,sol->nweights,
+                         sol->cutoff, ncount);
+   rval = COLORlp_change_objective(sol->lp,0,sol->ncount,sol->dbl_nweights);
+   COLORcheck_rval(rval,"Failed in COLORlp_change_objective");
+
+   COLORlp_write(sol->lp,"GreedyLP.lp");
+
+   rval = COLORlp_optimize (sol->lp);
+   COLORcheck_rval(rval,"Failed in COLORlp_optimize");
+
+   rval = COLORlp_x (sol->lp, sol->dbl_nweights);
+   COLOR_double2COLORNWT(sol->grdy_nweights,&scalef,
+                         sol->dbl_nweights,ncount);
+
+   COLORNWTheap_reset(sol->heap);
+   for (i = 0; i < sol->freecount;++i) {
+      int      v   = sol->nperm[i];
+      COLORNWT key = sol->grdy_nweights[v];
+      int*     pos = &(sol->heappos[v]);
+      minv_ptr     = &(sol->inperm[v]);
+/*       printf("Inserting key %lld ptr %p node %d\n", */
+/*              (long long)key, (void*) minv_ptr, v); */
+
+      COLORNWTheap_insert(sol->heap, pos,
+                          key, (void*) minv_ptr);
+   }
+
+
+   minv_ptr = (int*) COLORNWTheap_min(sol->heap);
+   while(minv_ptr) {
+      if (!s) {
+         int v = sol->nperm[*minv_ptr];
+         if (sol->nweights[v] > 0) {
+            int added = add_iff_free(sol,v);
+            if (added) {
+               int cind[1];
+               double coef[1] = {1.0};
+               int k;
+               char sense = COLORlp_EQUAL;
+               cind[0] = 1;
+               changes++;
+               rval = COLORlp_addrow (sol->lp, 1,cind,coef,sense,1,(char *) NULL);
+               COLORcheck_rval (rval, "COLORlp_addrow failed");
+
+               rval = COLORlp_optimize (sol->lp);
+               COLORcheck_rval(rval,"Failed in COLORlp_optimize");
+            
+               rval = COLORlp_x (sol->lp, sol->dbl_nweights);
+               COLOR_double2COLORNWT(sol->grdy_nweights,&scalef,
+                                     sol->dbl_nweights,ncount);
+               for(k = 0; k < nnodes; ++k) {
+                  int w = sol->sort_work[k];
+                  if (is_free(sol,w)) {
+                     COLORNWTheap_relabel(sol->heap,
+                                          sol->heappos[w],
+                                          sol->grdy_nweights[w]);
+                  }
+               }
+            }
+         }
+      } else {
+         --s;
+      }
+      minv_ptr = (int*) COLORNWTheap_min(sol->heap);
+   }
+
+ CLEANUP:
+   return rval;
+}
+
+
+static void reinit_soldatas(soldata*  sol)
 {
    int i;
    int ncount = sol->ncount;
@@ -500,7 +643,7 @@ static void reinit_solutions(solution*  sol)
    }
 }
 
-static int init_mwis_grdy(solution*  sol,
+static int init_mwis_grdy(soldata*  sol,
                           graph*     G,
                           int          ncount,
                           const COLORNWT nweights[],
@@ -565,15 +708,15 @@ static int init_mwis_grdy(solution*  sol,
    sol->cclasses.cnt = 0;
    sol->greedy_improvement = greedy_improvement_2;
 
-   reinit_solutions(sol);
+   reinit_soldatas(sol);
 
 /*    greedy_improvement(sol); */
 
 /*    if (COLORdbg_lvl()) { */
-/*       print_solution(sol); */
+/*       print_soldata(sol); */
 /*       if (greedy_improvement(sol)) { */
 /*          if (COLORdbg_lvl()) printf("ERROR greedy could improve incrementally!\n"); */
-/*          print_solution(sol); */
+/*          print_soldata(sol); */
 /*       } */
 /*    } */
 
@@ -581,22 +724,22 @@ static int init_mwis_grdy(solution*  sol,
 
  CLEANUP:
    if (rval) {
-      clean_solution(sol);
+      clean_soldata(sol);
    }
    return rval;
 }
 
-static int is_onetight(solution* sol, int v)
+static int is_onetight(soldata* sol, int v)
 {
    return (sol->tightness[v] == 1);
 }
 
-static int is_free_or_onetight(solution* sol, int v)
+static int is_free_or_onetight(soldata* sol, int v)
 {
    return is_onetight(sol,v) || is_free(sol,v);
 }
 
-static void remove_from_solution(solution* sol, int v)
+static void remove_from_soldata(soldata* sol, int v)
 {
    assert(is_basis(sol, v));
 
@@ -606,7 +749,7 @@ static void remove_from_solution(solution* sol, int v)
    /** v is free now. */
 }
 
-static void add_to_solution(solution* sol, int v)
+static void add_to_soldata(soldata* sol, int v)
 {
    assert(is_free(sol,v));
 
@@ -616,7 +759,7 @@ static void add_to_solution(solution* sol, int v)
 }
 
 
-static int perform_2_improvement(solution* sol, int x)
+static int perform_2_improvement(soldata* sol, int x)
 {
    int i;
    int ntight = 0;
@@ -678,14 +821,15 @@ static int perform_2_improvement(solution* sol, int x)
       sol->solcount++;
       sol->freecount--;
 
-      if(COLORdbg_lvl()) print_solution(sol);
+      if(COLORdbg_lvl()) print_soldata(sol);
 
       return 1;
    }
    return 0;
 }
 
-static int perform_2_improvements(solution* sol)
+
+static int perform_2_improvements(soldata* sol)
 {
    int i;
    int totnswaps = 0;
@@ -707,7 +851,7 @@ static int perform_2_improvements(solution* sol)
          int changed = sol->greedy_improvement(sol,0);
          totnswaps += iternswaps;
          if (changed) {
-            if(COLORdbg_lvl()) print_solution(sol);
+            if(COLORdbg_lvl()) print_soldata(sol);
          }
       }
    }  while (iternswaps);
@@ -724,7 +868,7 @@ static void mark_neighbors(int work_marker[], const node* n)
 }
 
 
-static int perform_1_2_path(solution* sol, int* nodestack, int v)
+static int perform_1_2_path(soldata* sol, int* nodestack, int v)
 {
    int i;
    int rm_i = 0;
@@ -794,11 +938,11 @@ static int perform_1_2_path(solution* sol, int* nodestack, int v)
 
       for (rm_i = 0; sol->work_path[rm_i] != -1;++rm_i) {
          int x = sol->work_path[rm_i];
-         remove_from_solution(sol,x);
+         remove_from_soldata(sol,x);
       }
       for (add_i = sol->ncount-1; sol->work_path[add_i] != -1;--add_i) {
          int x = sol->work_path[add_i];
-         add_to_solution(sol,x);
+         add_to_soldata(sol,x);
       }
       changes++;
    }
@@ -807,7 +951,7 @@ static int perform_1_2_path(solution* sol, int* nodestack, int v)
 
 
 
-static int perform_1_2_paths(solution* sol)
+static int perform_1_2_paths(soldata* sol)
 {
    int rval = 0;
    int i;
@@ -840,7 +984,7 @@ static int perform_1_2_paths(solution* sol)
    return changes;
 }
 
-static COLORNWT solution_value(solution* sol)
+static COLORNWT soldata_value(soldata* sol)
 {
    int i;
    COLORNWT sval = 0;
@@ -893,7 +1037,7 @@ static int vertex_comparator(const void* v1,const void* v2)
    return i1-i2;
 }
 
-static int add_solution(solution* sol)
+static int add_soldata(soldata* sol)
 {
    int rval = 0;
    int* newmembers = (int*) NULL;
@@ -932,9 +1076,9 @@ static int add_solution(solution* sol)
 }
 
 
-static int transfer_solution(COLORset** newsets,
+static int transfer_soldata(COLORset** newsets,
                              int*       nnewsets,
-                             solution*  sol)
+                             soldata*  sol)
 {
    int rval = 0;
    COLORclasses* cclasses = &(sol->cclasses);
@@ -942,7 +1086,7 @@ static int transfer_solution(COLORset** newsets,
    if (cclasses->cnt == 0) goto CLEANUP;
 
    if (COLORdbg_lvl()) {
-      printf("Transferring %d greedy solutions.\n",cclasses->cnt);
+      printf("Transferring %d greedy soldatas.\n",cclasses->cnt);
    }
 
    *nnewsets = cclasses->cnt;
@@ -964,52 +1108,54 @@ CLEANUP:
    return rval;
 }
 
-static int inspect_solution(solution* sol, COLORNWT* best_sval,
+static int inspect_soldata(soldata* sol, COLORNWT* best_sval,
                             const char* logstring)
 {
    int    rval = 0;
-   COLORNWT sval = solution_value(sol);
+   COLORNWT sval = soldata_value(sol);
    if (COLORdbg_lvl()) printf("%s: %lld\n",logstring,(long long) sval);
 
    if(sval > sol->cutoff && sval > *best_sval) {
       add_zero_weigthed(sol);
-      rval = add_solution(sol);
+      rval = add_soldata(sol);
       remove_zero_weigthed(sol);
-      
-      COLORcheck_rval(rval,"Failed in add_solution");
+
+      COLORcheck_rval(rval,"Failed in add_soldata");
       *best_sval = sval;
    } else if (sval > *best_sval) {
       *best_sval = sval;
-      print_solution(sol);
+      print_soldata(sol);
    }
  CLEANUP:
    return rval;
 }
 
-static int repeated_greedy_followed_by_ls(solution*  sol)
+
+
+static int repeated_greedy_followed_by_ls(soldata*  sol)
 {
    int rval = 0;
    COLORNWT best_sval = 0;
    int changes;
    int start_vertex;
-   int nsolutions = 0;
+   int nsoldatas = 0;
    int last_improving_start = 0;
    int last_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
-      reinit_solutions(sol);
-
+      reinit_soldatas(sol);
+      sol->solcount = 0;
       sol->greedy_improvement(sol,start_vertex);
-      changes = sol->solcount;
+      if ( !(changes = sol->solcount)) continue;
 
-      inspect_solution(sol,&best_sval,"GREEDY MWIS");
+      inspect_soldata(sol,&best_sval,"GREEDY MWIS");
 
       while (changes) {
 
          changes = perform_2_improvements(sol);
          COLORcheck_rval(rval,"perform_2_improvements");
          if (changes) {
-            inspect_solution(sol,&best_sval,"GREEDY 2-SWAPS");
+            inspect_soldata(sol,&best_sval,"GREEDY 2-SWAPS");
          }
 
          if (best_sval < sol->cutoff) {
@@ -1019,7 +1165,7 @@ static int repeated_greedy_followed_by_ls(solution*  sol)
 
             if (change) {
                sol->greedy_improvement(sol,0);
-               inspect_solution(sol,&best_sval,"GREEDY 1-2-SWAPS");
+               inspect_soldata(sol,&best_sval,"GREEDY 1-2-SWAPS");
             }
          }
       }
@@ -1030,30 +1176,31 @@ static int repeated_greedy_followed_by_ls(solution*  sol)
             printf("Added %d zero weighted vertices.\n",zero_added);
          }
       }
-      if (sol->cclasses.cnt > nsolutions) {
-         nsolutions = sol->cclasses.cnt;
+      if (sol->cclasses.cnt > nsoldatas) {
+         nsoldatas = sol->cclasses.cnt;
          last_improving_start = start_vertex;
-         if (last_valid_start == -1) 
+         if (last_valid_start == -1)
             last_valid_start = start_vertex;
 /*          num_starts /=2; */
       }
    }
-   printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy solutions: %d, first valid it. %d last improving iteration %d\n",
+   printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
           COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
           sol->cclasses.cnt, last_valid_start,last_improving_start);
+   fflush(stdout);
  CLEANUP:
    return rval;
 }
 
 int COLORstable_LS(MWISls_env** env,
                    COLORset** newsets, int* nnewsets, int ncount,
-                   int ecount, const int elist[], 
+                   int ecount, const int elist[],
                    const COLORNWT nweights[], COLORNWT cutoff)
 {
    int rval = 0;
 
    graph*     G  = (graph*) NULL;
-   solution* sol = (solution*) NULL;
+   soldata* sol = (soldata*) NULL;
 
    if (! *env) {
       (*env) = (MWISls_env*) malloc (sizeof(MWISls_env));
@@ -1097,9 +1244,20 @@ int COLORstable_LS(MWISls_env** env,
       repeated_greedy_followed_by_ls(sol);
    }
 
+   /** In fact the LP-based greedy & local is essentially what
+       gurobi does (reduced to a predetermined set of branches.
+       But without cutting and bounding  it's not faster than gurobi.
+       Instead we might try  a fixed number of DFS branches within 
+       stable.c.
+   */
+/*    if (!sol->cclasses.cnt) { */
+/*       sol->greedy_improvement = greedy_improvement_LP; */
+/*       repeated_greedy_followed_by_ls(sol); */
+/*    } */
+
 
    if(sol->cclasses.cnt) {
-      transfer_solution(newsets,nnewsets,sol);
+      transfer_soldata(newsets,nnewsets,sol);
       rval = COLORcheck_set(newsets[0],ncount,ecount,elist);
       COLORcheck_rval(rval,"COLORcheck_set failed");
    }
@@ -1108,7 +1266,7 @@ int COLORstable_LS(MWISls_env** env,
  CLEANUP:
    if (rval) {
       COLORfree_sets (newsets,nnewsets);
-      clean_solution(sol);
+      clean_soldata(sol);
       COLORadjgraph_free(G);
    }
 
@@ -1116,11 +1274,55 @@ int COLORstable_LS(MWISls_env** env,
 }
 
 
+int COLORstable_round_down_weights(MWISls_env* env,
+                                   COLORNWT nweights[],
+                                   COLORNWT cutoff)
+{
+   int i,j;
+   int ncount = env->G.ncount;
+   const node* nodelist    = env->G.nodelist;
+
+   COLORNWT lb = 0;
+   COLORNWT lb_frac = 0;
+   COLORNWT min_frac = (COLORNWT) ncount;
+   COLORNWT max_dweight = COLORNWT_MIN;
+   int max_dweight_node = -1;
+
+   for (i = 0; i < ncount; ++i) {
+      lb += nweights[i];
+   }
+
+   lb_frac = lb % cutoff - min_frac;
+
+   for (i = 0; (i < ncount) && (lb_frac > 0); ++i) {
+      COLORNWT dweight = nweights[i];
+      for(j = 0; j < nodelist[i].degree; ++j) {
+         int w_j = nodelist[i].adj[j];
+         dweight -= nweights[w_j];
+      }
+      if (dweight > max_dweight) {
+         max_dweight = dweight;
+         max_dweight_node = i;
+      }
+      if (dweight > 0) {
+         COLORNWT rounddiff = COLORNWTmin(lb_frac,dweight);
+         printf("Found node %d with positive delta weight %lld, "
+                "rounding down by %lld.\n",
+                i, (long long) dweight, (long long) rounddiff);
+         nweights[i] -= rounddiff;
+         lb_frac -= rounddiff;
+      }
+   }
+   printf("The maximum star weight was %lld on node %d.\n",
+          (long long) max_dweight, max_dweight_node);
+   return 0;
+}
+
 int COLORstable_free_ls_env(MWISls_env** env)
 {
    if (*env) {
       COLORadjgraph_free(&((*env)->G));
-      clean_solution(&((*env)->sol));
+      clean_soldata(&((*env)->sol));
       free(*env);
       *env = (MWISls_env*) NULL;
    }

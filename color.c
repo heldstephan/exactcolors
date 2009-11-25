@@ -170,6 +170,7 @@ static void make_pi_feasible(colordata* cd)
    }
 }
 
+
 static void reset_ages(COLORset* cclasses, int ccount) 
 {
    int i;
@@ -205,9 +206,9 @@ static int grow_ages(colordata* cd)
 
 static int delete_old_colorclasses(colordata* cd) 
 {
-   int rval = 0;
+   int rval   = 0;
    int i;
-   int numdel;
+   int numdel = 0;
 
    
    for (i = 0; i < cd->ccount; ++i) {
@@ -222,7 +223,7 @@ static int delete_old_colorclasses(colordata* cd)
    }
    
    if (numdel) {
-      printf("Deleted %d out of %d columns wich age > %d. Rebuilding LP from scratch.\n",
+      printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
              numdel, numdel + cd->ccount, cd->retirementage);
       COLORlp_free (&(cd->lp));
 
@@ -230,10 +231,35 @@ static int delete_old_colorclasses(colordata* cd)
       COLORcheck_rval(rval, "Failed in build_lp");
    }
 
+
  CLEANUP:
    
    return rval;
 }
+
+static int write_snapshot(colordata* cd, int add_timestamp) 
+{
+   int rval = 0;
+   if (cclasses_outfile != (char*) NULL) {
+      char   fname[256];
+
+      if (add_timestamp) {
+         char   timestr[256];
+         time_t t;
+         t = time(NULL);
+         strftime(timestr, 256, "%Y%m%d%H%M", localtime(&t));
+         sprintf(fname,"%s.%s",cclasses_outfile,timestr);
+      } else {
+         sprintf(fname,"%s",cclasses_outfile);
+      }
+      rval = COLORstable_write_stable_sets(cd->cclasses,cd->ccount,cd->ncount,
+                                           fname,cd->pname); 
+      COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
+   }
+ CLEANUP:
+   return rval;
+}
+
 
 static void print_ages(colordata* cd) 
 {
@@ -324,6 +350,11 @@ int main (int ac, char **av)
     int i,j;
     int iterations       = 0;
     int break_while_loop = 1;
+    double start_time;
+    double last_snapshot_time;
+
+    double cur_time;
+
     double tot_rtime;
     
     colordata  _colordata;
@@ -346,7 +377,8 @@ int main (int ac, char **av)
                              &(cd->ncount), &(cd->ecount), &(cd->elist));
     COLORcheck_rval (rval, "COLORread_diamcs failed");
 
-    tot_rtime = COLORcpu_time();
+    start_time = COLORcpu_time();
+    last_snapshot_time = start_time;
 
     if (cclasses_infile != (char*) NULL) {
        rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
@@ -382,12 +414,21 @@ int main (int ac, char **av)
     cd->mwis_pi = (COLORNWT *) malloc (cd->ncount * sizeof (COLORNWT));
     COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
     
-/*     cd->retirementage = cd->ncount + 1; */
+    cd->retirementage = cd->ncount + 1;
     do {
        ++iterations;
 
        if ( (iterations % (2 * cd->retirementage)) == 0) {
           delete_old_colorclasses(cd);
+       }
+       
+       if (cclasses_outfile) {
+          int add_timestamp = 1;
+          cur_time = COLORcpu_time();
+          if (cur_time - last_snapshot_time > 7200) {
+             write_snapshot(cd,add_timestamp);
+             last_snapshot_time = cur_time;
+          }
        }
 
         rval = COLORlp_optimize(cd->lp);
@@ -396,7 +437,7 @@ int main (int ac, char **av)
         rval = grow_ages(cd);
         COLORcheck_rval (rval, "grow_ages failed");
 
-        print_ages(cd);
+        if (COLORdbg_lvl() > 1) {print_ages(cd);}
 
         rval = COLORlp_pi (cd->lp, cd->pi);
         COLORcheck_rval (rval, "COLORlp_pi failed");
@@ -437,7 +478,7 @@ int main (int ac, char **av)
        printf ("Found bound of %lld (%20.16g), greedy coloring %d (iterations = %d).\n", 
                (long long) cd->lower_bound,dbl_lower_bound, cd->ccount,iterations);
 
-       tot_rtime = COLORcpu_time() - tot_rtime;
+       tot_rtime = COLORcpu_time() - start_time;
        printf("Computing initial lower bound took %f seconds.\n",tot_rtime);
        fflush(stdout);
        if (write_mwis) {
@@ -457,11 +498,14 @@ int main (int ac, char **av)
           sprintf(mps_fname,"%s.graphviz.dot",cd->pname);
           COLORplot_graphviz(mps_fname,cd->ncount,cd->ecount,cd->elist,(int*) NULL); 
        }
-       if (cclasses_outfile != (char*) NULL) {
-          rval = COLORstable_write_stable_sets(cd->cclasses,cd->ccount,cd->ncount,
-                                               cclasses_outfile,cd->pname); 
-          COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
+       
+       delete_old_colorclasses(cd);
+
+       if (cclasses_outfile) {
+          int add_timestamp = 0;
+          write_snapshot(cd,add_timestamp);
        }
+
        tot_rtime = COLORcpu_time();
        COLORlp_set_all_coltypes(cd->lp,GRB_BINARY);
        COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
