@@ -44,7 +44,7 @@ CLEANUP:
 
 void COLORlp_free (COLORlp **p)
 {
-    if (p) {
+    if (*p) {
         if ((*p)->model) GRBfreemodel ((*p)->model);
         if ((*p)->env) GRBfreeenv ((*p)->env);
         free (*p);
@@ -73,6 +73,20 @@ int COLORlp_objval (COLORlp *p, double *obj)
 CLEANUP:
     return rval;
 
+}
+
+int COLORlp_change_objective(COLORlp *p, int start, int len, double* values)
+{
+   int rval = 0;
+   rval = GRBsetdblattrarray(p->model,GRB_DBL_ATTR_OBJ,
+                             start,len,values);
+   COLORcheck_rval_grb(rval,"Failed in GRBsetdblattrarray",p->env);
+
+   rval = GRBupdatemodel (p->model);
+   COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
+
+ CLEANUP:
+   return rval;
 }
 
 int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
