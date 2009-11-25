@@ -218,9 +218,23 @@ int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
                                int           pos,
                                COLORNWT      new_key)
 {
+   int heap_index = heap->iperm[pos];
+
    heap->elms[pos].key = new_key;
 
-   COLORNWTheap_liftup(heap,heap->iperm[pos]);
+   COLORNWTheap_liftup(heap,heap_index);
+   
    return 0;
 }
 
+int COLORNWTheap_relabel (COLORNWTHeap* heap,
+                          int           pos,
+                          COLORNWT      new_key)
+{
+   int heap_index = heap->iperm[pos];
+   heap->elms[pos].key = new_key;
+   if (!COLORNWTheap_liftup(heap,heap_index)) {
+      COLORNWTheap_siftdown(heap,heap_index);
+   }
+   return 0;
+}

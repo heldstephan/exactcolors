@@ -29,6 +29,10 @@ int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
                                int           pos,
                                COLORNWT      new_key);
 
+int COLORNWTheap_relabel (COLORNWTHeap* heap,
+                          int           pos,
+                          COLORNWT      new_key);
+
 
 
 #endif
