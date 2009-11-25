@@ -23,10 +23,16 @@ void COLORlp_free (COLORlp **p);
 #define COLORlp_BINARY     GRB_BINARY
 #define COLORlp_INTEGER    GRB_INTEGER
 
+#define COLORlp_EQUAL         GRB_EQUAL
+#define COLORlp_LESS_EQUAL    GRB_LESS_EQUAL
+#define COLORlp_GREATER_EUQAL GRB_GREATER_EQUAL
+
 int COLORlp_optimize (COLORlp *p);
 int COLORlp_objval (COLORlp *p, double *obj);
 int COLORlp_pi (COLORlp *p, double *pi);
 int COLORlp_x (COLORlp *p, double *x);
+
+int COLORlp_change_objective(COLORlp *p, int start, int len, double* values);
 
 int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
                     char sense, double rhs, char *name);
