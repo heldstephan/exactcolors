@@ -93,7 +93,7 @@ struct soldata_t {
    int*      work_path;
    int*      nodestack;
 
-   int*          heappos;
+   int*          heapref;
    COLORNWTHeap* heap;
 
    int (* greedy_improvement)(soldata*,int);
@@ -122,7 +122,7 @@ static void clean_soldata(soldata* sol)
    if (sol->work_marker) free(sol->work_marker);
    if (sol->work_path)   free(sol->work_path);
    if (sol->nodestack)   free(sol->nodestack);
-   if (sol->heappos)     free(sol->heappos);
+   if (sol->heapref)     free(sol->heapref);
    if (sol->cclasses.sets) free(sol->cclasses.sets);
    if (sol->heap)
       COLORNWTheap_free(sol->heap);
@@ -274,7 +274,7 @@ static void set_ptrs_to_zero(soldata* sol)
    sol->work_marker   =      (int*) NULL;
    sol->work_path     =      (int*) NULL;
    sol->nodestack     =      (int*) NULL;
-   sol->heappos       =      (int*) NULL;
+   sol->heapref       =      (int*) NULL;
    sol->heap          = (COLORNWTHeap*) NULL;
 
    COLORclasses_init(&(sol->cclasses));
@@ -490,7 +490,7 @@ MAYBE_UNUSED static void adjust_neighbors(soldata* sol, int x)
       if (is_free(sol,w_i)) {
          sol->grdy_nweights[w_i] -= weight;
          COLORNWTheap_decrease_key(sol->heap,
-                                   sol->heappos[w_i],
+                                   sol->heapref[w_i],
                                    sol->grdy_nweights[w_i]);
       }
    }
@@ -507,7 +507,7 @@ MAYBE_UNUSED static int greedy_improvement_dyn(soldata* sol, int s)
    for (i = 0; i < sol->freecount;++i) {
       int      v   = sol->nperm[i];
       COLORNWT key = sol->grdy_nweights[v];
-      int*     pos = &(sol->heappos[v]);
+      int*     pos = &(sol->heapref[v]);
       minv_ptr     = &(sol->inperm[v]);
 /*       printf("Inserting key %lld ptr %p node %d\n", */
 /*              (long long)key, (void*) minv_ptr, v); */
@@ -576,7 +576,7 @@ MAYBE_UNUSED static int greedy_improvement_LP(soldata*  sol, int s)
    for (i = 0; i < sol->freecount;++i) {
       int      v   = sol->nperm[i];
       COLORNWT key = sol->grdy_nweights[v];
-      int*     pos = &(sol->heappos[v]);
+      int*     pos = &(sol->heapref[v]);
       minv_ptr     = &(sol->inperm[v]);
 /*       printf("Inserting key %lld ptr %p node %d\n", */
 /*              (long long)key, (void*) minv_ptr, v); */
@@ -604,7 +604,7 @@ MAYBE_UNUSED static int greedy_improvement_LP(soldata*  sol, int s)
 
                rval = COLORlp_optimize (sol->lp);
                COLORcheck_rval(rval,"Failed in COLORlp_optimize");
-            
+
                rval = COLORlp_x (sol->lp, sol->dbl_nweights);
                COLOR_double2COLORNWT(sol->grdy_nweights,&scalef,
                                      sol->dbl_nweights,ncount);
@@ -612,7 +612,7 @@ MAYBE_UNUSED static int greedy_improvement_LP(soldata*  sol, int s)
                   int w = sol->sort_work[k];
                   if (is_free(sol,w)) {
                      COLORNWTheap_relabel(sol->heap,
-                                          sol->heappos[w],
+                                          sol->heapref[w],
                                           sol->grdy_nweights[w]);
                   }
                }
@@ -694,9 +694,9 @@ static int init_mwis_grdy(soldata*  sol,
       COLORcheck_NULL(sol->nodestack,"Allocating sol->nodestack failed");
    }
 
-   if(!sol->heappos) {
-      sol->heappos = (int*) malloc(ncount * sizeof(int));
-      COLORcheck_NULL(sol->heappos,"Allocating sol->heappos failed");
+   if(!sol->heapref) {
+      sol->heapref = (int*) malloc(ncount * sizeof(int));
+      COLORcheck_NULL(sol->heapref,"Allocating sol->heapref failed");
    }
 
    if(!sol->heap) {
@@ -948,8 +948,6 @@ static int perform_1_2_path(soldata* sol, int* nodestack, int v)
    }
    return changes;
 }
-
-
 
 static int perform_1_2_paths(soldata* sol)
 {
@@ -1247,7 +1245,7 @@ int COLORstable_LS(MWISls_env** env,
    /** In fact the LP-based greedy & local is essentially what
        gurobi does (reduced to a predetermined set of branches.
        But without cutting and bounding  it's not faster than gurobi.
-       Instead we might try  a fixed number of DFS branches within 
+       Instead we might try  a fixed number of DFS branches within
        stable.c.
    */
 /*    if (!sol->cclasses.cnt) { */
@@ -1273,49 +1271,136 @@ int COLORstable_LS(MWISls_env** env,
    return rval;
 }
 
+static int num_weighted_neighbors(soldata* sol, COLORNWT* nweights, int v)
+{
+   int j;
+   int numwn = 0;
+   node* nodelist = sol->G->nodelist;
+
+   for (j = 0;j < nodelist[v].degree; ++j) {
+      int w_j = nodelist[v].adj[j];
+      if (nweights[w_j] > 0) {
+         numwn++;
+      }
+   }
+   return numwn;
+}
+
+static int decreased_nwn_of_neighbors(soldata* sol, int v)
+{
+   int rval;
+   int k;
+   
+   node* nodelist = sol->G->nodelist;
+
+   for (k = 0;k < nodelist[v].degree; ++k) {
+      int w_k = nodelist[v].adj[k];
+      if (sol->heapref[w_k] != -1) {
+/*          printf("Decreasing key of node %d to %d.\n", */
+/*          w_k, sol->work_marker[w_k] - 1); */
+         --(sol->work_marker[w_k]);
+         rval = COLORNWTheap_decrease_key(sol->heap,
+                                          sol->heapref[w_k],
+                                          sol->work_marker[w_k]);
+         COLORcheck_rval(rval,"Failed in COLORNWTheap_decrease_key");
+      }
+   }
+ CLEANUP:
+   return rval;
+}
 
 int COLORstable_round_down_weights(MWISls_env* env,
                                    COLORNWT nweights[],
                                    COLORNWT cutoff)
 {
-   int i,j;
+   int rval = 0;
+   int i;
    int ncount = env->G.ncount;
    const node* nodelist    = env->G.nodelist;
-
+   soldata* sol = &(env->sol);
    COLORNWT lb = 0;
    COLORNWT lb_frac = 0;
    COLORNWT min_frac = (COLORNWT) ncount;
-   COLORNWT max_dweight = COLORNWT_MIN;
-   int max_dweight_node = -1;
+
+   int* minv_ptr;
 
    for (i = 0; i < ncount; ++i) {
       lb += nweights[i];
+      sol->heapref[i] = -1;
+      sol->work_marker[i] = 0; // using work_marker to store keys here;
    }
 
-   lb_frac = lb % cutoff - min_frac;
+   lb_frac = lb % cutoff /* + cutoff */- min_frac;
 
+   COLORNWTheap_reset(sol->heap);
    for (i = 0; (i < ncount) && (lb_frac > 0); ++i) {
-      COLORNWT dweight = nweights[i];
-      for(j = 0; j < nodelist[i].degree; ++j) {
-         int w_j = nodelist[i].adj[j];
-         dweight -= nweights[w_j];
-      }
-      if (dweight > max_dweight) {
-         max_dweight = dweight;
-         max_dweight_node = i;
-      }
-      if (dweight > 0) {
-         COLORNWT rounddiff = COLORNWTmin(lb_frac,dweight);
-         printf("Found node %d with positive delta weight %lld, "
-                "rounding down by %lld.\n",
-                i, (long long) dweight, (long long) rounddiff);
-         nweights[i] -= rounddiff;
-         lb_frac -= rounddiff;
+      int*     pos = &(sol->heapref[i]);
+      if (nweights[i] > 0) {
+         sol->work_marker[i] = 1;
+         sol->work_marker[i] += num_weighted_neighbors(sol,nweights,i);
+         minv_ptr     = &(sol->inperm[i]);
+         rval  = COLORNWTheap_insert(sol->heap, pos,
+                                     sol->work_marker[i], 
+                                     (void*) minv_ptr);
+/*          printf("Inserted node %d with key %d at pos %d, %d.\n", */
+/*                 i,sol->work_marker[i],*pos,sol->heapref[i]); */
+         COLORcheck_rval(rval,"Failed in COLORNWTheap_insert");
       }
    }
-   printf("The maximum star weight was %lld on node %d.\n",
-          (long long) max_dweight, max_dweight_node);
-   return 0;
+
+   minv_ptr = (int*) COLORNWTheap_min(sol->heap);
+   while (lb_frac > 0 && minv_ptr) {
+      int j;
+      int v = sol->nperm[*minv_ptr];
+      COLORNWT adjust;
+      int start = 0, end = 0;
+      assert (nweights[v] > 0);
+
+      sol->heapref[v] = -1;
+
+      sol->sort_work[end++] = v;
+      for (j = 0; j < nodelist[v].degree; ++j) {
+         int w_j = nodelist[v].adj[j];
+         if (nweights[w_j] > 0) {
+            sol->sort_work[end++] = w_j;
+         }
+      }
+      perm_nwt_rquicksort(sol->sort_work,nweights,end);
+
+      while ( (lb_frac > 0) && 
+              (start < end) &&
+              ((adjust = nweights[sol->sort_work[end-1]]) > 0) ) {
+         adjust = COLORNWTmin(adjust,lb_frac/(end-start));
+
+         lb_frac -= adjust * (end-start);
+
+         for (j = start; j < end; ++j) {
+            int w_j= sol->sort_work[j];
+            assert (nweights[w_j] >= adjust);
+            nweights[w_j] -= adjust;
+            if (nweights[w_j]) {
+               if (sol->heapref[w_j] != -1) {
+/*                   printf("Removing node %d from pos %d.\n",w_j,sol->heapref[w_j]); */
+                  rval = COLORNWTheap_remove(sol->heap,sol->heapref[w_j]);
+                  COLORcheck_rval(rval,"Failed in COLORNWTheap_remove");
+                  sol->heapref[w_j] = -1;
+               }
+               decreased_nwn_of_neighbors(sol,w_j);
+            }
+         }
+         if (sol->sort_work[end-1] == v ) {
+            start = end;
+         } else {
+            end--;
+         }
+         if ( lb_frac <= (end-start)) {
+            start = end - lb_frac;
+         }
+      }
+      minv_ptr = (int*) COLORNWTheap_min(sol->heap);
+   }
+ CLEANUP:
+   return rval;
 }
 
 int COLORstable_free_ls_env(MWISls_env** env)

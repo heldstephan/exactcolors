@@ -407,8 +407,8 @@ int main (int ac, char **av)
     rval = build_lp(cd);
     COLORcheck_rval (rval, "build_lp failed");
 
-    rval = COLORstable_initenv (&(cd->mwis_env),cd->pname,write_mwis);
-    COLORcheck_rval (rval, "COLORgreedy failed");
+/*     rval = COLORstable_initenv (&(cd->mwis_env),cd->pname,write_mwis); */
+/*     COLORcheck_rval (rval, "COLORgreedy failed"); */
 
    
     cd->mwis_pi = (COLORNWT *) malloc (cd->ncount * sizeof (COLORNWT));
