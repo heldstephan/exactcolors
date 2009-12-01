@@ -3,6 +3,8 @@
 
 #include "heap.h"
 
+/* #define HEAP_INTEGRITY_CHECKS 1 */
+
 typedef struct COLORNWTHeapElm {
    COLORNWT key;
    void*    obj;
@@ -25,6 +27,40 @@ static int COLORNWTheap_empty(COLORNWTHeap* heap)
    assert(heap->end >= 0);
    return !(heap->end);
 }
+
+
+MAYBE_UNUSED static int COLORNWTheap_integrity(COLORNWTHeap* heap)
+{
+   int rval = 0;
+   int i;
+   int* perm = heap->perm;
+   int* iperm = heap->iperm;
+
+   for (i = 0 ; i < heap->end; ++i) {
+      rval = ! (iperm[perm[i]] == i);
+      COLORcheck_rval(rval,"Failed: iperm[perm[i]] == i");
+
+      rval = ! (perm[iperm[i]] == i);
+      COLORcheck_rval(rval,"Failed: perm[iperm[i]] == i");
+      if (i > 0) {
+         int parent = i >> 1;
+         rval = (heap->elms[perm[parent]].key > heap->elms[perm[i]].key);
+         COLORcheck_rval(rval,"Failed: heap order");
+      }
+   }
+ CLEANUP:
+   return rval;
+}
+
+
+#ifdef HEAP_INTEGRITY_CHECKS
+#define HEAP_INTEGRITY(rval,heap,msg) {              \
+      rval = COLORNWTheap_integrity(heap);           \
+      COLORcheck_rval(rval,msg);                     \
+}
+#else
+#define HEAP_INTEGRITY(rval,heap,msg)
+#endif
 
 int COLORNWTheap_init(COLORNWTHeap** heap,
                       int size)
@@ -66,6 +102,9 @@ int COLORNWTheap_init(COLORNWTHeap** heap,
    (*heap)->perm[size-1] = (*heap)->iperm[size-1] = size-1;
    
    COLORNWTheap_reset(*heap);
+
+   HEAP_INTEGRITY(rval,*heap,
+                  "COLORNWTheap_integrity failed in COLORNWTheap_relabel.");
  CLEANUP:
    if(rval) {
       COLORNWTheap_free(*heap);
@@ -96,34 +135,33 @@ void COLORNWTheap_reset(COLORNWTHeap* heap)
       heap->elms[i].key = COLORNWT_MAX;
       heap->perm[i] = heap->iperm[i] = i;
    }
+   assert(!COLORNWTheap_integrity(heap));
 }
 
 static int COLORNWTheap_liftup(COLORNWTHeap* heap,
                                 int           pos)
 {
-   int swaps  = 0;
-   int idx    = heap->perm[pos];
-   int* perm  = heap->perm;
-   int* iperm = heap->iperm;
-   int pred   = pos >> 1;
-   COLORNWT key = heap->elms[pos].key;
-
+   int swaps   = 0;
+   int href     = heap->perm[pos];
+   int* perm   = heap->perm;
+   int* iperm  = heap->iperm;
+   int  parent = pos >> 1;
+   COLORNWT key = heap->elms[href].key;
    /* The sentinel at index 0 will stop the loop.*/
-   while (heap->elms[perm[pred]].key > key ) {
+   while (heap->elms[perm[parent]].key > key ) {
       /* Move the parent down .*/
-      perm[pos] = perm[pred];
+      perm[pos] = perm[parent];
       iperm[perm[pos]] = pos;
-      pos     = pred;
-      pred  >>= 1;
+      pos     = parent;
+      parent  >>= 1;
       ++swaps;
    }
 
-   /* If elm at idx was lifted up (to pos), update perm arrays.*/
-   if(idx != heap->perm[pos]) {
-      perm[pos]         = idx;
-      iperm[idx]        = pos;
+   /* If elm at href was lifted up (to pos), update perm arrays.*/
+   if(href != heap->perm[pos]) {
+      perm[pos]         = href;
+      iperm[href]        = pos;
    }
-
    return swaps;
 }
 
@@ -137,8 +175,8 @@ static int COLORNWTheap_siftdown(COLORNWTHeap* heap,
    int* iperm = heap->iperm;
    COLORNWTHeapElm* elms = heap->elms;
    int  minc,rightc;
-   int  idx = perm[pos];
-   int  key = heap->elms[idx].key;
+   int  ref = perm[pos];
+   int  key = heap->elms[ref].key;
 
    while (pos <= end_half) {
       minc  = pos << 1;  /* j = k*2 */
@@ -157,15 +195,15 @@ static int COLORNWTheap_siftdown(COLORNWTHeap* heap,
       pos = minc;
    }
 
-   perm[pos] = idx;
-   iperm[idx] = pos;
+   perm[pos] = ref;
+   iperm[ref] = pos;
 
    return swaps;
 }
 
 
 int COLORNWTheap_insert (COLORNWTHeap* heap,
-                         int*          pos,
+                         int*          href,
                          COLORNWT      key,
                          void*         obj)
 {
@@ -173,31 +211,83 @@ int COLORNWTheap_insert (COLORNWTHeap* heap,
 
    (heap->end)++;
    
-   assert (heap->end  < heap->size);
+   if (heap->end  >= heap->size) {
+      fprintf(stderr,"COLORNWTheap_insert error: Heap is full, no more elements can be added!\n");
+      rval = 1; goto CLEANUP;      
+   }
    
    heap->elms[heap->perm[heap->end]].obj  = obj;
    heap->elms[heap->perm[heap->end]].key  = key;
-   *pos = heap->end;
+   *href = heap->end;
    
    COLORNWTheap_liftup(heap,heap->end);
 
+   HEAP_INTEGRITY(rval,heap,"COLORNWTheap_integrity failed in COLORNWTheap_insert.");
+
+ CLEANUP:
+   return rval;
+}
+
+int COLORNWTheap_remove (COLORNWTHeap* heap,
+                         int           href)
+{
+   int rval = 0;
+   int heap_pos = heap->iperm[href];
+   
+   if (heap_pos > heap->end) {
+      fprintf(stderr,"COLORNWTheap_remove error: href does not exist!\n");
+      rval = 1; goto CLEANUP;
+   }
+   
+   heap->elms[href].key = COLORNWT_MAX;
+   
+   /* A successive uplift of the minimum child might be faster but for
+      the time beeing I'm too lazy to implement this.  Instead I lift
+      the last element to the hole and sift it down.
+   */
+   if (heap_pos < heap->end) {
+      /* swap last elm to heap_pos  */
+      heap->perm[heap_pos] = heap->perm[heap->end];
+      heap->perm[heap->end] = href;
+   
+      /* swap iperm */
+      heap->iperm[heap->perm[heap_pos]] = heap_pos;
+      heap->iperm[heap->perm[heap->end]] = heap->end;
+
+      
+      /* Move down elm at index heap_pos. 
+         It cannot travel to heap->end, as that element has
+          key of COLORNWT_MAX now.
+       */
+      rval = COLORNWTheap_relabel(heap, 
+                                  heap->perm[heap_pos], 
+                                  heap->elms[heap->perm[heap_pos]].key);
+   } 
+   (heap->end)--;
+
+   HEAP_INTEGRITY(rval,heap,"COLORNWTheap_integrity failed in COLORNWTheap_remove.");
+
+ CLEANUP:
    return rval;
 }
 
 void* COLORNWTheap_min(COLORNWTHeap* heap)
 {
-   int idx;
+   int href;
    void* obj;
+
+   assert(!COLORNWTheap_integrity(heap));
+
    if(COLORNWTheap_empty(heap)) {
       return (void*) NULL;
    }
    
-   idx = heap->perm[1];
-   obj = heap->elms[idx].obj;
+   href = heap->perm[1];
+   obj = heap->elms[href].obj;
 
    /* swap last elm to index 1 */
    heap->perm[1] = heap->perm[heap->end];
-   heap->perm[heap->end] = idx;
+   heap->perm[heap->end] = href;
    
    /* swap iperm */
    heap->iperm[heap->perm[1]] = 1;
@@ -211,30 +301,48 @@ void* COLORNWTheap_min(COLORNWTHeap* heap)
    /* Move down elm at index 1. */
    COLORNWTheap_siftdown(heap, 1);
 
+   assert(!COLORNWTheap_integrity(heap));
+
    return obj;
 }
 
 int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
-                               int           pos,
+                               int           href,
                                COLORNWT      new_key)
 {
-   int heap_index = heap->iperm[pos];
+   int rval = 0;
+   int heap_pos = heap->iperm[href];
 
-   heap->elms[pos].key = new_key;
+   if (heap->elms[href].key < new_key) { 
+      fprintf(stderr,"COLORNWTheap_decrease_key error: new_key is greater than old key!\n");
+      rval = 1; goto CLEANUP;
+   }
+   heap->elms[href].key = new_key;
 
-   COLORNWTheap_liftup(heap,heap_index);
-   
-   return 0;
+   COLORNWTheap_liftup(heap,heap_pos);
+
+   rval = COLORNWTheap_integrity(heap);
+   COLORcheck_rval(rval,"COLORNWTheap_integrity failed in COLORNWTheap_decrease_key.\n");
+
+ CLEANUP:
+   return rval;
 }
 
 int COLORNWTheap_relabel (COLORNWTHeap* heap,
-                          int           pos,
+                          int           href,
                           COLORNWT      new_key)
 {
-   int heap_index = heap->iperm[pos];
-   heap->elms[pos].key = new_key;
-   if (!COLORNWTheap_liftup(heap,heap_index)) {
-      COLORNWTheap_siftdown(heap,heap_index);
+   int rval = 0;
+   int heap_pos = heap->iperm[href];
+   heap->elms[href].key = new_key;
+   if (!COLORNWTheap_liftup(heap,heap_pos)) {
+      COLORNWTheap_siftdown(heap,heap_pos);
    }
-   return 0;
+
+   HEAP_INTEGRITY(rval,heap,"COLORNWTheap_integrity failed in COLORNWTheap_relabel.");
+
+#ifdef HEAP_INTEGRITY_CHECKS   
+ CLEANUP:
+#endif
+   return rval;
 }

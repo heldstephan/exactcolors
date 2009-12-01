@@ -86,10 +86,23 @@ int COLORstable_wrapper(MWISenv** env,
       }
 
       rtime = COLORcpu_time();
-      rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets, 
-                                ncount, ecount, elist, 
+      rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets,
+                                ncount, ecount, elist,
                                 nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
+
+/*       if (*nnewsets == 0) { */
+/*          /\* Do final check with an exact MWIS solver. *\/ */
+/*          rval = COLORstable_round_down_weights((*env)->ls_env, */
+/*                                                nweights,cutoff); */
+/*          COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights"); */
+/*          printf("Starting verification MIP after further rounding down:\n"); */
+/*          rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets,  */
+/*                                    ncount, ecount, elist,  */
+/*                                    nweights,cutoff); */
+/*          COLORcheck_rval(rval,"COLORstable_LS failed");          */
+/*       } */
+
       rtime = COLORcpu_time() - rtime;
       if (COLORdbg_lvl() >= 0) { printf("Gurobi took %f seconds\n",rtime);}
    }
