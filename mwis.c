@@ -10,15 +10,18 @@
 
 #include "mwis.h"
 
+static int it = 0;
+static const int max_ngreedy_fails = 1;
+
+
 
 struct _MWISenv{
    MWISgrb_env* grb_env;
    MWISls_env*  ls_env;
    const char*  pname;
    int          write_mwis;
+   int          ngreedy_fails;
 };
-
-static int it = 0;
 
 int COLORstable_initenv(MWISenv** env, const char* pname,
                         int write_mwis)
@@ -34,6 +37,8 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
    (*env)->ls_env  = (MWISls_env*) NULL;
    (*env)->pname   = pname;
    (*env)->write_mwis   = write_mwis;
+   
+   (*env)->ngreedy_fails = 0;
 
  CLEANUP:
    return rval;
@@ -63,9 +68,21 @@ int COLORstable_wrapper(MWISenv** env,
    if (COLORdbg_lvl() >= 0 ) { printf("Greedy took %f seconds\n",rtime);}
 
    /* Uncomment to enforce gurobi.*/
-   /*    COLORfree_sets(newsets,nnewsets); */
+   /* COLORfree_sets(newsets,nnewsets); */
 
-   if (*nnewsets == 0) {
+   if (*nnewsets) {
+      ( *env)->ngreedy_fails = 0;
+   } else {
+
+      ++(( *env)->ngreedy_fails);
+      
+      if (( *env)->ngreedy_fails> max_ngreedy_fails) {
+         printf("Greedy failed %d times in a row => rounding down MWIS weights.\n",
+                ( *env)->ngreedy_fails);
+         rval = COLORstable_round_down_weights((*env)->ls_env,
+                                               nweights,cutoff);
+      }
+
       if( (*env)->write_mwis) {
          char filename [256];
          sprintf(filename,"%s.mwclq.%d.dimacs",(*env)->pname,it);
@@ -90,18 +107,6 @@ int COLORstable_wrapper(MWISenv** env,
                                 ncount, ecount, elist,
                                 nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
-
-/*       if (*nnewsets == 0) { */
-/*          /\* Do final check with an exact MWIS solver. *\/ */
-/*          rval = COLORstable_round_down_weights((*env)->ls_env, */
-/*                                                nweights,cutoff); */
-/*          COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights"); */
-/*          printf("Starting verification MIP after further rounding down:\n"); */
-/*          rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets,  */
-/*                                    ncount, ecount, elist,  */
-/*                                    nweights,cutoff); */
-/*          COLORcheck_rval(rval,"COLORstable_LS failed");          */
-/*       } */
 
       rtime = COLORcpu_time() - rtime;
       if (COLORdbg_lvl() >= 0) { printf("Gurobi took %f seconds\n",rtime);}
@@ -149,7 +154,7 @@ int COLORstable_write_dimacs(const char*  filename,
    fprintf(file,"c scalef: %d .\n",cutoff);
    fprintf(file,"c An independent set of value > %d defines an improving stable sets for coloring.\n",cutoff);
 
-   fprintf(file,"p graph %d %d\n",ncount, ecount);
+   fprintf(file,"p edge %d %d\n",ncount, ecount);
    for (i = 0; i < ecount;++i) {
       fprintf(file,"e %d %d\n",1+elist[2*i],1+elist[2*i+1]);
    }
@@ -201,7 +206,7 @@ int COLORstable_write_dimacs_clique(const char*  filename,
            "improving stable sets for coloring.\n",
            (long long) cutoff);
    
-   fprintf(file,"p clq %d %d\n",Gc.ncount, ecountc);
+   fprintf(file,"p edge %d %d\n",Gc.ncount, ecountc);
    for (i = 0; i < ecountc;++i) {
       fprintf(file,"e %d %d\n",1+elistc[2*i],1+elistc[2*i+1]);
    }

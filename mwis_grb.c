@@ -12,7 +12,7 @@
 /** Author:  Stephan Held, 091102                           **/
 
 const double int_tolerance = 0.0000001;
-const double dbl_cutoff = 10000.0;
+const double dbl_cutoff = 1.0;
 
 struct _MWISgrb_env {
    GRBenv*   grb_env;

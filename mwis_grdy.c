@@ -1320,7 +1320,8 @@ int COLORstable_round_down_weights(MWISls_env* env,
    soldata* sol = &(env->sol);
    COLORNWT lb = 0;
    COLORNWT lb_frac = 0;
-   COLORNWT min_frac = (COLORNWT) ncount;
+/*    COLORNWT min_frac = (COLORNWT) ncount; */
+   COLORNWT min_frac = (COLORNWT) 1; 
 
    int* minv_ptr;
 
@@ -1330,7 +1331,14 @@ int COLORstable_round_down_weights(MWISls_env* env,
       sol->work_marker[i] = 0; // using work_marker to store keys here;
    }
 
-   lb_frac = lb % cutoff /* + cutoff */- min_frac;
+   /** The remainder of lb/cutoff (decremented by one) can be used to
+       round down the node weihts without weakening the lower bound.
+       E.g. a fractional lower bound of 15.43 will be decreased to 15
+       + \epsilon while maintaining the integral lower bound of 16.
+       This way we may spare some column generation iterations.
+   */
+
+   lb_frac = lb % cutoff  - min_frac;
 
    COLORNWTheap_reset(sol->heap);
    for (i = 0; (i < ncount) && (lb_frac > 0); ++i) {

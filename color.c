@@ -126,7 +126,7 @@ int COLORdbg_lvl() {
    return debug;
 }
 
-static void print_objective(colordata* cd)
+static void compute_objective(colordata* cd)
 {
    int i;
    cd->lower_scaled_bound = .0;
@@ -407,8 +407,8 @@ int main (int ac, char **av)
     rval = build_lp(cd);
     COLORcheck_rval (rval, "build_lp failed");
 
-/*     rval = COLORstable_initenv (&(cd->mwis_env),cd->pname,write_mwis); */
-/*     COLORcheck_rval (rval, "COLORgreedy failed"); */
+    rval = COLORstable_initenv (&(cd->mwis_env),cd->pname,write_mwis);
+    COLORcheck_rval (rval, "COLORgreedy failed");
 
    
     cd->mwis_pi = (COLORNWT *) malloc (cd->ncount * sizeof (COLORNWT));
@@ -447,7 +447,7 @@ int main (int ac, char **av)
         COLOR_double2COLORNWT(cd->mwis_pi,&(cd->mwis_pi_scalef),
                               cd->pi,cd->ncount);
 
-        print_objective(cd);
+        compute_objective(cd);
 
         {
             int set_i;
@@ -469,6 +469,9 @@ int main (int ac, char **av)
         }
         
     } while ( (iterations < cd->maxiterations) && !break_while_loop);
+
+    /* Do a final computation of the objective with potentially rounded down weights.*/
+    compute_objective(cd);
 
     if (iterations < cd->maxiterations) {
        double incumbent;
