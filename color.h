@@ -32,6 +32,8 @@ void COLORfree_sets (COLORset **s,int* nsets);
 int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
 void COLORutil_sprand (int seed, COLORrandstate *r);
 int COLORutil_lprand (COLORrandstate *r);
+double COLORutil_zeit (void);
+void COLORutil_quicksort (int *len, int n);
 
 
 
