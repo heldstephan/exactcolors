@@ -5,33 +5,26 @@
 
 #include "color.h"
 #include "graph.h"
+#include "color_defs.h"
 
-int COLORadjgraph_build (graph* G,
-                         int ncount,int ecount, const int elist[])
+int COLORadjgraph_build (graph* G, int ncount, int ecount, const int elist[])
 {
     int rval = 0;
     int i;
     int *p;
     node *nodelist;
 
-    G->nodelist = (node *) NULL;
-    G->adjspace = (int *) NULL;
+    COLORadjgraph_init (G);
     G->ncount = ncount;
     G->ecount = ecount;
 
-    G->nodelist = (node *) malloc (G->ncount * sizeof (node));
-    if (!G->nodelist) {
-        fprintf (stderr, "out of memory in build_graph\n");
-        rval = 1; goto CLEANUP;
-    }
+    G->nodelist = COLOR_SAFE_MALLOC (G->ncount, node);
+    COLORcheck_NULL (G->nodelist, "out of memory for G->nodelist");
     nodelist = G->nodelist;
 
     if (G->ecount) {
-        G->adjspace = (int *) malloc (2 * G->ecount * sizeof (int));
-        if (!G->adjspace) {
-            fprintf (stderr, "out of memory in build_graph\n");
-            rval = 1; goto CLEANUP;
-        }
+        G->adjspace = COLOR_SAFE_MALLOC (2 * G->ecount, int);
+        COLORcheck_NULL (G->adjspace, "out of memory for G->adjspace");
     }
 
     for (i = 0; i < ncount; i++) {
@@ -102,7 +95,7 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
    ecount_chk = (Gc->ncount * (Gc->ncount - 1) )/ 2 - Gc->ecount;
    
 
-   elist = (int*) malloc ( 2 * ecount_chk * sizeof(int));
+   elist = COLOR_SAFE_MALLOC (2*ecount_chk, int);
    COLORcheck_NULL(elist,"Failed to allocate elist.");
    
    
@@ -138,7 +131,17 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
 }
 
 
- void COLORadjgraph_free (graph *G)
+void COLORadjgraph_init (graph *G)
+{
+    if (G) {
+        G->nodelist = (node *) NULL;
+        G->adjspace = (int *) NULL;
+        G->ncount = 0;
+        G->ecount = 0;
+    }
+}
+
+void COLORadjgraph_free (graph *G)
 {
     if (G->nodelist) free (G->nodelist);
     if (G->adjspace) free (G->adjspace);
@@ -192,7 +195,7 @@ int COLORadjgraph_simplify(graph* G)
    assert(G);
 
    /* Create a sufficiently large working array.*/
-   tmp_adjlist = (int*) malloc(G->ecount * sizeof(int));
+   tmp_adjlist = COLOR_SAFE_MALLOC (G->ecount, int);
    COLORcheck_NULL(tmp_adjlist,"Failed allocating tmp_adjlist");
 
    for (i = 0; i < G->ncount;++i) {
@@ -253,7 +256,8 @@ int COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const graph* G)
    }
    assert(*ecount % 2 == 0);
    /* elist of of size 2 * number of edges (== current *ecount).*/
-   (*elist) = (int*) malloc( (*ecount) * sizeof(int));
+   (*elist) = COLOR_SAFE_MALLOC ((*ecount), int);
+   COLORcheck_NULL (*elist, "out of memory for elist");
    *ecount = 0;
    for (i = 0; i < G->ncount;++i) {
       int j;
@@ -265,6 +269,8 @@ int COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const graph* G)
          }
       }
    }
+
+CLEANUP:
 
    return rval;
 }
@@ -288,10 +294,10 @@ int  COLORadjgraph_delete_unweighted(graph* G,
    int ncount = 0;
    int ecount = 0;
 
-   nmap = (int*) malloc (G->ncount * sizeof(int));
+   nmap = COLOR_SAFE_MALLOC (G->ncount, int);
    COLORcheck_NULL(nmap,"Failed to allocate nmap");
 
-   newelist = (int*) malloc (2 * G->ecount * sizeof(int));
+   newelist = COLOR_SAFE_MALLOC (2*G->ecount, int);
    COLORcheck_NULL(nmap,"Failed to allocate newelist");
 
    for (i = 0; i < G->ncount; ++i) {
@@ -312,7 +318,7 @@ int  COLORadjgraph_delete_unweighted(graph* G,
          }
       }
    }
-   *new_nweights = (int*) malloc(ncount * sizeof(int));
+   *new_nweights = COLOR_SAFE_MALLOC (ncount, int);
    COLORcheck_NULL(*new_nweights,"Failed to allocate nmap");
 
    for (i = 0; i < G->ncount; ++i) {
@@ -343,15 +349,22 @@ int  COLORadjgraph_delete_unweighted(graph* G,
    return rval;
 }
 
-int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist)
+int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
+       int **pnweights)
 {
     int rval = 0;
     int ncount, ecount, icount = 0, haveprob = 0;
-    int end0, end1;
+    int i, end0, end1, n, len;
     int *elist = (int *) NULL;
+    int *nweights = (int *) NULL;
     char buf[256], *p;
     FILE *in = (FILE *) NULL;
     graph G; /* used to simplify graph.*/
+
+    G.nodelist = (node *) NULL;
+    G.adjspace = (int *) NULL;
+    G.ncount = 0;
+    G.ecount = 0;
 
     in = fopen (f, "r");
     if (!in) {
@@ -386,11 +399,11 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist)
 
             printf ("Number of Nodes: %d\n", ncount);
             printf ("Number of Edges: %d\n", ecount);
-            elist = (int *) malloc (2 * ecount * sizeof (int));
-            if (!elist) {
-                fprintf (stderr, "out of memory for elist\n");
-                rval = 1; goto CLEANUP;
-            }
+            elist = COLOR_SAFE_MALLOC (2*ecount, int);
+            COLORcheck_NULL (elist, "out of memory for elist");
+            nweights = COLOR_SAFE_MALLOC (ncount, int);
+            COLORcheck_NULL (nweights, "out of memory for nweights");
+            for (i = 0; i < ncount; i++) nweights[i] = 0;
         } else if (p[0] == 'e') {
             if (!haveprob) {
                 fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
@@ -402,31 +415,42 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist)
             }
             p++;
             sscanf (p, "%d %d", &end0, &end1);
-/*          printf("Found edge %i %d %d\n", icount, end0,end1); */
             elist[2*icount] = end0-1;    /* Number nodes from 0, not 1 */
             elist[2*icount+1] = end1-1;
             icount++;
+        } else if (p[0] == 'n') {
+            if (!haveprob) {
+                fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
+                rval = 1;  goto CLEANUP;
+            }
+            p++;
+            sscanf (p, "%d %d", &n, &len);
+            nweights[n-1] = len;
         }
     }
 
     rval = COLORadjgraph_build(&G, ncount,icount,elist);
     COLORcheck_rval(rval,"COLORadjgraph_build failed");                                     
-
     rval = COLORadjgraph_simplify(&G);
     COLORcheck_rval(rval,"COLORadjgraph_simplify failed");                                     
-
     COLORadjgraph_extract_edgelist(&icount, &elist,&G);
     COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");                                     
     *pncount = ncount;
     /* Some col-instances are buggy => reduce # edges to icount*/
     *pecount = icount; 
     *pelist = elist;
+    if (pnweights) {
+        *pnweights = nweights;
+    } else {
+        COLOR_IFFREE (nweights, int);
+    }
 
 CLEANUP:
 
     COLORadjgraph_free(&G);
     if (rval) {
-        if (elist) free (elist);
+        COLOR_IFFREE (elist, int);
+        COLOR_IFFREE (nweights, int);
     }
     if (in) fclose (in);
 

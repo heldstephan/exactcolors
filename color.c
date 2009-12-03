@@ -373,8 +373,8 @@ int main (int ac, char **av)
     fflush (stdout);
 
 
-    rval = COLORread_dimacs (edgefile,
-                             &(cd->ncount), &(cd->ecount), &(cd->elist));
+    rval = COLORread_dimacs (edgefile, &(cd->ncount), &(cd->ecount),
+                             &(cd->elist), (int **) NULL);
     COLORcheck_rval (rval, "COLORread_diamcs failed");
 
     start_time = COLORcpu_time();

@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/resource.h>
+
 #include "color.h"
 
 void *COLORutil_allocrus (size_t size)
@@ -80,4 +82,37 @@ int COLORutil_lprand (COLORrandstate *r)
 
     return t;
 }
+
+double COLORutil_zeit (void)
+{
+    struct rusage ru;
+
+    getrusage (RUSAGE_SELF, &ru);
+
+    return ((double) ru.ru_utime.tv_sec) +
+           ((double) ru.ru_utime.tv_usec) / 1000000.0;
+}
+
+void COLORutil_quicksort (int *len, int n)
+{
+    int i, j, temp, t;
+
+    if (n <= 1) return;
+
+    COLOR_SWAP (len[0], len[(n - 1)/2], temp);
+
+    i = 0; j = n; t = len[0];
+
+    while (1) {
+        do i++; while (i < n && len[i] < t);
+        do j--; while (len[j] > t);
+        if (j < i) break;
+        COLOR_SWAP (len[i], len[j], temp);
+    }
+    COLOR_SWAP (len[0], len[j], temp);
+
+    COLORutil_quicksort (len, j);
+    COLORutil_quicksort (len + i, n - i);
+}
+
 
