@@ -54,10 +54,6 @@ static int rundfs = 0;
 static int usecuttingplanes = 0;
 
 int main (int ac, char **av);
-static int optimal_clique (int ncount, int ecount, int *elist, int *weights);
-static int run_clique_enum (int ncount, int ecount, int *elist, int *weights,
-        int *pval, int first, int *marks, int *invmap);
-/* static void elist_quicksort (int *elist, int n); */
 static int optimal_stable_set (int ncount, int ecount, int *elist,
         int *weights);
 static int cutting_loop (graph *G, COLORlp *lp, pool *P, prob *probdata,
@@ -112,9 +108,11 @@ int main (int ac, char **av)
 {
     char pname[256] = "";
     int rval = 0;
-    int ncount, ecount;
+    int ncount, ecount, val, i;
     int *elist = (int *) NULL;
     int *wlen = (int *) NULL;
+    COLORset *cliques = (COLORset *) NULL;
+    int ncliques = 0;
     double szeit;
 
     rval = parseargs (ac, av);
@@ -131,8 +129,20 @@ int main (int ac, char **av)
         rval = optimal_stable_set (ncount, ecount, elist, wlen);
         COLORcheck_rval (rval, "optimal_stable_set failed");
     } else {
-        rval = optimal_clique (ncount, ecount, elist, wlen);
-        COLORcheck_rval (rval, "optimal_clique failed");
+        rval = COLORclique_enum (&cliques, &ncliques, ncount, ecount, elist,
+                                 wlen, COLOR_MAXINT, &val);
+        COLORcheck_rval (rval, "COLORcliqu_enum failed");
+
+        printf ("Optimal Weight Clique: %d\n", val);
+        fflush (stdout);
+
+        printf ("Clique: ");
+        for (i = 0; i < cliques[0].count; i++) {
+            printf ("%d ", cliques[0].members[i]);
+       }
+       printf ("\n");
+       COLORfree_set (cliques);
+       COLOR_FREE (cliques, COLORset);
     }
 
     printf ("Running Time: %.2lf seconds\n", COLORutil_zeit () - szeit);
@@ -144,183 +154,6 @@ CLEANUP:
     COLOR_IFFREE(wlen,int);
     return rval;
 }
-
-static int optimal_clique (int ncount, int ecount, int *elist, int *weights)
-{
-    int rval = 0;
-    int i, val = 0;
-    int *marks = (int *) NULL, *invmap = (int *) NULL;
-
-    printf ("Compute maximum-weight clique ...\n");
-    fflush (stdout);
-
-    for (i = 0; i < ecount; i++) {
-        if (elist[2*i] > elist[2*i+1]) {
-            printf ("Error: reversed edge in elist\n"); fflush (stdout);
-            rval = 1; goto CLEANUP;
-        }
-        if (i > 1) {
-            if (elist[2*i] < elist[2*i-2]) {
-                printf ("Error: elist not sorted\n"); fflush (stdout);
-                rval = 1; goto CLEANUP;
-            }
-        }
-    }
-
-    marks = COLOR_SAFE_MALLOC (ncount, int);
-    COLORcheck_NULL (marks, "out of memory for marks");
-    for (i = 0; i < ncount; i++) marks[i] = 0;
-
-    invmap = COLOR_SAFE_MALLOC (ncount, int);
-    COLORcheck_NULL (marks, "out of memory for invmap");
-
-    rval = run_clique_enum (ncount, ecount, elist, weights, &val, 0, marks,
-                            invmap);
-    COLORcheck_rval (rval, "run_clique_enum failed");
-
-    printf ("Optimal Weight Clique: %d\n", val);
-    fflush (stdout);
-
-CLEANUP:
-
-    COLOR_IFFREE (marks, int);
-    COLOR_IFFREE (invmap, int);
-    return rval;
-}
-
-static int run_clique_enum (int ncount, int ecount, int *elist, int *weights,
-        int *pval, int first, int *marks, int *invmap)
-{
-    int rval = 0;
-    int i, hval = 0, nval = 0, deg, hecount;
-    int bestval = -1;
-    int *pe = elist;
-    int *hweights = (int *) NULL, *helist = (int *) NULL;
-    int *map = (int *) NULL;
-
-    if (ncount == 1) {
-        *pval = weights[first];
-        goto CLEANUP;
-    }
-
-    nval = weights[first];
-    deg = 0;
-    for (i = 0; i < ecount; i++) {
-        if (elist[2*i] != first) break;
-        deg++;
-    }
-
-    if (deg) {
-        hweights = COLOR_SAFE_MALLOC (deg, int);
-        COLORcheck_NULL (hweights, "out of memory for hweights");
-
-        map = COLOR_SAFE_MALLOC (deg, int);
-        COLORcheck_NULL (hweights, "out of memory for map");
-
-        for (i = 0; i < deg; i++) {
-            map[i] = elist[2*i+1];
-        }
-        COLORutil_quicksort (map, deg);
-        for (i = 0; i < deg; i++) {
-            hweights[i] = weights[map[i]];
-            marks[map[i]] = 1;
-        }
-
-        for (i = 0; i < deg; i++) {
-            invmap[map[i]] = i;
-        }
-
-        hecount = 0;
-        for (i = deg; i < ecount; i++) {
-            if (marks[elist[2*i]] == 1 && marks[elist[2*i+1]] == 1) {
-                hecount++;
-            }
-        }
-        if (hecount) {
-            helist = COLOR_SAFE_MALLOC (2*hecount, int);
-            COLORcheck_NULL (helist, "out of memory for helist");
-        }
-
-        hecount = 0;
-        for (i = deg; i < ecount; i++) {
-            if (marks[elist[2*i]] == 1 && marks[elist[2*i+1]] == 1) {
-                if (invmap[elist[2*i]] < invmap[elist[2*i+1]]) {
-                    helist[2*hecount] = invmap[elist[2*i]];
-                    helist[2*hecount+1] = invmap[elist[2*i+1]];
-                } else {
-                    helist[2*hecount] = invmap[elist[2*i+1]];
-                    helist[2*hecount+1] = invmap[elist[2*i]];
-                }
-                hecount++;
-            }
-        }
-
-        for (i = 0; i < deg; i++) marks[map[i]] = 0;
-
-        rval = run_clique_enum (deg, hecount, helist, hweights, &hval, 0,
-                                marks, invmap);
-        COLORcheck_rval (rval, "run_clique_enum failed");
-        
- 
-        if (nval + hval > bestval) {
-            bestval = nval + hval;
-        }
-    } else {
-        if (nval > bestval) {
-            bestval = nval;
-        }
-    }
-
-    ncount--;
-    ecount -= deg;
-    pe += (2*deg);
-      
-    rval = run_clique_enum (ncount, ecount, pe, weights, &hval, first+1,
-                            marks, invmap);
-    COLORcheck_rval (rval, "run_clique_enum failed");
-
-    if (hval > bestval) {
-        bestval = hval;
-    }
-
-    *pval = bestval;
-
-CLEANUP:
-
-    COLOR_IFFREE (hweights, int);
-    COLOR_IFFREE (helist, int);
-    COLOR_IFFREE (map, int);
-    return rval;
-}
-
-#if 0
-static void elist_quicksort (int *elist, int n)
-{
-    int i, j, temp, t;
-
-    if (n <= 1) return;
-
-    COLOR_SWAP (elist[0], elist[2*((n - 1)/2)], temp);
-    COLOR_SWAP (elist[1], elist[2*((n - 1)/2)+1], temp);
-
-    i = 0;
-    j = n;
-    t = elist[0];
-
-    while (1) {
-        do i++; while (i < n && elist[2*i] < t);
-        do j--; while (elist[2*j] > t);
-        if (j < i) break;
-        COLOR_SWAP (elist[2*i], elist[2*j], temp);
-        COLOR_SWAP (elist[2*i+1], elist[2*j+1], temp);
-    }
-    COLOR_SWAP (elist[0], elist[2*j], temp);
-    COLOR_SWAP (elist[1], elist[2*j+1], temp);
-
-    elist_quicksort (elist, j);
-    elist_quicksort (elist + (2*i), n - i);
-}
-#endif
 
 static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
 {
