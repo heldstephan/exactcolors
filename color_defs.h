@@ -12,6 +12,8 @@
 #endif
 
 
+#define COLOR_MAXINT (2147483647)
+
 double COLORwall_time (void);
 double COLORcpu_time (void);
 
