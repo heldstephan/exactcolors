@@ -28,6 +28,7 @@ int  COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const graph* G);
 void COLORadjgraph_sort_adjlists_by_id(graph* G);
 int  COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
         int **pnweights);
+int  COLORedge_stat(const graph* G);
 
 
 #endif

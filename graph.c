@@ -457,3 +457,30 @@ CLEANUP:
     return rval;
 }
 
+int COLORedge_stat(const graph* G)
+{
+   int rval = 0;
+   int i;
+   int* degreecnt = (int*) NULL;
+   
+   degreecnt = COLOR_SAFE_MALLOC (G->ncount, int);
+   COLORcheck_NULL(degreecnt,"Failed to allocate degreecnt");
+
+   for (i = 0; i < G->ncount; ++i) {
+      degreecnt[i] = 0;
+   }
+
+   for (i = 0; i < G->ncount; ++i) {
+      ++(degreecnt[G->nodelist[i].degree]);
+   }
+
+   for (i = 0; i < G->ncount; ++i) {
+      if (degreecnt[i]) {
+         printf("DEG %d NUM %d\n",i, degreecnt[i]);
+      }
+   }
+   
+ CLEANUP:
+   if (degreecnt) free(degreecnt);
+   return rval;
+}
