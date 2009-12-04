@@ -1180,6 +1180,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
          if (last_valid_start == -1)
             last_valid_start = start_vertex;
 /*          num_starts /=2; */
+         num_starts = sol->ncount / nsoldatas;
       }
    }
    printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",

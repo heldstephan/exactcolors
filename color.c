@@ -221,6 +221,9 @@ static int delete_old_colorclasses(colordata* cd)
          numdel++;
       }
    }
+
+   printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
+          numdel, numdel + cd->ccount, cd->retirementage);
    
    if (numdel) {
       printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
@@ -414,11 +417,11 @@ int main (int ac, char **av)
     cd->mwis_pi = (COLORNWT *) malloc (cd->ncount * sizeof (COLORNWT));
     COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
     
-    cd->retirementage = cd->ncount + 1;
+    cd->retirementage = cd->ncount / 4 + 1;
     do {
        ++iterations;
 
-       if (cd->ccount > 2 * cd->ncount) {
+       if (iterations > cd->retirementage && cd->ccount > 3 * cd->ncount) {
           delete_old_colorclasses(cd);
        }
        
