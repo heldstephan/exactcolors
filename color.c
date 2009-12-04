@@ -418,7 +418,7 @@ int main (int ac, char **av)
     do {
        ++iterations;
 
-       if ( (iterations % (2 * cd->retirementage)) == 0) {
+       if (cd->ccount > 2 * cd->ncount) {
           delete_old_colorclasses(cd);
        }
        
