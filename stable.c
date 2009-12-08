@@ -52,6 +52,7 @@ static char *outfile = (char *) NULL;
 static int debug = 0;
 static int rundfs = 0;
 static int usecuttingplanes = 0;
+static int useostergard = 0;
 
 int main (int ac, char **av);
 static int optimal_stable_set (int ncount, int ecount, int *elist,
@@ -129,9 +130,15 @@ int main (int ac, char **av)
         rval = optimal_stable_set (ncount, ecount, elist, wlen);
         COLORcheck_rval (rval, "optimal_stable_set failed");
     } else {
-        rval = COLORclique_enum (&cliques, &ncliques, ncount, ecount, elist,
-                                 wlen, COLOR_MAXINT, &val);
-        COLORcheck_rval (rval, "COLORcliqu_enum failed");
+        if (useostergard) {
+            rval = COLORclique_ostergard (&cliques, &ncliques, ncount, ecount,
+                                     elist, wlen, COLOR_MAXINT, &val);
+            COLORcheck_rval (rval, "COLORcliq_ostergard failed");
+        } else {
+            rval = COLORclique_enum (&cliques, &ncliques, ncount, ecount, elist,
+                                     wlen, COLOR_MAXINT, &val);
+            COLORcheck_rval (rval, "COLORcliq_enum failed");
+        }
 
         printf ("Optimal Weight Clique: %d\n", val);
         fflush (stdout);
@@ -1202,7 +1209,7 @@ static int parseargs (int ac, char **av)
     int c;
     int rval = 0;
 
-    while ((c = getopt (ac, av, "bcdo:")) != EOF) {
+    while ((c = getopt (ac, av, "bcdOo:")) != EOF) {
         switch (c) {
         case 'b':
             rundfs = 1;
@@ -1212,6 +1219,9 @@ static int parseargs (int ac, char **av)
             break;
         case 'd':
             debug = 1;
+            break;
+        case 'O':
+            useostergard = 1;
             break;
         case 'o':
             outfile = optarg;
@@ -1240,6 +1250,7 @@ static void usage (char *f)
     fprintf (stderr, "   -b    run DFS branching for stable sets\n");
     fprintf (stderr, "   -c    use stable-set cutting-plane algorithm\n");
     fprintf (stderr, "   -d    turn on debugging\n");
+    fprintf (stderr, "   -O    Ostergard alg for max-weight clique\n");
     fprintf (stderr, "   -o f  write result file f\n");
     fprintf (stderr,"    NOTE: clique is found if -c not specified\n");
 }

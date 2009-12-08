@@ -115,4 +115,75 @@ void COLORutil_quicksort (int *len, int n)
     COLORutil_quicksort (len + i, n - i);
 }
 
+void COLORutil_quicksort_reverse (int *len, int n)
+{
+    int i, j, temp, t;
+
+    if (n <= 1) return;
+
+    COLOR_SWAP (len[0], len[(n - 1)/2], temp);
+
+    i = 0; j = n; t = len[0];
+
+    while (1) {
+        do i++; while (i < n && len[i] > t);
+        do j--; while (len[j] < t);
+        if (j < i) break;
+        COLOR_SWAP (len[i], len[j], temp);
+    }
+    COLOR_SWAP (len[0], len[j], temp);
+
+    COLORutil_quicksort_reverse (len, j);
+    COLORutil_quicksort_reverse (len + i, n - i);
+}
+
+void COLORutil_perm_quicksort (int *perm, int *len, int n)
+{
+    int i, j, temp, t;
+
+    if (n <= 1) return;
+
+    COLOR_SWAP (perm[0], perm[(n - 1)/2], temp);
+
+    i = 0; j = n; t = len[perm[0]];
+
+    while (1) {
+        do i++; while (i < n && len[perm[i]] < t);
+        do j--; while (len[perm[j]] > t);
+        if (j < i) break;
+        COLOR_SWAP (perm[i], perm[j], temp);
+    }
+    COLOR_SWAP (perm[0], perm[j], temp);
+
+    COLORutil_perm_quicksort (perm, len, j);
+    COLORutil_perm_quicksort (perm + i, len, n - i);
+}
+
+void COLORinit_set (COLORset *s) 
+{
+    if (s) {
+        s->members = (int *) NULL;
+        s->count = 0;
+    }
+}
+
+void COLORfree_set (COLORset *s) 
+{
+    if (s && s->members) {
+        free (s->members);
+        s->members = (int *) NULL;
+        s->count = 0;
+    }
+}
+
+void COLORfree_sets(COLORset** sets,int* nsets)
+{
+   int i;
+   if (*sets) {
+      for (i = 0; i < *nsets; i++) COLORfree_set (& (*sets)[i]);
+      free (*sets);
+   }
+   *sets  = (COLORset*) NULL;
+   *nsets = 0;
+}
 

@@ -8,7 +8,7 @@ GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
 CC=gcc
 CFLAGS= -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
 OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o heap.o util.o
-STABFILES=stable.o graph.o greedy.o util.o lpgurobi.o
+STABFILES=stable.o cliq_enum.o graph.o greedy.o util.o lpgurobi.o
 
 color: $(OBJFILES)
 	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread

@@ -143,11 +143,11 @@ void COLORadjgraph_init (graph *G)
 
 void COLORadjgraph_free (graph *G)
 {
-    if (G->nodelist) free (G->nodelist);
-    if (G->adjspace) free (G->adjspace);
-        
-    G->nodelist = (node*) NULL;
-    G->adjspace = (int*)  NULL;
+    if (G) {
+        COLOR_IFFREE (G->nodelist, node);
+        COLOR_IFFREE (G->adjspace, int);
+        COLORadjgraph_init (G);
+    }
 }
 
 static int comp_node_ids(const void* v1, const void* v2)

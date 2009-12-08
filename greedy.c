@@ -6,7 +6,6 @@
 
 
 static void color_node (graph *G, int n);
-static void perm_quicksort (int *perm, int *len, int n);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses)
@@ -45,7 +44,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         perm[i] = i;
     }
 
-    perm_quicksort (perm, degree, ncount);
+    COLORutil_perm_quicksort (perm, degree, ncount);
     for (i = 0; i < ncount; i++) G.nodelist[i].color = -1;
 
     for (i = 0; i < ncount; i++) {
@@ -115,54 +114,3 @@ static void color_node (graph *G, int n)
     p->color = color+1;
 }
 
-static void perm_quicksort (int *perm, int *len, int n)
-{
-    int i, j, temp, t;
-
-    if (n <= 1) return;
-
-    COLOR_SWAP (perm[0], perm[(n - 1)/2], temp);
-
-    i = 0;
-    j = n;
-    t = len[perm[0]];
-
-    while (1) {
-        do i++; while (i < n && len[perm[i]] < t);
-        do j--; while (len[perm[j]] > t);
-        if (j < i) break;
-        COLOR_SWAP (perm[i], perm[j], temp);
-    }
-    COLOR_SWAP (perm[0], perm[j], temp);
-
-    perm_quicksort (perm, len, j);
-    perm_quicksort (perm + i, len, n - i);
-}
-
-void COLORinit_set (COLORset *s) 
-{
-    if (s) {
-        s->members = (int *) NULL;
-        s->count = 0;
-    }
-}
-
-void COLORfree_set (COLORset *s) 
-{
-    if (s && s->members) {
-        free (s->members);
-        s->members = (int *) NULL;
-        s->count = 0;
-    }
-}
-
-void COLORfree_sets(COLORset** sets,int* nsets)
-{
-   int i;
-   if (*sets) {
-      for (i = 0; i < *nsets; i++) COLORfree_set (& (*sets)[i]);
-      free (*sets);
-   }
-   *sets  = (COLORset*) NULL;
-   *nsets = 0;
-}

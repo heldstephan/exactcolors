@@ -25,6 +25,8 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses);
 int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
         int ecount, int *elist, int *weights, int cutoff, int *pval);
+int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
+        int ecount, int *elist, int *weights, int cutoff, int *pval);
 
 void *COLORutil_allocrus (size_t size);
 void COLORutil_freerus (void *p);
@@ -36,6 +38,8 @@ void COLORutil_sprand (int seed, COLORrandstate *r);
 int COLORutil_lprand (COLORrandstate *r);
 double COLORutil_zeit (void);
 void COLORutil_quicksort (int *len, int n);
+void COLORutil_quicksort_reverse (int *len, int n);
+void COLORutil_perm_quicksort (int *perm, int *len, int n);
 
 
 
