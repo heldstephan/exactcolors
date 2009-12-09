@@ -56,6 +56,7 @@ CLEANUP:
     return rval;
 }
 
+
 int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc)
 {
    /* This is a fast too implement version using ecxisting functions.
@@ -133,12 +134,12 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
 
 void COLORadjgraph_init (graph *G)
 {
-    if (G) {
-        G->nodelist = (node *) NULL;
-        G->adjspace = (int *) NULL;
-        G->ncount = 0;
-        G->ecount = 0;
-    }
+   if (G) {
+      G->nodelist = (node *) NULL;
+      G->adjspace = (int *) NULL;
+      G->ncount = 0;
+      G->ecount = 0;
+   }
 }
 
 void COLORadjgraph_free (graph *G)
@@ -483,4 +484,13 @@ int COLORedge_stat(const graph* G)
  CLEANUP:
    if (degreecnt) free(degreecnt);
    return rval;
+}
+
+int  COLORgraph_print(int ecount, const int elist[])
+{
+   int i;
+   for (i = 0; i < ecount; ++i) {
+      printf("e %d %d\n",elist[2*i], elist[2*i+1]);
+   }
+   return 0;
 }

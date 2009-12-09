@@ -1,5 +1,24 @@
+/**
+    This file is part of exactcolors.
+
+    exactcolors is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    exactcolors is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+
 #include "graph.h"
 
 #include "color.h"
@@ -30,12 +49,12 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         goto CLEANUP;
     }
 
-    degree = (int *) malloc (ncount * sizeof (int));
+    degree = (int *) COLOR_SAFE_MALLOC (ncount,int);
     if (!degree) {
         fprintf (stderr, "out of memory for degree\n");
         rval = 1;  goto CLEANUP;
     }
-    perm = (int *) malloc (ncount * sizeof (int));
+    perm = (int *) COLOR_SAFE_MALLOC (ncount,int);
     if (!perm) {
         fprintf (stderr, "out of memory for perm\n");
         rval = 1;  goto CLEANUP;
@@ -60,7 +79,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
     }
     k++;
     *ncolors = k;
-    csets = (COLORset *) malloc (k * sizeof (COLORset));
+    csets = (COLORset *) COLOR_SAFE_MALLOC (k,COLORset);
     if (!csets) {
         fprintf (stderr, "out of memory for csets\n");
         rval = 1;  goto CLEANUP;
@@ -73,7 +92,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         csets[G.nodelist[i].color].count++;
     }
     for (i = 0; i < k; i++) {
-        csets[i].members = (int *) malloc (csets[i].count * sizeof (int));
+       csets[i].members = (int *) COLOR_SAFE_MALLOC (csets[i].count,int);
         if (!csets[i].members) {
             fprintf (stderr, "out of memory for csets members\n");
             rval = 1; goto CLEANUP;
@@ -149,7 +168,7 @@ void COLORinit_set (COLORset *s)
 
 void COLORfree_set (COLORset *s) 
 {
-    if (s && s->members) {
+   if (s && s->members) {
         free (s->members);
         s->members = (int *) NULL;
         s->count = 0;
@@ -165,4 +184,24 @@ void COLORfree_sets(COLORset** sets,int* nsets)
    }
    *sets  = (COLORset*) NULL;
    *nsets = 0;
+}
+
+int COLORcopy_sets (COLORset **s,int *nsets,
+                    const COLORset *src_s, int src_nsets)
+{
+   int rval = 0;
+   int i;
+   *nsets = src_nsets;
+   *s = (COLORset*) COLOR_SAFE_MALLOC(src_nsets,COLORset);
+   COLORcheck_NULL(*s,"Failed to allocate *s");
+
+   for (i = 0; i < src_nsets; ++i) {
+      (*s)[i].count = src_s[i].count;
+      (*s)[i].members = (int*) COLOR_SAFE_MALLOC(src_s[i].count,int);
+      COLORcheck_NULL((*s)[i].members,"Failed to allocate (*s)[i].members");
+      memcpy((*s)[i].members,src_s[i].members,src_s[i].count * sizeof(int));
+   }
+
+ CLEANUP:
+   return rval;
 }

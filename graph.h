@@ -30,5 +30,6 @@ int  COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
         int **pnweights);
 int  COLORedge_stat(const graph* G);
 
+int  COLORgraph_print(int ecount, const int elist[]);
 
 #endif

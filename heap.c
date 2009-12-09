@@ -69,7 +69,7 @@ int COLORNWTheap_init(COLORNWTHeap** heap,
    if (size == 0) {rval = 1; goto CLEANUP;}
 
 
-   *heap = (COLORNWTHeap*) malloc(sizeof(COLORNWTHeap));
+   *heap = (COLORNWTHeap*) COLOR_SAFE_MALLOC (1,COLORNWTHeap);
    COLORcheck_NULL(*heap,"Failed to allocate heap");
 
 
@@ -82,15 +82,15 @@ int COLORNWTheap_init(COLORNWTHeap** heap,
    (*heap)->size = size;
 
 
-   (*heap)->perm = (int*) malloc(size * sizeof(int));
+   (*heap)->perm = (int*) COLOR_SAFE_MALLOC(size,int);
    COLORcheck_NULL((*heap)->perm,"Failed to allocate (*heap)->perm");
 
 
-   (*heap)->iperm = (int*) malloc(size * sizeof(int));
+   (*heap)->iperm = (int*) COLOR_SAFE_MALLOC(size,int);
    COLORcheck_NULL((*heap)->iperm,"Failed to allocate (*heap)->iperm");
 
    (*heap)->elms = 
-      (COLORNWTHeapElm*) malloc(size * sizeof(COLORNWTHeapElm));
+      (COLORNWTHeapElm*) COLOR_SAFE_MALLOC(size,COLORNWTHeapElm);
    COLORcheck_NULL((*heap)->elms,"Failed to allocate (*heap)->elms");
 
    

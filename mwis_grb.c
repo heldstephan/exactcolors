@@ -71,7 +71,7 @@ static int mwis_init_model(MWISgrb_env** env,
       GRBenv* grb_env = (GRBenv*) NULL;
       GRBmodel* grb_model = (GRBmodel*) NULL;
 
-      *env = (MWISgrb_env*) malloc(sizeof(MWISgrb_env));
+      *env = (MWISgrb_env*) COLOR_SAFE_MALLOC(1,MWISgrb_env);
       COLORcheck_NULL(*env,"Allocating *env failed.");
       (*env)->grb_env   = (GRBenv*) NULL;
       (*env)->grb_model = (GRBmodel*) NULL;
@@ -121,7 +121,7 @@ static int mwis_init_model(MWISgrb_env** env,
          goto CLEANUP;
       }
 
-      vtype = (char *) malloc (ncount * sizeof (char));
+      vtype = (char *) COLOR_SAFE_MALLOC (ncount,char);
       if (!vtype) {
          fprintf (stderr, "out of memory for vtype\n");
          rval = 1;  goto CLEANUP;
@@ -129,10 +129,10 @@ static int mwis_init_model(MWISgrb_env** env,
       for (i = 0; i < ncount; i++) vtype[i] = GRB_BINARY;
 
 
-      (*env)->dbl_nweights = (double *) malloc (ncount * sizeof (double));
+      (*env)->dbl_nweights = (double *) COLOR_SAFE_MALLOC (ncount,double);
       COLORcheck_NULL((*env)->dbl_nweights, "out of memory for (*env)->dbl_nweights");
 
-      (*env)->x_opt = (double *) malloc (ncount * sizeof (double));
+      (*env)->x_opt = (double *) COLOR_SAFE_MALLOC (ncount,double);
       COLORcheck_NULL((*env)->x_opt, "out of memory for (*env)->x_opt");
 
       rval = GRBnewmodel (grb_env, &((*env)->grb_model),
@@ -295,7 +295,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
 
       /* Currently we only retrieve a single set.*/
       *nnewsets = 1;
-      *newsets = (COLORset *) malloc(sizeof(COLORset));
+      *newsets = (COLORset *) COLOR_SAFE_MALLOC(1,COLORset);
 
       if (! *newsets) {
          fprintf (stderr, "out of memory for newsets\n");
@@ -319,7 +319,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
       }
 
       /* Secondly, generate new independent set.*/
-      newset->members = (int *) malloc(newset->count * sizeof(int));
+      newset->members = (int *) COLOR_SAFE_MALLOC(newset->count,int);
       if (!newset->members) {
          fprintf (stderr, "out of memory for newset.members\n");
          rval = 1;  goto CLEANUP;
