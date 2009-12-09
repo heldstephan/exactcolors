@@ -6,6 +6,8 @@
 
 #include <assert.h>
 
+#include <valgrind/valgrind.h>
+
 #include "lp.h"
 
 #include "graph.h"
@@ -48,7 +50,7 @@ static int COLORclasses_expand(COLORclasses* classes)
    COLORset* oldsets = classes->sets;
    classes->allocnt = 1.5 * classes->allocnt + 1;
 
-   classes->sets = (COLORset*) malloc(classes->allocnt * sizeof(COLORset));
+   classes->sets = (COLORset*) COLOR_SAFE_MALLOC(classes->allocnt,COLORset);
    COLORcheck_NULL(classes->sets,"Failed to allocatete classes->sets");
 
    memcpy(classes->sets,oldsets,classes->cnt * sizeof(COLORset));
@@ -112,8 +114,7 @@ static void remove_from_soldata(soldata* sol, int v);
 static void set_ptrs_to_zero(soldata* sol);
 
 
-static void clean_soldata(soldata* sol)
-{
+static void clean_soldata(soldata* sol) {
    if (sol->nperm)       free(sol->nperm);
    if (sol->inperm)      free(sol->inperm);
    if (sol->tightness)   free(sol->tightness);
@@ -368,7 +369,7 @@ static int build_LP(soldata*  sol)
    int ncount = sol->ncount;
    node* nodelist = sol->G->nodelist;
 
-   sol->dbl_nweights = (double*) malloc(ncount * sizeof(double));
+   sol->dbl_nweights = (double*) COLOR_SAFE_MALLOC(ncount,double);
    COLORcheck_NULL(sol->dbl_nweights,"Failed to allocate sol->dbl_nweights");
 
    COLORlp_free (&(sol->lp));
@@ -658,44 +659,44 @@ static int init_mwis_grdy(soldata*  sol,
 
 
    if (!sol->nperm) {
-      sol->nperm = (int*) malloc(ncount * sizeof(int));
+      sol->nperm = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->nperm,"Allocating sol->nperm failed");
    }
 
    if (!sol->inperm) {
-      sol->inperm = (int*) malloc(ncount * sizeof(int));
+      sol->inperm = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->inperm,"Allocating sol->inperm failed");
    }
 
    if (!sol->tightness) {
-      sol->tightness = (int*) malloc(ncount * sizeof(int));
+      sol->tightness = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->tightness,"Allocating sol->tightness failed");
    }
 
    if(!sol->sort_work) {
-      sol->sort_work = (int*) malloc(ncount * sizeof(int));
+      sol->sort_work = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->sort_work,"Allocating sol->sort_work failed");
    }
 
    if (!sol->grdy_nweights) {
-      sol->grdy_nweights = (COLORNWT*) malloc(ncount * sizeof(COLORNWT));
+      sol->grdy_nweights = (COLORNWT*) COLOR_SAFE_MALLOC(ncount,COLORNWT);
       COLORcheck_NULL(sol->grdy_nweights,"Allocating sol->grdy_nweights failed");
    }
    if (!sol->work_marker) {
-      sol->work_marker = (int*) malloc(ncount * sizeof(int));
+      sol->work_marker = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->work_marker,"Allocating sol->work_marker failed");
    }
    if(!sol->work_path) {
-      sol->work_path = (int*) malloc(ncount * sizeof(int));
+      sol->work_path = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->work_path,"Allocating sol->work_path failed");
    }
    if(!sol->nodestack) {
-      sol->nodestack = (int*) malloc(ncount * sizeof(int));
+      sol->nodestack = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->nodestack,"Allocating sol->nodestack failed");
    }
 
    if(!sol->heapref) {
-      sol->heapref = (int*) malloc(ncount * sizeof(int));
+      sol->heapref = (int*) COLOR_SAFE_MALLOC(ncount,int);
       COLORcheck_NULL(sol->heapref,"Allocating sol->heapref failed");
    }
 
@@ -779,12 +780,16 @@ static int perform_2_improvement(soldata* sol, int x)
             /* Now find tight non-neighbor w:*/
             int l_i,n_i = 0;
             /* Loop through one-tight neighbors of x.*/
-            for(l_i = 0; l_i < nodelist[x].degree; l_i++) {
+            for(l_i = 0; 
+                (l_i < nodelist[x].degree )  && (n_i < nodelist[v].degree);
+                l_i++) 
+            {
                int w_l = nodelist[x].adj[l_i];
                if (w_l == v) {continue;}
 
                if (is_free_or_onetight(sol,w_l)) {
                   int w_n = nodelist[v].adj[n_i];
+
                   /* Look wether w_n occurs in neighborhood of v.*/
                   while (w_n < w_l && n_i < nodelist[v].degree) {
                      n_i++;
@@ -1005,7 +1010,7 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
 {
    int rval = 0;
    int i;
-   int* coloring = (int*) malloc(ncount * sizeof(int));
+   int* coloring = (int*) COLOR_SAFE_MALLOC(ncount,int);
    COLORcheck_NULL(coloring,"Could not allocate *newsets");
 
    for (i = 0; i < ncount;++i) {
@@ -1018,7 +1023,8 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
 
    for (i = 0; i < ecount; ++i) {
       if (coloring[elist[2*i]] == 1 && coloring[elist[2*i+1]] ==1) {
-         COLORcheck_NULL(coloring,"ILLEGAL COLORING FOUND!");
+         fflush(stdout);
+         fprintf(stderr,"ILLEGAL COLORING FOUND!\n");
          rval++;
       }
    }
@@ -1048,7 +1054,7 @@ static int add_soldata(soldata* sol)
 
    cclasses->sets[cclasses->cnt].count = sol->solcount;
    newmembers  =
-      (int*) malloc(sol->solcount * sizeof(int));
+      (int*) COLOR_SAFE_MALLOC(sol->solcount,int);
    COLORcheck_NULL(newmembers,
                    "Failed to allocate classes->sets[classes->cnt].members");
    memcpy(newmembers,
@@ -1059,9 +1065,9 @@ static int add_soldata(soldata* sol)
    cclasses->sets[cclasses->cnt].members = newmembers;
    ++(cclasses->cnt);
    {
-      int i,j;
+      int i;
       printf("NEW SET ");
-      for (i = 0, j = 0; i < sol->solcount;++i) {
+      for (i = 0; i < sol->solcount;++i) {
          printf(" %d",newmembers[i]);
       }
       printf("\n");
@@ -1088,7 +1094,7 @@ static int transfer_soldata(COLORset** newsets,
    }
 
    *nnewsets = cclasses->cnt;
-   *newsets = (COLORset *) malloc(*nnewsets * sizeof(COLORset));
+   *newsets = (COLORset *) COLOR_SAFE_MALLOC(*nnewsets,COLORset);
    COLORcheck_NULL(*newsets,"Could not allocate *newsets");
 
    memcpy(*newsets,cclasses->sets,*nnewsets * sizeof(COLORset));
@@ -1202,7 +1208,7 @@ int COLORstable_LS(MWISls_env** env,
    soldata* sol = (soldata*) NULL;
 
    if (! *env) {
-      (*env) = (MWISls_env*) malloc (sizeof(MWISls_env));
+      (*env) = (MWISls_env*) COLOR_SAFE_MALLOC (1,MWISls_env);
       COLORcheck_NULL(*env,"Allocating *env failed.");
 
       set_ptrs_to_zero(&((*env)->sol));
