@@ -18,7 +18,7 @@ int COLORlp_init (COLORlp **p, const char *name)
 {
     int rval = 0;
 
-    (*p) = (COLORlp *) malloc (sizeof (COLORlp));
+    (*p) = (COLORlp *) COLOR_SAFE_MALLOC (1,COLORlp);
     COLORcheck_NULL (*p, "out of memory for lp");
 
     (*p)->env = (GRBenv *) NULL;
@@ -202,6 +202,10 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense)
       COLORcheck_rval_grb (rval, "GRBsetintattrelement GRB_CHAR_ATTR_VTYPE failed",
                            p->env);
    }
+
+   rval = GRBupdatemodel (p->model);
+   COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
+
  CLEANUP:
    return rval;
 }

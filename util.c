@@ -1,5 +1,23 @@
+/**
+    This file is part of exactcolors.
+
+    exactcolors is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    exactcolors is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/resource.h>
 
 #include "color.h"
@@ -187,3 +205,22 @@ void COLORfree_sets(COLORset** sets,int* nsets)
    *nsets = 0;
 }
 
+int COLORcopy_sets (COLORset **s,int *nsets,
+                    const COLORset *src_s, int src_nsets)
+{
+   int rval = 0;
+   int i;
+   *nsets = src_nsets;
+   *s = (COLORset*) COLOR_SAFE_MALLOC(src_nsets,COLORset);
+   COLORcheck_NULL(*s,"Failed to allocate *s");
+
+   for (i = 0; i < src_nsets; ++i) {
+      (*s)[i].count = src_s[i].count;
+      (*s)[i].members = (int*) COLOR_SAFE_MALLOC(src_s[i].count,int);
+      COLORcheck_NULL((*s)[i].members,"Failed to allocate (*s)[i].members");
+      memcpy((*s)[i].members,src_s[i].members,src_s[i].count * sizeof(int));
+   }
+
+ CLEANUP:
+   return rval;
+}

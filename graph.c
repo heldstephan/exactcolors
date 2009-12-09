@@ -56,6 +56,7 @@ CLEANUP:
     return rval;
 }
 
+
 int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc)
 {
    /* This is a fast too implement version using ecxisting functions.
@@ -133,12 +134,12 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
 
 void COLORadjgraph_init (graph *G)
 {
-    if (G) {
-        G->nodelist = (node *) NULL;
-        G->adjspace = (int *) NULL;
-        G->ncount = 0;
-        G->ecount = 0;
-    }
+   if (G) {
+      G->nodelist = (node *) NULL;
+      G->adjspace = (int *) NULL;
+      G->ncount = 0;
+      G->ecount = 0;
+   }
 }
 
 void COLORadjgraph_free (graph *G)
@@ -457,3 +458,39 @@ CLEANUP:
     return rval;
 }
 
+int COLORedge_stat(const graph* G)
+{
+   int rval = 0;
+   int i;
+   int* degreecnt = (int*) NULL;
+   
+   degreecnt = COLOR_SAFE_MALLOC (G->ncount, int);
+   COLORcheck_NULL(degreecnt,"Failed to allocate degreecnt");
+
+   for (i = 0; i < G->ncount; ++i) {
+      degreecnt[i] = 0;
+   }
+
+   for (i = 0; i < G->ncount; ++i) {
+      ++(degreecnt[G->nodelist[i].degree]);
+   }
+
+   for (i = 0; i < G->ncount; ++i) {
+      if (degreecnt[i]) {
+         printf("DEG %d NUM %d\n",i, degreecnt[i]);
+      }
+   }
+   
+ CLEANUP:
+   if (degreecnt) free(degreecnt);
+   return rval;
+}
+
+int  COLORgraph_print(int ecount, const int elist[])
+{
+   int i;
+   for (i = 0; i < ecount; ++i) {
+      printf("e %d %d\n",elist[2*i], elist[2*i+1]);
+   }
+   return 0;
+}
