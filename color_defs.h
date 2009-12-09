@@ -17,6 +17,8 @@
 double COLORwall_time (void);
 double COLORcpu_time (void);
 
+void *COLORutil_allocrus (size_t size);
+void COLORutil_freerus (void *p);
 
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
@@ -34,6 +36,7 @@ double COLORcpu_time (void);
 
 #define COLORcheck_rval(rval,msg) {                                        \
     if ((rval)) {                                                          \
+       fflush(stdout);                                                     \
        fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
         goto CLEANUP;                                                      \
     }                                                                      \
@@ -41,6 +44,7 @@ double COLORcpu_time (void);
 
 #define COLORcheck_NULL(item,msg) {                                        \
     if ((!item)) {                                                         \
+       fflush(stdout);                                                     \
        fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
         rval = 1;                                                          \
         goto CLEANUP;                                                      \

@@ -8,17 +8,96 @@
 
 #include "graph.h"
 
+#include "color.h"
+
 #include "mwis.h"
 
+static int it = 0;
+static const int max_ngreedy_fails = 1;
+static const int max_ngreedy_switchoff_fails = 10;
+
+
+int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
+                            int ecount, const int elist[], COLORNWT nweights[],
+                            COLORNWT cutoff);
 
 struct _MWISenv{
    MWISgrb_env* grb_env;
    MWISls_env*  ls_env;
    const char*  pname;
    int          write_mwis;
+   int          ngreedy_fails;
 };
 
-static int it = 0;
+int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
+                            int ecount, const int elist[], COLORNWT nweights[],
+                            COLORNWT cutoff)
+{
+   int rval = 0;
+   int    i;
+   graph  G;
+   graph  Gc;
+   FILE*  file = (FILE*)  NULL;
+   int*   elistc = (int*)  NULL;
+   int    ecountc;
+   int*   new_nweights = (int*)  NULL;
+   COLORNWT objval;
+
+   rval = COLORadjgraph_build(&G,ncount,ecount,elist);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_build.");
+   
+   rval = COLORadjgraph_build_complement(&Gc, &G);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_build_complement.");
+   
+
+   COLORadjgraph_extract_edgelist(&ecountc,&elistc,&Gc);
+
+   rval = COLORclique_ostergard(newsets,nnewsets,ncount,
+                                ecountc,elistc,nweights,cutoff,&objval);
+   COLORcheck_rval(rval,"Failed in COLORclique_enum.");
+
+   printf("Best enumeration:   %13.10e ( %lld / %lld ).\n",
+          COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
+   
+   if (objval > cutoff) {
+      if (*nnewsets) {
+/*          int n = (*newsets)->count; */
+         printf("NEW SET ");
+         for (i = 0; i < (*newsets)->count;++i) {
+            printf(" %d",(*newsets)->members[i]);
+         }
+         printf("\n");
+
+         COLORcheck_set((*newsets),ncount,ecount,elist);
+
+/*          /\* Reverse order *\/ */
+/*          for (i = 0; i < n/2 ;++i) { */
+/*             int t; */
+/*             COLOR_SWAP((*newsets)->members[i],(*newsets)->members[n-i-1],t); */
+/*          } */
+/*          printf("SWAPPED SET "); */
+/*          for (i = 0; i < (*newsets)->count;++i) { */
+/*             printf(" %d",(*newsets)->members[i]); */
+/*          } */
+/*          printf("\n"); */
+
+
+      }
+   } else {
+      COLORfree_sets(newsets,nnewsets);
+   }
+
+   
+ CLEANUP:
+   COLORadjgraph_free(&G);
+   COLORadjgraph_free(&Gc);
+   if (file) fclose(file);
+   if (new_nweights) free(new_nweights);
+   if (elistc) free(elistc);
+
+   return rval;
+}
+
 
 int COLORstable_initenv(MWISenv** env, const char* pname,
                         int write_mwis)
@@ -26,7 +105,7 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
    int rval = 0;
 
    if (!*env) {
-      *env = (MWISenv*) malloc(sizeof(MWISenv));
+      *env = (MWISenv*) COLOR_SAFE_MALLOC (1,MWISenv);
       COLORcheck_NULL(*env,"Failed to allocate *env");
    }
    
@@ -34,6 +113,8 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
    (*env)->ls_env  = (MWISls_env*) NULL;
    (*env)->pname   = pname;
    (*env)->write_mwis   = write_mwis;
+   
+   (*env)->ngreedy_fails = 0;
 
  CLEANUP:
    return rval;
@@ -45,7 +126,7 @@ int COLORstable_wrapper(MWISenv** env,
                         COLORNWT cutoff)
 {
    int rval = 0;
-   double rtime = COLORcpu_time();
+   double rtime;
    
    ++it;
    if (!*env) {
@@ -54,18 +135,37 @@ int COLORstable_wrapper(MWISenv** env,
       COLORstable_initenv(env,default_pname,default_write_mwis);
    }
 
-
-   rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, 
-                         ncount, ecount, elist, 
-                         nweights,cutoff);
-   COLORcheck_rval(rval,"COLORstable_LS failed");
-   rtime = COLORcpu_time() - rtime;
-   if (COLORdbg_lvl() >= 0 ) { printf("Greedy took %f seconds\n",rtime);}
+   if (( *env)->ngreedy_fails ==  max_ngreedy_fails) {
+      printf("Greedy failed %d times in a row => not using greedy any more.\n",
+             ( *env)->ngreedy_fails);
+   }
+    
+   if (( *env)->ngreedy_fails < max_ngreedy_switchoff_fails) {
+      rtime = COLORcpu_time();
+      rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, 
+                            ncount, ecount, elist, 
+                            nweights,cutoff);
+      COLORcheck_rval(rval,"COLORstable_LS failed");
+      rtime = COLORcpu_time() - rtime;
+      if (COLORdbg_lvl() >= 0 ) { printf("Greedy took %f seconds\n",rtime);}
+   }
 
    /* Uncomment to enforce gurobi.*/
-   /*    COLORfree_sets(newsets,nnewsets); */
+   /* COLORfree_sets(newsets,nnewsets); */
 
-   if (*nnewsets == 0) {
+   if (*nnewsets) {
+      ( *env)->ngreedy_fails = 0;
+   } else {
+
+      ++(( *env)->ngreedy_fails);
+      
+/*       if (( *env)->ngreedy_fails> max_ngreedy_fails) { */
+/*          printf("Greedy failed %d times in a row => rounding down MWIS weights.\n", */
+/*                 ( *env)->ngreedy_fails); */
+/*          rval = COLORstable_round_down_weights((*env)->ls_env, */
+/*                                                nweights,cutoff); */
+/*       } */
+
       if( (*env)->write_mwis) {
          char filename [256];
          sprintf(filename,"%s.mwclq.%d.dimacs",(*env)->pname,it);
@@ -85,26 +185,27 @@ int COLORstable_wrapper(MWISenv** env,
                                nweights,cutoff);
       }
 
-      rtime = COLORcpu_time();
-      rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets,
-                                ncount, ecount, elist,
-                                nweights,cutoff);
-      COLORcheck_rval(rval,"COLORstable_LS failed");
 
-/*       if (*nnewsets == 0) { */
-/*          /\* Do final check with an exact MWIS solver. *\/ */
-/*          rval = COLORstable_round_down_weights((*env)->ls_env, */
-/*                                                nweights,cutoff); */
-/*          COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights"); */
-/*          printf("Starting verification MIP after further rounding down:\n"); */
-/*          rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets,  */
-/*                                    ncount, ecount, elist,  */
+/*       if (ecount * 5 < ncount * (ncount -1)/2) {       /\* I edge density is < 20% call gurobi.*\/ */
+/*          rtime = COLORcpu_time(); */
+/*          rval = COLORstable_gurobi(&((*env)->grb_env),newsets, nnewsets, */
+/*                                    ncount, ecount, elist, */
 /*                                    nweights,cutoff); */
-/*          COLORcheck_rval(rval,"COLORstable_LS failed");          */
+/*          COLORcheck_rval(rval,"COLORstable_LS failed"); */
+         
+/*          rtime = COLORcpu_time() - rtime; */
+/*          if (COLORdbg_lvl() >= 0) { printf("Gurobi took %f seconds\n",rtime);} */
+/*          if (*nnewsets) { goto CLEANUP;} */
 /*       } */
 
+      rtime = COLORcpu_time();
+      rval = COLORstable_clique_enum(newsets, nnewsets,
+                                     ncount, ecount, elist,
+                                     nweights,cutoff);
+      COLORcheck_rval(rval,"COLORstable_LS failed");
+
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl() >= 0) { printf("Gurobi took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
    }
 
  CLEANUP:
@@ -149,7 +250,7 @@ int COLORstable_write_dimacs(const char*  filename,
    fprintf(file,"c scalef: %d .\n",cutoff);
    fprintf(file,"c An independent set of value > %d defines an improving stable sets for coloring.\n",cutoff);
 
-   fprintf(file,"p graph %d %d\n",ncount, ecount);
+   fprintf(file,"p edge %d %d\n",ncount, ecount);
    for (i = 0; i < ecount;++i) {
       fprintf(file,"e %d %d\n",1+elist[2*i],1+elist[2*i+1]);
    }
@@ -201,7 +302,7 @@ int COLORstable_write_dimacs_clique(const char*  filename,
            "improving stable sets for coloring.\n",
            (long long) cutoff);
    
-   fprintf(file,"p clq %d %d\n",Gc.ncount, ecountc);
+   fprintf(file,"p edge %d %d\n",Gc.ncount, ecountc);
    for (i = 0; i < ecountc;++i) {
       fprintf(file,"e %d %d\n",1+elistc[2*i],1+elistc[2*i+1]);
    }
@@ -291,10 +392,10 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
    const char* delim = " \t\n";
    char* token = (char* ) NULL;
 
-   buf = (char*) malloc(bufsize);
+   buf = (char*) COLOR_SAFE_MALLOC (bufsize, char);
    COLORcheck_NULL(buf,"Failed to allocate buf");
 
-   setbuffer = (int*) malloc(ncount * sizeof(int));
+   setbuffer = (int*) COLOR_SAFE_MALLOC (ncount,int);
    COLORcheck_NULL(setbuffer,"Failed to allocate setbuffer");
    
    ifile = fopen(fname,"r");
@@ -310,7 +411,7 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
          (*nnewsets)++;
       }
    }
-   *newsets = (COLORset*) malloc(*nnewsets * sizeof(COLORset));
+   *newsets = (COLORset*) COLOR_SAFE_MALLOC(*nnewsets,COLORset);
    COLORcheck_NULL(newsets,"Failed to allocate *newsets");
    while( *nnewsets > 0) {
       (*nnewsets)--;
@@ -342,7 +443,7 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
             sscanf (token, "%d", &(setbuffer[setsize++]));
          }
          (*newsets)[*nnewsets].count = setsize;
-         (*newsets)[*nnewsets].members = (int*) malloc(setsize * sizeof(int));
+         (*newsets)[*nnewsets].members = (int*) COLOR_SAFE_MALLOC(setsize,int);
          COLORcheck_NULL((*newsets)[*nnewsets].members,
                          "Failed to allocate (*newsets)[*nnewsets].members");
          memcpy((*newsets)[*nnewsets].members, setbuffer,setsize * sizeof(int));
