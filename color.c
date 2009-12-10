@@ -418,9 +418,11 @@ static int build_lp(colordata* cd)
        if (rval) COLORlp_printerrorcode (rval);
        COLORcheck_rval (rval, "COLORlp_addcol failed");
     }
-
-    rval = COLORlp_write (cd->lp, "look.lp");
-    COLORcheck_rval (rval, "COLORlp_write failed");
+    
+    if (COLORdbg_lvl() > 1) {
+       rval = COLORlp_write (cd->lp, "look.lp");
+       COLORcheck_rval (rval, "COLORlp_write failed");
+    }
 
     cd->pi = (double *) realloc (cd->pi,cd->ncount * sizeof (double));
     COLORcheck_NULL (cd->pi, "out of memory for pi");
@@ -567,8 +569,8 @@ static int new_eindex(int v, int v1, int v2)
 
 static int are_in_same(const COLORset* debugcolors,int ndebugcolors,int v1,int v2)
 {
-   int v1_color;
-   int v2_color;
+   int v1_color = -1;
+   int v2_color = -2;
    int i;
    for (i = 0; i < ndebugcolors; ++i) {
       int j;
@@ -945,8 +947,6 @@ static int create_branches(colordata* cd)
    x = (double*) COLOR_SAFE_MALLOC(cd->ccount,double);
    COLORcheck_NULL(x,"Failed ot allocate x");
 
-   COLORlp_write(cd->lp,"crbra_debug.lp");
-
    rval = COLORlp_optimize(cd->lp);
    COLORcheck_rval (rval, "COLORlp_optimize failed");
 
@@ -1170,7 +1170,6 @@ static int compute_coloring(colordata* cd, int parent_lb, int parent_ub, int dep
             last_snapshot_time = cur_time;
          }
       }
-      COLORlp_write(cd->lp,"debug.lp");
       rval = COLORlp_optimize(cd->lp);
       COLORcheck_rval (rval, "COLORlp_optimize failed");
 
