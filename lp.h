@@ -46,8 +46,12 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense);
 
 int COLORlp_objective_sense (COLORlp *p, int sense);
 int COLORlp_setbound (COLORlp *p, int col, char lower_or_upper, double bnd);
+int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit);
+
 int COLORlp_write (COLORlp *p, const char *fname);
 void COLORlp_free_warmstart (COLORlp_warmstart **w);
 void COLORlp_printerrorcode (int c);
+
+double COLORlp_int_tolerance (void);
 
 #endif  /* __LP_H */
