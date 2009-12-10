@@ -5,6 +5,8 @@
 #include "color.h"
 
 
+const double int_tolerance = 0.00001;
+
 #define COLORcheck_rval_grb(rval,msg,env) {                            \
       if ((rval)) {                                                    \
          fprintf (stderr, "%s at %s, line %d: %s\n",                   \
@@ -242,6 +244,14 @@ CLEANUP:
     return rval;
 }
 
+int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
+{
+   int rval = GRBsetdblparam (GRBgetenv(p->model), GRB_DBL_PAR_NODELIMIT, mip_node_limit);
+   COLORcheck_rval_grb (rval, "GRBsetdblparam NODELIMIT failed",p->env);
+ CLEANUP:
+   return rval;
+}
+
 int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;
@@ -331,3 +341,7 @@ void COLORlp_printerrorcode (int c)
     fflush (stdout);
 }
 
+double COLORlp_int_tolerance ()
+{
+   return int_tolerance;
+}
