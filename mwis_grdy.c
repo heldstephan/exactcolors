@@ -1033,6 +1033,41 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
    return rval;
 }
 
+int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, const int elist[])
+{
+   int rval = 0;
+   int i;
+   int* covered = (int*) COLOR_SAFE_MALLOC(ncount,int);
+   COLORcheck_NULL(covered,"Could not allocate *newsets");
+   for (i = 0; i < ncount;++i) {covered[i] = 0;}
+
+   for (i = 0; i < ccount;++i) {
+      int j;
+      rval =  COLORcheck_set(&(set[i]), ncount, ecount, elist);
+      COLORcheck_rval(rval,"Failed to verify stable set");
+      for (j = 0; j < set[i].count; ++j) {
+         if (covered[set[i].members[j]]) {
+            fprintf(stderr, "Node %d is contained in more than on color!\n",
+                    set[i].members[j]);
+            rval = 1; goto CLEANUP;
+         }
+         covered[set[i].members[j]] = 1;
+      }
+   }
+
+   for (i = 0; i < ncount;++i) {
+      if (!covered[i]) {
+         fprintf(stderr,"Node %d is not colored!\n",i);
+         rval = 1; goto CLEANUP;
+      }
+   }
+   
+ CLEANUP:
+   if (covered) free(covered);
+   return rval;
+}
+
+
 static int vertex_comparator(const void* v1,const void* v2)
 {
    int i1 = *(const int*) v1;

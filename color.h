@@ -51,6 +51,10 @@ int  COLORcopy_sets (COLORset **dsts,int* nsets,
                      const COLORset *src_s, int src_nsets);
 void COLORunique_sets (COLORset **s,int* nsets);
 int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
+
+/** Test whether (set,ncount) defines a feasible coloring for (ncount,elist,ecount).*/ 
+int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, const int elist[]);
+
 void COLORutil_sprand (int seed, COLORrandstate *r);
 int COLORutil_lprand (COLORrandstate *r);
 double COLORutil_zeit (void);
