@@ -207,7 +207,7 @@ int COLORadjgraph_simplify(graph* G)
       new_degree = unify_adjlist(G->nodelist[i].adj,G->nodelist[i].degree,
                                  tmp_adjlist);
 
-      if(new_degree != G->nodelist[i].degree) {
+      if(COLORdbg_lvl()> 1 && new_degree != G->nodelist[i].degree) {
          printf("Removed %d edge(s) from node %d.\n", 
                 G->nodelist[i].degree - new_degree, i);
       }
@@ -222,7 +222,7 @@ int COLORadjgraph_simplify(graph* G)
             --j;
          }
       }
-      if (nloops) {
+      if (COLORdbg_lvl()> 1 && nloops) {
          printf("Removed %d loop(s) from node %d.\n", nloops,i);
       }            
    }

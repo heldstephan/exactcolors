@@ -5,13 +5,13 @@
 #include <assert.h>
 #include <gurobi_c.h>
 #include "color.h"
+#include "lp.h"
 #include "mwis.h"
 
 
 /** Maximum-weight stable-set problem via MIP code (Gurobi) **/
 /** Author:  Stephan Held, 091102                           **/
 
-const double int_tolerance = 0.0000001;
 const double dbl_cutoff = 1.0;
 
 struct _MWISgrb_env {
@@ -46,7 +46,7 @@ static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *
       COLORcheck_rval (rval, "GRBcbget OBJBND failed");
 
 
-      if (objective < objbound && objective > dbl_cutoff + int_tolerance) {
+      if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
          if(COLORdbg_lvl()) {
             printf("Terminating gurobi based on current objective value %f\n.",
                    objective);
@@ -231,7 +231,7 @@ int COLORstable_gurobi(MWISgrb_env** env,
 
 static int value_is_one(double v)
 {
-   if (fabs(v- 1.0) < int_tolerance ) {
+   if (fabs(v- 1.0) < COLORlp_int_tolerance () ) {
       return 1;
    }
    return 0;
@@ -239,7 +239,7 @@ static int value_is_one(double v)
 
 static int value_is_zero(double v)
 {
-   if (fabs (v) < int_tolerance) {
+   if (fabs (v) < COLORlp_int_tolerance () ) {
       return 1;
    }
    return 0;
@@ -281,7 +281,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
       goto CLEANUP;
    }
 
-   if (objective > 1.0 + int_tolerance) {
+   if (objective > 1.0 + COLORlp_int_tolerance () ) {
       COLORset* newset = (COLORset *) NULL;
 
       /* Retrieve variable values.*/
@@ -332,7 +332,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
          }
       }
       printf("\n");
-   } else if (objective >  1.0 - int_tolerance) {
+   } else if (objective >  1.0 - COLORlp_int_tolerance() ) {
       fprintf(stderr,"WARNING: MWIS is hardly decidable with objective %g.\n",
               objective);
       goto CLEANUP;
