@@ -16,7 +16,8 @@ color: $(OBJFILES)
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(GULIB) -lm -lpthread
 
-
+queen: queen.c
+	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
 clean:
 	rm -f *.o color stable mwis_gurobi.log look.lp vg.log*
 
