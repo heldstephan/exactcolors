@@ -6,9 +6,9 @@
 #include <fenv.h>
 
 #ifdef __GNUC__
-    #define MAYBE_UNUSED __attribute__((used))
+    #define COLOR_MAYBE_UNUSED __attribute__((used))
 #else
-    #define MAYBE_UNUSED
+    #define COLOR_MAYBE_UNUSED
 #endif
 
 
@@ -61,28 +61,28 @@ typedef int COLORNWT;
 #define COLORNWT_MAX INT_MAX
 #define COLORNWT_MIN INT_MIN
 
-MAYBE_UNUSED static inline double dblmax(double a,double b) 
+COLOR_MAYBE_UNUSED static inline double dblmax(double a,double b)
 {
       return a > b ? a : b;
 }
 
-MAYBE_UNUSED static inline double dblmin(double a,double b) 
+COLOR_MAYBE_UNUSED static inline double dblmin(double a,double b)
 {
       return a < b ? a : b;
 }
 
 
-MAYBE_UNUSED static inline COLORNWT COLORNWTmax(COLORNWT a,COLORNWT b) 
+COLOR_MAYBE_UNUSED static inline COLORNWT COLORNWTmax(COLORNWT a,COLORNWT b)
 {
       return a > b ? a : b;
 }
 
-MAYBE_UNUSED static inline COLORNWT COLORNWTmin(COLORNWT a,COLORNWT b) 
+COLOR_MAYBE_UNUSED static inline COLORNWT COLORNWTmin(COLORNWT a,COLORNWT b)
 {
       return a < b ? a : b;
 }
 
-MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
+COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
 {
    double result;
    int oldround = fegetround();
@@ -98,7 +98,7 @@ MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denom
    return result;
 }
 
-MAYBE_UNUSED static double COLORunsafe_dbl(COLORNWT numerator,COLORNWT denominator)
+COLOR_MAYBE_UNUSED static double COLORunsafe_dbl(COLORNWT numerator,COLORNWT denominator)
 {
    return  (double) numerator / (double) denominator;
 }
