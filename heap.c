@@ -29,7 +29,8 @@ static int COLORNWTheap_empty(COLORNWTHeap* heap)
 }
 
 
-MAYBE_UNUSED static int COLORNWTheap_integrity(COLORNWTHeap* heap)
+COLOR_MAYBE_UNUSED
+static int COLORNWTheap_integrity(COLORNWTHeap* heap)
 {
    int rval = 0;
    int i;

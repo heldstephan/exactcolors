@@ -409,7 +409,8 @@ static int build_LP(soldata*  sol)
 }
 
 
-MAYBE_UNUSED static void init_greedy_neighbour_weigths(soldata* sol)
+COLOR_MAYBE_UNUSED 
+static void init_greedy_neighbour_weigths(soldata* sol)
 {
    int i;
 
@@ -429,7 +430,8 @@ MAYBE_UNUSED static void init_greedy_neighbour_weigths(soldata* sol)
    }
 }
 
-MAYBE_UNUSED static int greedy_improvement_1(soldata* sol, int s)
+COLOR_MAYBE_UNUSED
+static int greedy_improvement_1(soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -455,7 +457,8 @@ MAYBE_UNUSED static int greedy_improvement_1(soldata* sol, int s)
    return changes;
 }
 
-MAYBE_UNUSED static int greedy_improvement_2(soldata* sol, int s)
+COLOR_MAYBE_UNUSED
+static int greedy_improvement_2(soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -480,7 +483,8 @@ MAYBE_UNUSED static int greedy_improvement_2(soldata* sol, int s)
    return changes;
 }
 
-MAYBE_UNUSED static void adjust_neighbors(soldata* sol, int x)
+COLOR_MAYBE_UNUSED
+static void adjust_neighbors(soldata* sol, int x)
 {
    int i;
    node* nodelist = sol->G->nodelist;
@@ -497,7 +501,8 @@ MAYBE_UNUSED static void adjust_neighbors(soldata* sol, int x)
    }
 }
 
-MAYBE_UNUSED static int greedy_improvement_dyn(soldata* sol, int s)
+COLOR_MAYBE_UNUSED
+static int greedy_improvement_dyn(soldata* sol, int s)
 {
    int  i;
    int  changes = 0;
@@ -542,7 +547,8 @@ MAYBE_UNUSED static int greedy_improvement_dyn(soldata* sol, int s)
 }
 
 
-MAYBE_UNUSED static int greedy_improvement_LP(soldata*  sol, int s)
+COLOR_MAYBE_UNUSED
+static int greedy_improvement_LP(soldata*  sol, int s)
 {
    int rval = 0;
    int i;
