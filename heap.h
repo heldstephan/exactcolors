@@ -26,11 +26,16 @@ int COLORNWTheap_remove (COLORNWTHeap* heap,
 void* COLORNWTheap_min (COLORNWTHeap* heap);
 
 
+int COLORNWTheap_get_key (const COLORNWTHeap* heap,
+                          int           href);
+
+int COLORNWTheap_size (const COLORNWTHeap* heap);
 
 
 int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
                                int           href,
                                COLORNWT      new_key);
+
 
 int COLORNWTheap_relabel (COLORNWTHeap* heap,
                           int           href,

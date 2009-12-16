@@ -213,8 +213,24 @@ int COLORNWTheap_insert (COLORNWTHeap* heap,
    (heap->end)++;
    
    if (heap->end  >= heap->size) {
-      fprintf(stderr,"COLORNWTheap_insert error: Heap is full, no more elements can be added!\n");
-      rval = 1; goto CLEANUP;      
+      int i;
+
+      heap->size = heap->size * 2 + 2;
+      /* realloc memory */
+      heap->perm = realloc(heap->perm,heap->size);
+      COLORcheck_NULL(heap->perm,"Failed to reallocate heap->perm");
+
+      heap->iperm = realloc(heap->iperm,heap->size);
+      COLORcheck_NULL(heap->iperm,"Failed to reallocate heap->iperm");
+
+      heap->elms = realloc(heap->elms,heap->size);
+      COLORcheck_NULL(heap->elms,"Failed to reallocate heap->elms");
+      
+      for (i = heap->end; i < heap->size; ++i) {
+         heap->elms[i].key = COLORNWT_MAX;
+         heap->perm[i] = heap->iperm[i] = i;
+      }
+      assert(!COLORNWTheap_integrity(heap));
    }
    
    heap->elms[heap->perm[heap->end]].obj  = obj;
@@ -306,6 +322,21 @@ void* COLORNWTheap_min(COLORNWTHeap* heap)
 
    return obj;
 }
+
+int COLORNWTheap_get_key (const COLORNWTHeap* heap,
+                          int           href)
+{
+   assert(href < heap->size);
+   return heap->elms[href].key;
+}
+
+int COLORNWTheap_size (const COLORNWTHeap* heap)
+{
+   return heap->end;
+}
+
+
+
 
 int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
                                int           href,
