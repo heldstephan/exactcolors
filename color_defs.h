@@ -34,7 +34,7 @@ double COLORwall_time (void);
 double COLORcpu_time (void);
 
 void *COLORutil_allocrus (size_t size);
-void COLORutil_freerus (void *p);
+void  COLORutil_freerus (void *p);
 
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
@@ -54,7 +54,7 @@ void COLORutil_freerus (void *p);
     if ((rval)) {                                                          \
        fflush(stdout);                                                     \
        fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
-        goto CLEANUP;                                                      \
+       goto CLEANUP;                                                       \
     }                                                                      \
 }
 
@@ -62,8 +62,8 @@ void COLORutil_freerus (void *p);
     if ((!item)) {                                                         \
        fflush(stdout);                                                     \
        fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
-        rval = 1;                                                          \
-        goto CLEANUP;                                                      \
+       rval = 1;                                                           \
+       goto CLEANUP;                                                       \
     }                                                                      \
 }
 
@@ -77,12 +77,20 @@ typedef int COLORNWT;
 #define COLORNWT_MAX INT_MAX
 #define COLORNWT_MIN INT_MIN
 
-COLOR_MAYBE_UNUSED static inline double dblmax(double a,double b)
+COLOR_MAYBE_UNUSED static inline int COLORnode_comparator(const void* v1,const void* v2)
+{
+   int i1 = *(const int*) v1;
+   int i2 = *(const int*) v2;
+
+   return i1-i2;
+}
+
+COLOR_MAYBE_UNUSED static inline double COLORDBLmax(double a,double b)
 {
       return a > b ? a : b;
 }
 
-COLOR_MAYBE_UNUSED static inline double dblmin(double a,double b)
+COLOR_MAYBE_UNUSED static inline double COLORDBLmin(double a,double b)
 {
       return a < b ? a : b;
 }
@@ -101,7 +109,7 @@ COLOR_MAYBE_UNUSED static inline COLORNWT COLORNWTmin(COLORNWT a,COLORNWT b)
 COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
 {
    double result;
-   int oldround = fegetround();
+   int    oldround = fegetround();
 
    fesetround(FE_UPWARD);
    double denom_mult  = denominator;
@@ -119,13 +127,6 @@ COLOR_MAYBE_UNUSED static double COLORunsafe_dbl(COLORNWT numerator,COLORNWT den
    return  (double) numerator / (double) denominator;
 }
 
-COLOR_MAYBE_UNUSED static inline int COLORvertex_comparator(const void* v1,const void* v2)
-{
-   int i1 = *(const int*) v1;
-   int i2 = *(const int*) v2;
-
-   return i1-i2;
-}
 
 
 #endif

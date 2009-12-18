@@ -17,33 +17,33 @@
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-typedef struct node {
-    int *adj;
-    int degree;
-    int color;
-} node;
+typedef struct COLORadjnode {
+    int* adj;
+    int  degree;
+    int  color;
+} COLORadjnode;
 
-typedef struct graph {
-    node *nodelist;
-    int  *adjspace;
-    int ncount;
-    int ecount;
-} graph;
+typedef struct COLORadjgraph {
+    COLORadjnode* nodelist;
+    int*          adjspace;
+    int           ncount;
+    int           ecount;
+} COLORadjgraph;
 
 
-int  COLORadjgraph_build(graph* G,int ncount,int ecount, const int elist[]);
-int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc);
-int  COLORadjgraph_delete_unweighted(graph* G, int** new_nweights,
-        const int nweights[]);
-int  COLORadjgraph_build_complement(graph* Gc, const graph* G);
-void COLORadjgraph_init(graph* G);
-void COLORadjgraph_free(graph* G);
-int  COLORadjgraph_simplify(graph* G);
-int  COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const graph* G);
-void COLORadjgraph_sort_adjlists_by_id(graph* G);
+int  COLORadjgraph_build(COLORadjgraph* G,int ncount,int ecount, const int elist[]);
+int  COLORadjgraph_copy(COLORadjgraph* Gdst, const COLORadjgraph* Gsrc);
+int  COLORadjgraph_delete_unweighted(COLORadjgraph* G, int** new_nweights,
+                                     const int nweights[]);
+int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G);
+void COLORadjgraph_init(COLORadjgraph* G);
+void COLORadjgraph_free(COLORadjgraph* G);
+int  COLORadjgraph_simplify(COLORadjgraph* G);
+int  COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const COLORadjgraph* G);
+void COLORadjgraph_sort_adjlists_by_id(COLORadjgraph* G);
 int  COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
-        int **pnweights);
-int  COLORedge_stat(const graph* G);
+                       int **pnweights);
+int  COLORedge_stat(const COLORadjgraph* G);
 
 int  COLORgraph_print(int ecount, const int elist[]);
 
