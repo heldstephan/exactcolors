@@ -98,10 +98,10 @@ struct soldata_t {
    int   ncount;
    int   solcount;
    int   freecount;
-   const graph*   G;
-   const COLORNWT*  nweights;
-   COLORNWT    cutoff;
-   COLORclasses cclasses;
+   const COLORadjgraph* G;
+   const COLORNWT*      nweights;
+   COLORNWT             cutoff;
+   COLORclasses         cclasses;
 
    /* Following arrays are used in diverse subroutines
       and kept in soldata avoid too many mallocs.
@@ -122,8 +122,8 @@ struct soldata_t {
 };
 
 struct _MWISls_env {
-   graph    G;
-   soldata sol;
+   COLORadjgraph  G;
+   soldata       sol;
 };
 
 
@@ -190,7 +190,7 @@ static int swap_nodelist(soldata* sol,int i,int j)
 static int tighten_neighbours(soldata* sol,int i)
 {
    int j;
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
    for( j = 0; j < nodelist[i].degree; ++j)
    {
       int k = nodelist[i].adj[j];
@@ -215,7 +215,7 @@ static int tighten_neighbours(soldata* sol,int i)
 static int relax_neighbours(soldata* sol,int i)
 {
    int j;
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
    for( j = 0; j < nodelist[i].degree; ++j)
    {
       int k = nodelist[i].adj[j];
@@ -384,7 +384,7 @@ static int build_LP(soldata*  sol)
    int rval = 0;
    int i;
    int ncount = sol->ncount;
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
 
    sol->dbl_nweights = (double*) COLOR_SAFE_MALLOC(ncount,double);
    COLORcheck_NULL(sol->dbl_nweights,"Failed to allocate sol->dbl_nweights");
@@ -431,7 +431,7 @@ static void init_greedy_neighbour_weigths(soldata* sol)
 {
    int i;
 
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
 
    for (i = sol->solcount; i < sol->solcount + sol->freecount;++i) {
       int x = sol->nperm[i];
@@ -504,7 +504,7 @@ COLOR_MAYBE_UNUSED
 static void adjust_neighbors(soldata* sol, int x)
 {
    int i;
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
    COLORNWT weight = sol->nweights[x];
    if (weight == 0) {return;}
    for(i = 0; i < nodelist[x].degree; ++i) {
@@ -668,7 +668,7 @@ static void reinit_soldatas(soldata*  sol)
 }
 
 static int init_mwis_grdy(soldata*  sol,
-                          graph*     G,
+                          COLORadjgraph*     G,
                           int          ncount,
                           const COLORNWT nweights[],
                           COLORNWT       cutoff)
@@ -789,8 +789,8 @@ static int perform_2_improvement(soldata* sol, int x)
    int ntight = 0;
    int best_v = -1;
    int best_w = -1;
-   const graph* G = sol->G;
-   node* nodelist = G->nodelist;
+   const COLORadjgraph* G = sol->G;
+   COLORadjnode* nodelist = G->nodelist;
    const COLORNWT* nweights = sol->nweights;
    double best_weight = nweights[x];
 
@@ -886,7 +886,7 @@ static int perform_2_improvements(soldata* sol)
    return totnswaps;
 }
 
-static void mark_neighbors(int work_marker[], const node* n)
+static void mark_neighbors(int work_marker[], const COLORadjnode* n)
 {
    int e_i;
    for (e_i = 0; e_i < n->degree; ++e_i) {
@@ -903,8 +903,8 @@ static int perform_1_2_path(soldata* sol, int* nodestack, int v)
    int add_i = sol->ncount;
    int s_i = 0;
    COLORNWT weight  = 0;
-   const graph* G     = sol->G;
-   const node*  nodes = G->nodelist;
+   const COLORadjgraph* G     = sol->G;
+   const COLORadjnode*  nodes = G->nodelist;
    int changes = 0;
 
 
@@ -1114,7 +1114,7 @@ static int add_soldata(soldata* sol)
    memcpy(newmembers,
           sol->nperm,sol->solcount*sizeof(int));
 
-   qsort(newmembers,sol->solcount,sizeof(int),COLORvertex_comparator);
+   qsort(newmembers,sol->solcount,sizeof(int),COLORnode_comparator);
 
    cclasses->sets[cclasses->cnt].members = newmembers;
    ++(cclasses->cnt);
@@ -1260,7 +1260,7 @@ int COLORstable_LS(MWISls_env** env,
 {
    int rval = 0;
 
-   graph*     G  = (graph*) NULL;
+   COLORadjgraph*     G  = (COLORadjgraph*) NULL;
    soldata* sol = (soldata*) NULL;
 
    if (! *env) {
@@ -1270,7 +1270,7 @@ int COLORstable_LS(MWISls_env** env,
       set_ptrs_to_zero(&((*env)->sol));
 
       G   = &((*env)->G);
-      G->nodelist = (node*) NULL;
+      G->nodelist = (COLORadjnode*) NULL;
       G->adjspace = (int*) NULL;
       COLORadjgraph_free(G);
 
@@ -1338,7 +1338,7 @@ static int num_weighted_neighbors(soldata* sol, COLORNWT* nweights, int v)
 {
    int j;
    int numwn = 0;
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
 
    for (j = 0;j < nodelist[v].degree; ++j) {
       int w_j = nodelist[v].adj[j];
@@ -1354,7 +1354,7 @@ static int decrease_nwn_of_neighbors(soldata* sol, int v)
    int rval;
    int k;
    
-   node* nodelist = sol->G->nodelist;
+   COLORadjnode* nodelist = sol->G->nodelist;
 
    for (k = 0;k < nodelist[v].degree; ++k) {
       int w_k = nodelist[v].adj[k];
@@ -1379,7 +1379,7 @@ int COLORstable_round_down_weights(MWISls_env* env,
    int rval = 0;
    int i;
    int ncount = env->G.ncount;
-   const node* nodelist    = env->G.nodelist;
+   const COLORadjnode* nodelist    = env->G.nodelist;
    soldata* sol = &(env->sol);
    COLORNWT lb = 0;
    COLORNWT lb_frac = 0;

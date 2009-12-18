@@ -63,15 +63,15 @@ static int run_clique_enum (int ncount, int ecount, int *elist, int *weights,
     COLORset *bestcliq);
 static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
         int *optval, int *bestcnt, int *bestset, int cutoff);
-static int run_ostergard (graph *G, int Ucount, int *U, int *weights, int psum,
+static int run_ostergard (COLORadjgraph *G, int Ucount, int *U, int *weights, int psum,
         int *C, int *bigmax, int *marks, int *pcnt, int *pset, int *bestcnt,
         int *bestset);
-static int grab_marked_neighbors (graph *G, int *marks, int k, int *pcount,
+static int grab_marked_neighbors (COLORadjgraph *G, int *marks, int k, int *pcount,
         int **plist);
-static int ostergard_order (graph *G, int *weights, int *order);
+static int ostergard_order (COLORadjgraph *G, int *weights, int *order);
 static int permute_nodes (int *invorder, int ncount, int ecount, int *elist,
         int *weights, int **pielist, int **piweights);
-static int build_directed_adj (graph* G, int ncount, int ecount, int *elist,
+static int build_directed_adj (COLORadjgraph * G, int ncount, int ecount, int *elist,
         int forward);
 static int check_clique (int ncount, int ecount, int *elist, COLORset *clique,
     int *yesno);
@@ -284,7 +284,7 @@ int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
     int *order = (int *) NULL, *invorder = (int *) NULL;
     int *ielist = (int *) NULL, *iweights = (int *) NULL;
     int bestcnt = 0, *bestset = (int *) NULL;
-    graph G;
+    COLORadjgraph G;
 
     COLORadjgraph_init (&G);
 
@@ -355,7 +355,7 @@ static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
     int *C = (int *) NULL, *marks = (int *) NULL;
     int bigmax = -COLOR_MAXINT, *U, Ucount;
     int pcnt = 0, *pset = (int *) NULL;
-    graph G;
+    COLORadjgraph G;
 
     COLORadjgraph_init (&G);
 
@@ -406,7 +406,7 @@ CLEANUP:
     return rval;
 }
 
-static int run_ostergard (graph *G, int Ucount, int *U, int *weights, int psum,
+static int run_ostergard (COLORadjgraph *G, int Ucount, int *U, int *weights, int psum,
         int *C, int *bigmax, int *marks, int *pcnt, int *pset, int *bestcnt,
         int *bestset)
 {
@@ -466,11 +466,11 @@ CLEANUP:
     return rval;
 }
 
-static int grab_marked_neighbors (graph *G, int *marks, int k, int *pcount,
+static int grab_marked_neighbors (COLORadjgraph *G, int *marks, int k, int *pcount,
         int **plist)
 {
     int i, rval = 0;
-    node *n = &G->nodelist[k];
+    COLORadjnode *n = &G->nodelist[k];
     int count = 0, *list = (int *) NULL;
 
     *pcount = 0;
@@ -502,12 +502,12 @@ CLEANUP:
     return rval;
 }
 
-static int ostergard_order (graph *G, int *weights, int *order)
+static int ostergard_order (COLORadjgraph *G, int *weights, int *order)
 {
     int rval = 0;
     int i, j, k, *sweights = (int *) NULL, ncount = G->ncount;
     int *marks = (int *) NULL;
-    node *n;
+    COLORadjnode *n;
 
     sweights = COLOR_SAFE_MALLOC (ncount, int);
     COLORcheck_NULL (sweights, "out of memory for sweights");
@@ -643,18 +643,18 @@ CLEANUP:
     return rval;
 }
 
-static int build_directed_adj (graph* G, int ncount, int ecount, int *elist,
+static int build_directed_adj (COLORadjgraph * G, int ncount, int ecount, int *elist,
         int forward)
 {
     int i, rval = 0;
     int *p;
-    node *nodelist;
+    COLORadjnode *nodelist;
 
     COLORadjgraph_init (G);
     G->ncount = ncount;
     G->ecount = ecount;
 
-    G->nodelist = COLOR_SAFE_MALLOC (G->ncount, node);
+    G->nodelist = COLOR_SAFE_MALLOC (G->ncount, COLORadjnode);
     COLORcheck_NULL (G->nodelist, "out of memory for G->nodelist");
     nodelist = G->nodelist;
 

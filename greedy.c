@@ -22,7 +22,7 @@
 #include "color.h"
 
 
-static void color_node (graph *G, int n);
+static void color_node (COLORadjgraph *G, int n);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses)
@@ -31,7 +31,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
     int *degree = (int *) NULL;
     int *perm = (int *) NULL;
     int i, k, c;
-    graph G;
+    COLORadjgraph G;
     COLORset *csets = (COLORset *) NULL;
 
     printf ("COLORgreedy(%d,%d) ...\n", ncount, ecount);
@@ -118,10 +118,10 @@ CLEANUP:
     return rval;
 }
 
-static void color_node (graph *G, int n)
+static void color_node (COLORadjgraph *G, int n)
 {
     int i, color = -1;
-    node *p = &G->nodelist[n];
+    COLORadjnode *p = &G->nodelist[n];
 
     for (i = 0; i < p->degree; i++) {
         if (G->nodelist[p->adj[i]].color > color) {

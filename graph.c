@@ -24,18 +24,18 @@
 #include "graph.h"
 #include "color_defs.h"
 
-int COLORadjgraph_build (graph* G, int ncount, int ecount, const int elist[])
+int COLORadjgraph_build (COLORadjgraph* G, int ncount, int ecount, const int elist[])
 {
     int rval = 0;
     int i;
     int *p;
-    node *nodelist;
+    COLORadjnode* nodelist;
 
     COLORadjgraph_init (G);
     G->ncount = ncount;
     G->ecount = ecount;
 
-    G->nodelist = COLOR_SAFE_MALLOC (G->ncount, node);
+    G->nodelist = COLOR_SAFE_MALLOC (G->ncount, COLORadjnode);
     COLORcheck_NULL (G->nodelist, "out of memory for G->nodelist");
     nodelist = G->nodelist;
 
@@ -74,7 +74,7 @@ CLEANUP:
 }
 
 
-int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc)
+int  COLORadjgraph_copy(COLORadjgraph* Gdst, const COLORadjgraph* Gsrc)
 {
    /* This is a fast too implement version using ecxisting functions.
       Copying graphs couls be done faster.
@@ -96,7 +96,7 @@ int  COLORadjgraph_copy(graph* Gdst, const graph* Gsrc)
    return rval;   
 }
 
-int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
+int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
 {
    int rval = 0;
    int v_i, a_i,na;
@@ -119,8 +119,9 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
    
    ecount = 0;  
    for (v_i = 0; v_i < Gc->ncount; ++ v_i) {
-      node* v = &(Gc->nodelist[v_i]);
-      int a = -1;
+      COLORadjnode* v = &(Gc->nodelist[v_i]);
+      int           a = -1;
+      
       a_i  = 0;
       for (na = v_i + 1; na < Gc->ncount; ++ na) {
          while (a_i < v->degree && a < na) {
@@ -149,20 +150,20 @@ int  COLORadjgraph_build_complement(graph* Gc, const graph* G)
 }
 
 
-void COLORadjgraph_init (graph *G)
+void COLORadjgraph_init (COLORadjgraph* G)
 {
    if (G) {
-      G->nodelist = (node *) NULL;
+      G->nodelist = (COLORadjnode* ) NULL;
       G->adjspace = (int *) NULL;
       G->ncount = 0;
       G->ecount = 0;
    }
 }
 
-void COLORadjgraph_free (graph *G)
+void COLORadjgraph_free (COLORadjgraph* G)
 {
     if (G) {
-        COLOR_IFFREE (G->nodelist, node);
+        COLOR_IFFREE (G->nodelist, COLORadjnode);
         COLOR_IFFREE (G->adjspace, int);
         COLORadjgraph_init (G);
     }
@@ -203,7 +204,7 @@ static int unify_adjlist(int* adjlist,int degree, int* tmp_adjlist)
    return new_degree;
 }
 
-int COLORadjgraph_simplify(graph* G)
+int COLORadjgraph_simplify(COLORadjgraph* G)
 {
    int i,j;
    int rval = 0;
@@ -262,7 +263,7 @@ int COLORadjgraph_simplify(graph* G)
    return rval;
 }
 
-int COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const graph* G)
+int COLORadjgraph_extract_edgelist(int* ecount, int* elist[], const COLORadjgraph* G)
 {
    int rval = 0;
    int i;
@@ -293,7 +294,7 @@ CLEANUP:
    return rval;
 }
 
-void COLORadjgraph_sort_adjlists_by_id(graph* G)
+void COLORadjgraph_sort_adjlists_by_id(COLORadjgraph* G)
 {
    int i;
    for (i = 0; i < G->ncount;++i) {
@@ -301,7 +302,7 @@ void COLORadjgraph_sort_adjlists_by_id(graph* G)
    }
 }
 
-int  COLORadjgraph_delete_unweighted(graph* G, 
+int  COLORadjgraph_delete_unweighted(COLORadjgraph* G, 
                                      int** new_nweights,
                                      const int nweights[])
 {
@@ -377,9 +378,9 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
     int *nweights = (int *) NULL;
     char buf[256], *p;
     FILE *in = (FILE *) NULL;
-    graph G; /* used to simplify graph.*/
+    COLORadjgraph G; /* used to simplify graph.*/
 
-    G.nodelist = (node *) NULL;
+    G.nodelist = (COLORadjnode*) NULL;
     G.adjspace = (int *) NULL;
     G.ncount = 0;
     G.ecount = 0;
@@ -475,7 +476,7 @@ CLEANUP:
     return rval;
 }
 
-int COLORedge_stat(const graph* G)
+int COLORedge_stat(const COLORadjgraph* G)
 {
    int rval = 0;
    int i;

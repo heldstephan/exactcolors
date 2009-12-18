@@ -50,15 +50,15 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                             int ecount, const int elist[], COLORNWT nweights[],
                             COLORNWT cutoff)
 {
-   int rval = 0;
-   int    i;
-   graph  G;
-   graph  Gc;
-   FILE*  file = (FILE*)  NULL;
-   int*   elistc = (int*)  NULL;
-   int    ecountc;
-   int*   new_nweights = (int*)  NULL;
-   COLORNWT objval;
+   int            rval = 0;
+   int            i;
+   COLORadjgraph  G;
+   COLORadjgraph  Gc;
+   FILE*          file = (FILE*)  NULL;
+   int*           elistc = (int*)  NULL;
+   int            ecountc;
+   int*           new_nweights = (int*)  NULL;
+   COLORNWT       objval;
 
    rval = COLORadjgraph_build(&G,ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build.");
@@ -286,13 +286,13 @@ int COLORstable_write_dimacs_clique(const char*  filename,
                                     int ncount, int ecount, const int elist[], 
                                     const COLORNWT nweights[], COLORNWT cutoff)
 {
-   int    i,rval = 0;
-   graph  G;
-   graph  Gc;
-   FILE*  file = (FILE*)  NULL;
-   int*   elistc = (int*)  NULL;
-   int    ecountc;
-   int*   new_nweights = (int*)  NULL;
+   int            i,rval = 0;
+   COLORadjgraph  G;
+   COLORadjgraph  Gc;
+   FILE*          file = (FILE*)  NULL;
+   int*           elistc = (int*)  NULL;
+   int            ecountc;
+   int*           new_nweights = (int*)  NULL;
 
    rval = COLORadjgraph_build(&G,ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build.");
@@ -348,15 +348,15 @@ int COLOR_double2COLORNWT(COLORNWT nweights[],
    double max_prec_dbl = exp2(DBL_MANT_DIG-1);
    static const double max_mwiswt   = (double) COLORNWT_MAX;
 
-   double dbl_scalef = dblmin(max_prec_dbl,max_mwiswt);
+   double dbl_scalef = COLORDBLmin(max_prec_dbl,max_mwiswt);
 
    dbl_scalef /= (double) ncount;
 
    for (i = 0; i < ncount;++i) {
       max_dbl_nweight =
-         dblmax(max_dbl_nweight,dbl_nweights[i]);
+         COLORDBLmax(max_dbl_nweight,dbl_nweights[i]);
    }
-   dbl_scalef /= dblmax(1.0,max_dbl_nweight);
+   dbl_scalef /= COLORDBLmax(1.0,max_dbl_nweight);
    dbl_scalef  = floor(dbl_scalef);
    *scalef  = (COLORNWT) dbl_scalef;
 
@@ -465,7 +465,7 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
             }
          }
          if (unsorted) {
-            qsort(setbuffer,setsize,sizeof(int),COLORvertex_comparator);
+            qsort(setbuffer,setsize,sizeof(int),COLORnode_comparator);
          }
          (*newsets)[*nnewsets].count = setsize;
          (*newsets)[*nnewsets].members = (int*) COLOR_SAFE_MALLOC(setsize,int);
