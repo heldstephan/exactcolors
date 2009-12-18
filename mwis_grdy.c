@@ -1025,6 +1025,10 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
 
    for (i = 0; i < set->count;++i) {
       coloring[set->members[i]] = 1;
+      if ((i >= 1) && (set->members[i] < set->members[i-1]) ) {
+         fprintf(stderr,"Stable set members are not sorted correctly!\n");
+         rval = 1; goto CLEANUP;
+      }
    }
 
    for (i = 0; i < ecount; ++i) {
@@ -1230,10 +1234,12 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
          num_starts = sol->ncount / nsoldatas;
       }
    }
-   printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
-          COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
-          sol->cclasses.cnt, last_valid_start,last_improving_start);
-   fflush(stdout);
+   if (COLORdbg_lvl()) {
+      printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
+             COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
+             sol->cclasses.cnt, last_valid_start,last_improving_start);
+      fflush(stdout);
+   }
  CLEANUP:
    return rval;
 }
