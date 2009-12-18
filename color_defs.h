@@ -103,5 +103,13 @@ COLOR_MAYBE_UNUSED static double COLORunsafe_dbl(COLORNWT numerator,COLORNWT den
    return  (double) numerator / (double) denominator;
 }
 
+COLOR_MAYBE_UNUSED static inline int COLORvertex_comparator(const void* v1,const void* v2)
+{
+   int i1 = *(const int*) v1;
+   int i2 = *(const int*) v2;
+
+   return i1-i2;
+}
+
 
 #endif
