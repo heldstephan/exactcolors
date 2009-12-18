@@ -165,6 +165,29 @@ static void init_colordata(colordata* cd)
    cd->diff_child = (colordata*)NULL;
 }
 
+static void free_lbcolordata(colordata* cd)
+{
+   if (cd->lp) COLORlp_free (&(cd->lp));
+   if (cd->coef) {
+      free (cd->coef);
+      cd->coef = (double*) NULL;
+   }
+   if (cd->pi) {
+      free (cd->pi);
+      cd->pi   = (double*) NULL;
+   }
+   if (cd->mwis_pi) {
+      free(cd->mwis_pi);
+      cd->mwis_pi = (COLORNWT*) NULL;
+   }
+   COLORfree_sets(&(cd->newsets),&(cd->nnewsets));
+   COLORfree_sets(&(cd->cclasses),&(cd->gallocated));
+   
+
+   COLORstable_freeenv(&(cd->mwis_env));
+
+}
+
 static void free_colordata(colordata* cd)
 {
    if (cd->same_child) {
@@ -176,18 +199,11 @@ static void free_colordata(colordata* cd)
       free(cd->diff_child);
    }
 
-   if (cd->lp) COLORlp_free (&(cd->lp));
+   free_lbcolordata(cd);
    if (cd->elist) free (cd->elist);
    if (cd->orig_node_ids) free(cd->orig_node_ids);
-   if (cd->coef) free (cd->coef);
-   if (cd->pi) free (cd->pi);
-   if (cd->mwis_pi) free(cd->mwis_pi);
 
-
-    COLORfree_sets(&(cd->newsets),&(cd->nnewsets));
-    COLORfree_sets(&(cd->cclasses),&(cd->gallocated));
     COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
-    COLORstable_freeenv(&(cd->mwis_env));
 
 }
 
@@ -1213,6 +1229,8 @@ static int create_branches(colordata* cd)
    }
 
  CLEANUP:
+   free_lbcolordata(cd);
+
    if (cand_heap) {
       COLORNWTheap_free(cand_heap);
       cand_heap = (COLORNWTHeap*) NULL;
@@ -1225,7 +1243,8 @@ static int create_branches(colordata* cd)
    return rval;
 }
 
-
+/** Transform the coloring of cd->same_child into a coloring of cd.
+ */
 static int collect_same_child(colordata* cd)
 {
    int rval = 0;
@@ -1284,7 +1303,8 @@ static int collect_same_child(colordata* cd)
    return rval;
 }
 
-
+/** Transform the coloring of cd->same_child into a coloring of cd.
+ */
 static int collect_diff_child(colordata* cd)
 {
    int rval = 0;
@@ -1522,11 +1542,12 @@ static int compute_coloring(colordata* root_cd)
 
 
    while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) ) {
-
+      cd->upper_bound = global_upper_bound;
       if (cd->lower_bound < cd->upper_bound) {
          printf("Branching with lb %d (%f) and ub %d at depth %d (id = %d, "
                 "opt_track = %d, unprocessed nodes = %d).\n",
-                cd->lower_bound,cd->dbl_lower_bound,cd->upper_bound,cd->depth,
+                cd->lower_bound,cd->dbl_lower_bound,cd->upper_bound,
+                cd->depth,
                 cd->id, cd->opt_track,COLORNWTheap_size(br_heap) );
 
          /* Create children. If the current LP-solution turns out to be intergal,
@@ -1557,7 +1578,9 @@ static int compute_coloring(colordata* root_cd)
       if (cd->lower_bound == cd->upper_bound) {
          remove_finished_subtree(cd);
       }
-
+      if (global_upper_bound > cd->upper_bound) {
+         global_upper_bound = cd->upper_bound;
+      }
    }
 
  CLEANUP:
