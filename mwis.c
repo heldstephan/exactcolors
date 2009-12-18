@@ -147,7 +147,7 @@ int COLORstable_wrapper(MWISenv** env,
                             nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl() >= 0 ) { printf("Greedy took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() ) { printf("Greedy took %f seconds\n",rtime);}
    }
 
    /* Uncomment to enforce gurobi.*/
