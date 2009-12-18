@@ -1,3 +1,20 @@
+/**
+    This file is part of exactcolors.
+
+    exactcolors is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    exactcolors is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +71,11 @@ int main(int argc, char** args)
    n = m = 5;
 
 
-/*    printf("argc %d\n",argc); */
+   if (argc == 1) {
+      printf("Usage: queen <number of rows> <number of columns>\n");
+      printf("If the number of columns is omitted, the number of columns will be set to the number of rows.\n");
+      exit (0);
+   }
    if (argc >=2) {
       n = atoi(args[1]);
    }
