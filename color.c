@@ -1571,15 +1571,16 @@ static int compute_coloring(colordata* root_cd)
       }
       assert (cd->lower_bound <= cd->upper_bound);
 
+      if (global_upper_bound > cd->upper_bound) {
+         global_upper_bound = cd->upper_bound;
+      }
+      
       /** This is not simply an else-branch because the cd->upper_bound
           can be decreased in create_branches if the current LP-relaxation is
           intergal.
       */
       if (cd->lower_bound == cd->upper_bound) {
          remove_finished_subtree(cd);
-      }
-      if (global_upper_bound > cd->upper_bound) {
-         global_upper_bound = cd->upper_bound;
       }
    }
 
