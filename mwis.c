@@ -203,7 +203,6 @@ int COLORstable_wrapper(MWISenv** env,
                                      ncount, ecount, elist,
                                      nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
-
       rtime = COLORcpu_time() - rtime;
       if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
    }
@@ -438,9 +437,18 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
 
       } else if( p[0] == 's') {
          int  setsize = 0;
+         int  unsorted = 0;
          token = strtok(p,delim);
          while( (token = strtok((char*) NULL,delim)) != (char*) NULL) {
             sscanf (token, "%d", &(setbuffer[setsize++]));
+            if (setsize > 1 ){
+               if (setbuffer[setsize-1] < setbuffer[setsize-2]) {
+                  unsorted = 1;
+               }
+            }
+         }
+         if (unsorted) {
+            qsort(setbuffer,setsize,sizeof(int),COLORvertex_comparator);
          }
          (*newsets)[*nnewsets].count = setsize;
          (*newsets)[*nnewsets].members = (int*) COLOR_SAFE_MALLOC(setsize,int);

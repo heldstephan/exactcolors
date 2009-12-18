@@ -1078,14 +1078,6 @@ int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, cons
 }
 
 
-static int vertex_comparator(const void* v1,const void* v2)
-{
-   int i1 = *(const int*) v1;
-   int i2 = *(const int*) v2;
-
-   return i1-i2;
-}
-
 static int add_soldata(soldata* sol)
 {
    int rval = 0;
@@ -1105,7 +1097,7 @@ static int add_soldata(soldata* sol)
    memcpy(newmembers,
           sol->nperm,sol->solcount*sizeof(int));
 
-   qsort(newmembers,sol->solcount,sizeof(int),vertex_comparator);
+   qsort(newmembers,sol->solcount,sizeof(int),COLORvertex_comparator);
 
    cclasses->sets[cclasses->cnt].members = newmembers;
    ++(cclasses->cnt);
