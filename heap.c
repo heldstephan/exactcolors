@@ -217,13 +217,13 @@ int COLORNWTheap_insert (COLORNWTHeap* heap,
 
       heap->size = heap->size * 2 + 2;
       /* realloc memory */
-      heap->perm = realloc(heap->perm,heap->size);
+      heap->perm = realloc(heap->perm,heap->size * sizeof(int));
       COLORcheck_NULL(heap->perm,"Failed to reallocate heap->perm");
 
-      heap->iperm = realloc(heap->iperm,heap->size);
+      heap->iperm = realloc(heap->iperm,heap->size * sizeof(int));
       COLORcheck_NULL(heap->iperm,"Failed to reallocate heap->iperm");
 
-      heap->elms = realloc(heap->elms,heap->size);
+      heap->elms = realloc(heap->elms,heap->size * sizeof(COLORNWTHeapElm));
       COLORcheck_NULL(heap->elms,"Failed to reallocate heap->elms");
       
       for (i = heap->end; i < heap->size; ++i) {
