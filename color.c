@@ -1466,7 +1466,12 @@ static int insert_into_branching_heap(COLORNWTHeap* heap, colordata* cd, double 
 {
    int rval = compute_lower_bound (cd);
    int dummy_href;
-   COLORNWT heap_key = (COLORNWT) (cd->dbl_lower_bound * key_mult);
+   /** We use the lower bound adjusted by the depth of a node as a
+       heap key.  The idea behind this is: in case of equal bounds
+       deeper nodes should be preferred to potentially improve the
+       upper bound faster.
+    */
+   COLORNWT heap_key = (COLORNWT) (cd->dbl_lower_bound * key_mult) - cd->depth;
    COLORcheck_rval(rval,"Failed in compute_lower_bound (cd);");
    rval = COLORNWTheap_insert(heap,&dummy_href,
                               heap_key,
