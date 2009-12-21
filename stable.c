@@ -73,11 +73,12 @@ static int useostergard = 0;
 
 int main (int ac, char **av);
 static int optimal_stable_set (int ncount, int ecount, int *elist,
-        int *weights);
-static int cutting_loop (graph *G, COLORlp *lp, pool *P, prob *probdata,
-        int silent);
+    int *weights);
+static int cutting_loop (COLORadjgraph *G, COLORlp *lp, pool *P,
+    prob *probdata, int silent);
 static int add_cuts (COLORlp *lp, pool *P, prob *sp, stablecut **pclist);
-static int build_stable_lp (COLORlp **lp, graph *G, int *weights, int *clist);
+static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
+    int *clist);
 static int add_cut_to_lp (COLORlp *lp, stablecut *cset);
 static void init_stable_prob (prob *p);
 static void free_stable_prob (prob *p);
@@ -87,29 +88,31 @@ static void init_cut_pool (pool *P);
 static int build_cut_pool (pool *P, int setcount, int ncount);
 static int add_cut_to_pool (pool *P, stablecut **pcset, int *hit);
 static void free_cut_pool (pool *P);
-static int cover_edge_cliques (graph *G, int ecount, int *elist,
-        stablecut **pclist, int *setcount);
-static int find_violated_cliques (graph *G, double *x, stablecut **pclist,
-        int *pcount);
-static int cover_node (graph *G, double *weights, int k, stablecut **pcset,
-        int *nmarks, int *nlist);
-static int cover_edge (graph *G, int end1, int end2, stablecut **pcset,
-        int *nmarks, int *nlist);
-static void mark_edges (graph *G, int **incid, stablecut *cset, int *emarks,
-        int *nmarks, int *elist);
-static void check_clique (graph *G, int *nmarks, stablecut *cset, int *yesno);
-static int find_violated_holes (graph *G, double *x, stablecut **cutlist,
-        int *pcount);
-static int stable_greedy_x (graph *G, int *weights, double *x,
-        COLORset **pcset, int *wt);
-static int call_dfs_branching (graph *G, int *weights, COLORlp *lp, pool *P,
-        prob *probdata, int *bestval);
-static int dfs_branching (graph *G, int *weights, COLORlp *lp, pool *P,
-        prob *probdata, int *bestval, double *x, int depth, int *bcount);
-static int find_branch (graph *G, double *x, int *pvertex);
-static int get_integer_soln (graph *G, int *weights, double *x, COLORset *sol,
-        int *solval);
-static int build_incidence (graph *G, int ecount, int *elist, int **incid);
+static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
+    stablecut **pclist, int *setcount);
+static int find_violated_cliques (COLORadjgraph *G, double *x, 
+    stablecut **pclist, int *pcount);
+static int cover_node (COLORadjgraph *G, double *weights, int k, 
+    stablecut **pcset, int *nmarks, int *nlist);
+static int cover_edge (COLORadjgraph *G, int end1, int end2, stablecut **pcset,
+    int *nmarks, int *nlist);
+static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset, 
+    int *emarks, int *nmarks, int *elist);
+static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset, 
+    int *yesno);
+static int find_violated_holes (COLORadjgraph *G, double *x,
+    stablecut **cutlist, int *pcount);
+static int stable_greedy_x (COLORadjgraph *G, int *weights, double *x,
+    COLORset **pcset, int *wt);
+static int call_dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp,
+    pool *P, prob *probdata, int *bestval);
+static int dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp, pool *P,
+    prob *probdata, int *bestval, double *x, int depth, int *bcount);
+static int find_branch (COLORadjgraph *G, double *x, int *pvertex);
+static int get_integer_soln (COLORadjgraph *G, int *weights, double *x, 
+    COLORset *sol, int *solval);
+static int build_incidence (COLORadjgraph *G, int ecount, int *elist, 
+    int **incid);
 static int parseargs (int ac, char **av);
 static void usage (char *f);
 static int get_problem_name(char* pname,const char* efname);
@@ -136,7 +139,7 @@ int main (int ac, char **av)
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
-    get_problem_name(pname,graphfile);
+    get_problem_name (pname, graphfile);
 
     rval = COLORread_dimacs (graphfile, &ncount, &ecount, &elist, &wlen);
     COLORcheck_rval (rval, "COLORread_dimacs failed");
@@ -185,7 +188,7 @@ static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
     stablecut *clist = (stablecut *) NULL;
     COLORset *gcset = (COLORset *) NULL;
     int gwt = 0, setcount = 0, bestweight = 0;
-    graph G;
+    COLORadjgraph G;
     pool P;
     prob *root = (prob *) NULL;
     COLORlp *lp = (COLORlp *) NULL;
@@ -269,8 +272,8 @@ CLEANUP:
     return rval;
 }
 
-static int cutting_loop (graph *G, COLORlp *lp, pool *P, prob *probdata,
-        int silent)
+static int cutting_loop (COLORadjgraph *G, COLORlp *lp, pool *P,
+        prob *probdata, int silent)
 {
     int rval = 0;
     int setcount = 0, iterations = 0, hcount = 0;
@@ -360,7 +363,8 @@ CLEANUP:
     return rval;
 }
 
-static int build_stable_lp (COLORlp **lp, graph *G, int *weights, int *clist)
+static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
+        int *clist)
 {
     int rval = 0;
     int i, ncount = G->ncount;
@@ -447,8 +451,8 @@ CLEANUP:
     return rval;
 }
 
-static int find_violated_holes (graph *G, double *x, stablecut **phlist,
-        int *pcount)
+static int find_violated_holes (COLORadjgraph *G, double *x, 
+        stablecut **phlist, int *pcount)
 {
     int i, j, k, ncount = G->ncount, rval = 0;
     int winner, trys, marker = 1, setcount = 0;
@@ -457,7 +461,7 @@ static int find_violated_holes (graph *G, double *x, stablecut **phlist,
     int *path = (int *) NULL;
     int *bestpath = (int *) NULL;
     int *ncover = (int *) NULL;
-    node *n;
+    COLORadjnode *n;
     double *nsum = (double *) NULL;
     double **eweights = (double **) NULL;
     double uval, t, pweight, bestviol, vmin = 1.0 - STABLE_EPS;
@@ -665,7 +669,7 @@ static void free_cut_pool (pool *P)
     COLOR_IFFREE (P->cuts, stablecut);
 }
 
-static int cover_edge_cliques (graph *G, int ecount, int *elist,
+static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
         stablecut **pclist, int *setcount)
 {
     int rval = 0;
@@ -729,8 +733,8 @@ CLEANUP:
     return rval;
 }
 
-static int find_violated_cliques (graph *G, double *x, stablecut **pclist,
-        int *pcount)
+static int find_violated_cliques (COLORadjgraph *G, double *x, 
+        stablecut **pclist, int *pcount)
 {
     int rval = 0;
     int i, j, k, yesno, count = 0, ncount = G->ncount;
@@ -803,11 +807,11 @@ CLEANUP:
     return rval;
 }
 
-static int cover_node (graph *G, double *weights, int k, stablecut **pcset,
-        int *nmarks, int *nlist)
+static int cover_node (COLORadjgraph *G, double *weights, int k,
+        stablecut **pcset, int *nmarks, int *nlist)
 {
     int rval = 0;
-    node *n;
+    COLORadjnode *n;
     int i, winner, count;
     double bestweight;
 
@@ -843,11 +847,11 @@ CLEANUP:
     return rval;
 }
 
-static int cover_edge (graph *G, int end1, int end2, stablecut **pcset,
+static int cover_edge (COLORadjgraph *G, int end1, int end2, stablecut **pcset,
         int *nmarks, int *nlist)
 {
     int rval = 0;
-    node *n;
+    COLORadjnode *n;
     int i, count, winner;
 
     nlist[0] = end1;
@@ -880,10 +884,11 @@ CLEANUP:
     return rval;
 }
 
-static void check_clique (graph *G, int *nmarks, stablecut *cset, int *yesno)
+static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset, 
+        int *yesno)
 {
     int i, j;
-    node *n;
+    COLORadjnode *n;
 
     *yesno = 0;
     for (i = 0; i < G->ncount; i++) nmarks[i] = 0;
@@ -921,8 +926,8 @@ CLEANUP:
     }
 }
 
-static void mark_edges (graph *G, int **incid, stablecut *cset, int *emarks,
-        int *nmarks, int *elist) 
+static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset, 
+        int *emarks, int *nmarks, int *elist) 
 {
     int i, j, k, n, n1, n2;
 
@@ -941,7 +946,7 @@ static void mark_edges (graph *G, int **incid, stablecut *cset, int *emarks,
     for (i = 0; i < cset->count; i++) nmarks[cset->inodes[i]] = 0;
 }
 
-static int stable_greedy_x (graph *G, int *weights, double *x,
+static int stable_greedy_x (COLORadjgraph *G, int *weights, double *x,
         COLORset **pcset, int *wt)
 {
     int rval = 0;
@@ -950,7 +955,7 @@ static int stable_greedy_x (graph *G, int *weights, double *x,
     int *nmarks = (int *) NULL;
     int *nlist = (int *) NULL, *nlist2 = (int *) NULL;
     double *nx = (double *) NULL;
-    node *n;
+    COLORadjnode *n;
 
     perm = COLOR_SAFE_MALLOC (ncount, int);
     COLORcheck_NULL (perm, "out of memory for perm");
@@ -1029,8 +1034,8 @@ CLEANUP:
     return rval;
 }
 
-static int call_dfs_branching (graph *G, int *weights, COLORlp *lp, pool *P,
-        prob *probdata, int *bestval)
+static int call_dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp,
+        pool *P, prob *probdata, int *bestval)
 {
     int rval = 0;
     int bcount = 0;
@@ -1052,7 +1057,7 @@ CLEANUP:
     return rval;
 }
 
-static int dfs_branching (graph *G, int *weights, COLORlp *lp, pool *P,
+static int dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp, pool *P,
         prob *probdata, int *bestval, double *x, int depth, int *bcount)
 {
     int rval = 0;
@@ -1128,7 +1133,7 @@ CLEANUP:
     return rval;
 }
 
-static int find_branch (graph *G, double *x, int *pvertex)
+static int find_branch (COLORadjgraph *G, double *x, int *pvertex)
 {
     int rval = 0;
     int i, ncount = G->ncount;
@@ -1164,8 +1169,8 @@ CLEANUP:
     return rval;
 }
 
-static int get_integer_soln (graph *G, int *weights, double *x, COLORset *sol,
-        int *solval)
+static int get_integer_soln (COLORadjgraph *G, int *weights, double *x, 
+        COLORset *sol, int *solval)
 {
     int i, w = 0, cnt = 0, rval = 0;
 
@@ -1193,7 +1198,8 @@ CLEANUP:
     return rval;
 }
 
-static int build_incidence (graph *G, int ecount, int *elist, int **incid)
+static int build_incidence (COLORadjgraph *G, int ecount, int *elist, 
+        int **incid)
 {
     int rval = 0;
     int i, n1, n2;
