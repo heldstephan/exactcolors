@@ -811,7 +811,7 @@ static int create_differ(colordata* parent_cd, int v1, int v2)
    int rval = 0;
    int i;
    COLORadjgraph G;
-   int           v2_covered;
+   int           v2_covered = 0;
    colordata*    cd = (colordata*) COLOR_SAFE_MALLOC(1,colordata);
    COLORcheck_NULL(cd,"Failed to allocate cd");
 
