@@ -153,7 +153,9 @@ void COLORNWTheap_reset(COLORNWTHeap* heap)
       heap->elms[i].key = COLORNWT_MAX;
       heap->perm[i] = heap->iperm[i] = i;
    }
+#ifdef HEAP_INTEGRITY_CHECKS
    assert(!COLORNWTheap_integrity(heap));
+#endif
 }
 
 static int COLORNWTheap_liftup(COLORNWTHeap* heap,
@@ -247,7 +249,9 @@ int COLORNWTheap_insert (COLORNWTHeap* heap,
          heap->elms[i].key = COLORNWT_MAX;
          heap->perm[i] = heap->iperm[i] = i;
       }
+#ifdef HEAP_INTEGRITY_CHECKS
       assert(!COLORNWTheap_integrity(heap));
+#endif
    }
    
    heap->elms[heap->perm[heap->end]].obj  = obj;
@@ -310,8 +314,9 @@ void* COLORNWTheap_min(COLORNWTHeap* heap)
    int href;
    void* obj;
 
+#ifdef HEAP_INTEGRITY_CHECKS
    assert(!COLORNWTheap_integrity(heap));
-
+#endif
    if(COLORNWTheap_empty(heap)) {
       return (void*) NULL;
    }
@@ -335,7 +340,9 @@ void* COLORNWTheap_min(COLORNWTHeap* heap)
    /* Move down elm at index 1. */
    COLORNWTheap_siftdown(heap, 1);
 
+#ifdef HEAP_INTEGRITY_CHECKS
    assert(!COLORNWTheap_integrity(heap));
+#endif
 
    return obj;
 }
@@ -370,8 +377,8 @@ int COLORNWTheap_decrease_key (COLORNWTHeap* heap,
 
    COLORNWTheap_liftup(heap,heap_pos);
 
-   rval = COLORNWTheap_integrity(heap);
-   COLORcheck_rval(rval,"COLORNWTheap_integrity failed in COLORNWTheap_decrease_key.\n");
+   HEAP_INTEGRITY(rval,heap,
+                  "COLORNWTheap_integrity failed in COLORNWTheap_decrease_key.\n");
 
  CLEANUP:
    return rval;
