@@ -1051,7 +1051,7 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
    for (i = 0; i < ecount; ++i) {
       if (coloring[elist[2*i]] == 1 && coloring[elist[2*i+1]] ==1) {
          fflush(stdout);
-         fprintf(stderr,"ILLEGAL COLORING FOUND!\n");
+         fprintf(stderr,"ILLEGAL STABLE SET FOUND!\n");
          rval++;
       }
    }

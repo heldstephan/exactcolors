@@ -74,9 +74,41 @@ void COLORlp_free (COLORlp **p)
 int COLORlp_optimize (COLORlp *p)
 {
     int rval = 0;
+    int status;
 
     rval = GRBoptimize (p->model);
     COLORcheck_rval_grb (rval, "GRBoptimize failed",p->env);
+    
+    rval = GRBgetintattr(p->model,GRB_INT_ATTR_STATUS,&status);
+    COLORcheck_rval_grb (rval, "GRBgetintattr failed",p->env);
+
+    if (status != GRB_OPTIMAL) {
+       printf("Failed to solve model to optimality. status = ");
+       switch (status) {
+       case GRB_LOADED:
+          printf("GRB_LOADED ");
+          rval = 1;break;
+       case GRB_INFEASIBLE:
+          printf("GRB_INFEASIBLE ");
+          rval = GRBcomputeIIS(p->model);
+          COLORcheck_rval_grb (rval, "GRBcomputeIIS failed",p->env);
+          rval = GRBwrite(p->model,"grbinfeas_debug.lp");
+          COLORcheck_rval_grb (rval, "GRBwrite lp failed",p->env);
+          
+          rval = 1;break;
+       case GRB_INF_OR_UNBD:
+          printf("GRB_INF_OR_UNBD ");
+          rval = 1;break;
+       case GRB_UNBOUNDED:
+          printf("GRB_UNBOUNDED ");
+          rval = 1;break;
+       default:
+          printf("%d",status);
+       }
+       printf("\n");
+
+       if(rval) { goto CLEANUP; }
+    }
 
 CLEANUP:
     return rval;
