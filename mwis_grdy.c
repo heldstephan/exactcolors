@@ -23,8 +23,6 @@
 
 #include <assert.h>
 
-#include <valgrind/valgrind.h>
-
 #include "lp.h"
 
 #include "graph.h"
