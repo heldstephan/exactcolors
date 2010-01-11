@@ -125,7 +125,6 @@ static int grab_integral_solution(colordata* cd, double* x, double tolerance);
 static void init_colordata(colordata* cd)
 {
    cd->id = ncolordata++;
-   printf("Creating colordata %d.\n",cd->id);
    cd->depth = 0;
    cd->status = initialized;
    sprintf(cd->pname,"colorprob_%d",cd->id);
@@ -199,7 +198,6 @@ static void free_lbcolordata(colordata* cd)
 static void free_colordata(colordata* cd)
 {
    int i;
-   printf("Deleting colordata %d.\n",cd->id);
    for (i = 0; i < cd->nsame;++ i) {
       free_colordata(&(cd->same_children[i]));
    }
@@ -1886,11 +1884,10 @@ int main (int ac, char **av)
     int       ndebugcolors = 0;
 
 
-    rval = parseargs (ac, av);
-    if (rval) goto CLEANUP;
-
     init_colordata(cd);
 
+    rval = parseargs (ac, av);
+    if (rval) goto CLEANUP;
 
     get_problem_name(cd->pname,edgefile);
 
