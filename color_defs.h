@@ -110,9 +110,9 @@ COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT
 {
    double result;
    int    oldround = fegetround();
-
+   double denom_mult;
    fesetround(FE_UPWARD);
-   double denom_mult  = denominator;
+   denom_mult = denominator;
 
    fesetround(FE_DOWNWARD);
    denom_mult = 1 / denom_mult;

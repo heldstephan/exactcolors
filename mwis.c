@@ -33,6 +33,11 @@ static int it = 0;
 static const int max_ngreedy_fails = 1;
 static const int max_ngreedy_switchoff_fails = 10;
 
+/* 
+   Pending further empirical studies, this value should be set somewhere
+   between 0.5 and 0.9.
+*/
+static const double high_density_threshold = 0.8;
 
 int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                             int ecount, const int elist[], COLORNWT nweights[],
@@ -144,6 +149,7 @@ int COLORstable_wrapper(MWISenv** env,
 {
    int rval = 0;
    double rtime;
+   double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
    
    ++it;
    if (!*env) {
@@ -157,7 +163,8 @@ int COLORstable_wrapper(MWISenv** env,
              ( *env)->ngreedy_fails);
    }
     
-   if (( *env)->ngreedy_fails < max_ngreedy_switchoff_fails) {
+   if ( (density < high_density_threshold) && 
+         (( *env)->ngreedy_fails < max_ngreedy_switchoff_fails) ) {
       rtime = COLORcpu_time();
       rval = COLORstable_LS(&((*env)->ls_env),newsets, nnewsets, 
                             ncount, ecount, elist, 
@@ -168,8 +175,8 @@ int COLORstable_wrapper(MWISenv** env,
    }
 
    /* Uncomment to enforce gurobi.*/
-   /* COLORfree_sets(newsets,nnewsets); */
-
+/*    COLORfree_sets(newsets,nnewsets); */
+   
    if (*nnewsets) {
       ( *env)->ngreedy_fails = 0;
    } else {
