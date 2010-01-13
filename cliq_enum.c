@@ -374,6 +374,7 @@ static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
 
     C[0] = weights[0]; bigmax = weights[0];
     *bestcnt = 1; bestset[0] = 0;
+    if (optval) *optval = bigmax;
     if (bigmax >= cutoff) goto CLEANUP;
 
     for (i = 1; i < ncount && bigmax < cutoff; i++) {
@@ -397,7 +398,7 @@ static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
 
     if (optval) *optval = bigmax;
 
-CLEANUP:
+CLEANUP:  
 
     COLORadjgraph_free (&G);
     COLOR_IFFREE (C, int);
