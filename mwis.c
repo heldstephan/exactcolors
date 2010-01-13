@@ -51,6 +51,33 @@ struct _MWISenv{
    int          ngreedy_fails;
 };
 
+static
+int COLORstable_max_weighted_node(COLORset** newsets, int* nnewsets, int ncount,
+                                  COLORNWT nweights[],COLORNWT* objval)
+{
+   int rval = 0;
+   int i;
+   *objval = -1;
+
+   (*newsets)  = COLOR_SAFE_MALLOC(1,COLORset);
+   (*nnewsets) = 1;
+   COLORcheck_NULL(*newsets,"Failed to allocate *newsets");
+
+   (*newsets)[0].members = COLOR_SAFE_MALLOC(1,int);
+   COLORcheck_NULL((*newsets)[0].members,"Failed to allocate (*newsets)[0].members");
+
+   (*newsets)[0].count   = 1;
+   
+   for (i = 0; i < ncount;++i) {
+      if (nweights[i] > *objval) {
+         (*newsets)[0].members[0] = i;
+         *objval = nweights[i];
+      }
+   }
+ CLEANUP:
+   return rval;
+}
+
 int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                             int ecount, const int elist[], COLORNWT nweights[],
                             COLORNWT cutoff)
@@ -62,30 +89,49 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    FILE*          file = (FILE*)  NULL;
    int*           elistc = (int*)  NULL;
    int            ecountc;
-   int*           new_nweights = (int*)  NULL;
+   COLORNWT*      oster_nweights = (COLORNWT*)  NULL;
+   int            oster_cutoff = cutoff < COLOR_MAXINT ? cutoff + 1 : cutoff;
+      
    COLORNWT       objval;
 
+   
    rval = COLORadjgraph_build(&G,ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build.");
+
+   rval = COLORadjgraph_delete_unweighted(&G,&oster_nweights,nweights);
+   COLORcheck_rval(rval,"Failed in COLORadjgraph_delete_unweighted.");
    
    rval = COLORadjgraph_build_complement(&Gc, &G);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build_complement.");
    
-
-   COLORadjgraph_extract_edgelist(&ecountc,&elistc,&Gc);
-
-   rval = COLORclique_ostergard(newsets,nnewsets,ncount,
-                                ecountc,elistc,nweights,cutoff,&objval);
-   COLORcheck_rval(rval,"Failed in COLORclique_enum.");
-
+   if (Gc.ecount) {
+      COLORadjgraph_extract_edgelist(&ecountc,&elistc,&Gc);
+      
+      rval = COLORclique_ostergard(newsets,nnewsets,G.ncount,
+                                   ecountc,elistc,oster_nweights,oster_cutoff,&objval);
+      COLORcheck_rval(rval,"Failed in COLORclique_enum.");
+   } else {
+      rval = COLORstable_max_weighted_node(newsets,nnewsets,G.ncount,
+                                           oster_nweights,&objval);
+      COLORcheck_rval(rval,"Failed in COLORstable_max_weighted_node.");
+   }
    printf("Best enumeration:   %13.10e ( %lld / %lld ).\n",
           COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
    
    if (objval > cutoff) {
       if (*nnewsets) {
-/*          int n = (*newsets)->count; */
+         int oster_i = 0;
+         int orig_i  = 0;
+         while ( ! nweights[orig_i] ) {orig_i ++;}
+
          printf("NEW SET ");
          for (i = 0; i < (*newsets)->count;++i) {
+            while (oster_i < (*newsets)->members[i]) {
+               oster_i++;
+               orig_i++;
+               while ( ! nweights[orig_i] ) {orig_i++;}
+            }
+            (*newsets)->members[i] = orig_i;
             printf(" %d",(*newsets)->members[i]);
          }
          printf("\n");
@@ -114,7 +160,8 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    COLORadjgraph_free(&G);
    COLORadjgraph_free(&Gc);
    if (file) fclose(file);
-   if (new_nweights) free(new_nweights);
+   if (oster_nweights) free(oster_nweights);
+
    if (elistc) free(elistc);
 
    return rval;
