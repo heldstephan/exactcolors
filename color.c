@@ -1701,32 +1701,6 @@ static int compute_lower_bound(colordata* cd)
 }
 
 
-
-
-
-static int insert_into_branching_heap(COLORNWTHeap* heap, colordata* cd, double key_mult)
-{
-   int rval = compute_lower_bound (cd);
-   int dummy_href;
-   /** We use the lower bound adjusted by the depth of a node as a
-       heap key.  The idea behind this is: in case of equal bounds
-       deeper nodes should be preferred to potentially improve the
-       upper bound faster.
-    */
-   COLORNWT heap_key = (COLORNWT) (cd->dbl_lower_bound * key_mult) - cd->depth;
-   if (cd->lower_bound < cd->upper_bound) {
-      COLORcheck_rval(rval,"Failed in compute_lower_bound (cd);");
-      rval = COLORNWTheap_insert(heap,&dummy_href,
-                                 heap_key,
-                                 (void*) cd);
-      COLORcheck_rval(rval, "Failed to COLORNWTheap_insert");
-   } else {
-      cd->status = finished;
-   }
- CLEANUP:
-   return rval;
-}
-
 static int remove_finished_subtree(colordata* child)
 {
    int rval = 0;
@@ -1786,6 +1760,32 @@ static int remove_finished_subtree(colordata* child)
  CLEANUP:
    return rval;
 }
+
+
+
+static int insert_into_branching_heap(COLORNWTHeap* heap, colordata* cd, double key_mult)
+{
+   int rval = compute_lower_bound (cd);
+   int dummy_href;
+   /** We use the lower bound adjusted by the depth of a node as a
+       heap key.  The idea behind this is: in case of equal bounds
+       deeper nodes should be preferred to potentially improve the
+       upper bound faster.
+    */
+   COLORNWT heap_key = (COLORNWT) (cd->dbl_lower_bound * key_mult) - cd->depth;
+   if (cd->lower_bound < cd->upper_bound) {
+      COLORcheck_rval(rval,"Failed in compute_lower_bound (cd);");
+      rval = COLORNWTheap_insert(heap,&dummy_href,
+                                 heap_key,
+                                 (void*) cd);
+      COLORcheck_rval(rval, "Failed to COLORNWTheap_insert");
+   } else {
+      cd->status = finished;
+   }
+ CLEANUP:
+   return rval;
+}
+
 
 static int compute_coloring(colordata* root_cd)
 {
@@ -1889,6 +1889,7 @@ int main (int ac, char **av)
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
+    cd->upper_bound = initial_upper_bound;
     get_problem_name(cd->pname,edgefile);
 
 
@@ -1938,14 +1939,15 @@ int main (int ac, char **av)
     rval = compute_coloring(cd);
     COLORcheck_rval(rval, "Failed to compute_coloring");
 
-
-    printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
-    print_colors(cd->bestcolors,cd->nbestcolors);
-
-
+    if (cd->nbestcolors == cd->upper_bound) {
+       printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
+       print_colors(cd->bestcolors,cd->nbestcolors);
+    } else {
+       assert(cd->upper_bound == initial_upper_bound);
+       printf("Lower bound reached predefined upper bound %d.\n",initial_upper_bound);
+    }
     tot_rtime = COLORcpu_time() - start_time;
     printf("Computing coloring took %f seconds.\n",tot_rtime);
-
 
 
 CLEANUP:
