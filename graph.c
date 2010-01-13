@@ -112,16 +112,15 @@ int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
    
    ecount_chk = (Gc->ncount * (Gc->ncount - 1) )/ 2 - Gc->ecount;
    
-
-   elist = COLOR_SAFE_MALLOC (2*ecount_chk, int);
-   COLORcheck_NULL(elist,"Failed to allocate elist.");
+   if (ecount_chk) {
+      elist = COLOR_SAFE_MALLOC (2*ecount_chk, int);
+      COLORcheck_NULL(elist,"Failed to allocate elist.");
    
    
-   ecount = 0;  
-   for (v_i = 0; v_i < Gc->ncount; ++ v_i) {
-      COLORadjnode* v = &(Gc->nodelist[v_i]);
-      int           a = -1;
-      
+      for (v_i = 0; v_i < Gc->ncount; ++ v_i) {
+         COLORadjnode* v = &(Gc->nodelist[v_i]);
+         int           a = -1;
+         
       a_i  = 0;
       for (na = v_i + 1; na < Gc->ncount; ++ na) {
          while (a_i < v->degree && a < na) {
@@ -134,9 +133,9 @@ int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
             ++ecount;
          }
       }
+      }
+      assert(ecount == ecount_chk);
    }
-   assert(ecount == ecount_chk);
-
    COLORadjgraph_free(Gc);
    
    rval = COLORadjgraph_build(Gc, G->ncount,ecount,elist);
