@@ -58,9 +58,10 @@ struct colordata {
    int depth;
 
    enum {
-      initialized       = 0,
-      LP_bound_computed = 1,
-      finished          = 2,
+      initialized        = 0,
+      LP_bound_estimated = 1,
+      LP_bound_computed  = 2,
+      finished           = 3,
    } status;
 
    /* The instance graph */
@@ -84,8 +85,8 @@ struct colordata {
 
    /* The MWIS instances. */
    MWISenv*  mwis_env;
-   COLORset *cclasses;
    int       ccount;
+   COLORset *cclasses;
    int       gallocated;
    COLORset *newsets;
    int       nnewsets;
@@ -214,6 +215,81 @@ static void free_colordata(colordata* cd)
 
     COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
 
+}
+
+static int write_colordata(colordata* cd, FILE* file) {
+   int rval = 0;
+   int i;
+
+   fprintf(file,"node %d\n",  cd->id);
+   fprintf(file,"name %s\n",  cd->pname);
+   fprintf(file,"depth %d\n", cd->depth);
+   fprintf(file,"status %d\n", cd->status);
+   fprintf(file,"ncount %d\n", cd->ncount);
+   fprintf(file,"ecount %d\n", cd->ecount);
+
+   fprintf(file,"edges");
+   for (i = 0; i < cd->ecount; ++ i) {
+      fprintf(file," %d %d", cd->elist[2*i],cd->elist[2*i+1]);
+   }
+   fprintf(file,"\n");
+
+   fprintf(file,"orig_node_ids");
+   for (i = 0; i < cd->ncount; ++ i) {
+      fprintf(file,"orig_node_ids %d ",cd->orig_node_ids[i]);
+   }
+   fprintf(file,"\n");
+
+   fprintf(file,"lower_bound %d\n",cd->lower_bound);
+   fprintf(file,"upper_bound %d\n",cd->upper_bound);
+   fprintf(file,"dbl_lower_bound %f\n",cd->dbl_lower_bound);
+
+   fprintf(file,"ccount %d\n",cd->ccount);
+   for (i = 0; i < cd->ccount; ++ i) {
+      int j;
+      fprintf(file,"cclass %d",cd->cclasses[i].count);
+      for (j = 0; j < cd->cclasses[i].count; ++j) {
+         fprintf(file," %d", cd->cclasses[i].members[j]);
+      }
+      fprintf(file,"\n");
+   }
+   
+
+   fprintf(file,"nbestcolors %d\n", cd->nbestcolors);
+   for (i = 0; i < cd->nbestcolors; ++ i) {
+      int j;
+      fprintf(file,"cclass %d",cd->bestcolors[i].count);
+      for (j = 0; j < cd->bestcolors[i].count; ++j) {
+         fprintf(file," %d", cd->bestcolors[i].members[j]);
+      }
+      fprintf(file,"\n");
+   }
+   
+   fprintf(file,"nsame %d\n",cd->nsame);
+   fprintf(file,"same_children");
+   for (i = 0; i < cd->nsame; ++ i) {
+      fprintf(file," %d",cd->same_children[i].id);
+   }
+
+   fprintf(file,"ndiff %d\n",cd->ndiff);
+   fprintf(file,"diff_children");
+   for (i = 0; i < cd->ndiff; ++ i) {
+      fprintf(file," %d",cd->diff_children[i].id);
+   }
+
+   for (i = 0; i < cd->nsame; ++ i) {
+      rval = write_colordata(cd->same_children + i,file);
+      COLORcheck_rval(rval,"Failed in write_colordata");
+   }
+
+
+   for (i = 0; i < cd->ndiff; ++ i) {
+      rval = write_colordata(cd->diff_children + i,file);
+      COLORcheck_rval(rval,"Failed in write_colordata");
+   }
+   
+ CLEANUP:
+   return rval;
 }
 
 int COLORdbg_lvl() {
@@ -1318,7 +1394,7 @@ static int find_strongest_children(int           *strongest_v1,
 {
    int    rval = 0;
 
-   int    max_non_improving_branches  = cd->ncount / 100 + 1;
+   int    max_non_improving_branches  = 3; /* cd->ncount / 100 + 1; */
    int    remaining_branches          = max_non_improving_branches;
    double strongest_dbl_lb = 0.0;
    int*   min_nodepair;
@@ -1339,6 +1415,9 @@ static int find_strongest_children(int           *strongest_v1,
 
       rval = create_differ(cd,v1,v2);
       COLORcheck_rval(rval, "Failed in create_differ");
+      
+      cd->same_children->maxiterations = 5;
+      cd->diff_children->maxiterations = 5;
 
       compute_lower_bound(cd->same_children);
       compute_lower_bound(cd->diff_children);
@@ -1652,8 +1731,7 @@ static int compute_lower_bound(colordata* cd)
 
       compute_objective(cd);
 
-/*       if ((double) parent_lb < cd->dbl_lower_bound) { */
-      {
+      if (iterations < cd->maxiterations) {
          int set_i;
 
          rval = COLORstable_wrapper(&(cd->mwis_env),&(cd->newsets), &(cd->nnewsets),
@@ -1673,7 +1751,6 @@ static int compute_lower_bound(colordata* cd)
       }
 
    } while ( (iterations < cd->maxiterations) &&
-/*              ((double) parent_lb < cd->dbl_lower_bound) && */
              !break_while_loop);
    if (iterations < cd->maxiterations) {
 
@@ -1691,8 +1768,9 @@ static int compute_lower_bound(colordata* cd)
       cd->status = LP_bound_computed;
       printf("Computing initial lower bound took %f seconds.\n",lb_rtime);
    } else {
-      fprintf (stderr, "ERROR: Lower bound could not be found in %d iterations!\n", iterations);
-      rval = 1; goto CLEANUP;
+      lb_rtime = COLORcpu_time() - lb_rtime;
+      cd->status = LP_bound_estimated;
+      printf("Computing estimated lower bound took %f seconds.\n",lb_rtime);
    }
    fflush(stdout);
 
