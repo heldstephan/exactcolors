@@ -9,6 +9,7 @@ CC=gcc
 CFLAGS= -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
 OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o heap.o util.o cliq_enum.o
 STABFILES=stable.o graph.o greedy.o util.o lpgurobi.o cliq_enum.o
+BOSSFILES=graph.o bbsafe.o util.o 
 
 color: $(OBJFILES)
 	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread
@@ -18,8 +19,18 @@ stable: $(STABFILES)
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
+
+test_boss: test_boss.o $(BOSSFILES)
+	$(CC) $(CFLAGS) -o test_boss test_boss.o $(BOSSFILES) -lm -lpthread
+
+test_worker: test_worker.o $(BOSSFILES)
+	$(CC) $(CFLAGS) -o test_worker test_worker.o $(BOSSFILES) -lm -lpthread
+
+test_tell: test_tell.o $(BOSSFILES)
+	$(CC) $(CFLAGS) -o test_tell test_tell.o $(BOSSFILES) -lm -lpthread
+
 clean:
-	rm -f *.o color stable mwis_gurobi.log look.lp vg.log*
+	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
 
 color.o:     color.c color.h lp.h color_defs.h
 heap.o:      heap.c heap.h color_defs.h
@@ -32,3 +43,6 @@ mwis_grb.o:  mwis_grb.c color.h lp.h color_defs.h
 stable.o:    stable.c color.h graph.h lp.h
 util.o:      util.c color.h
 cliq_enum.o: color.h lp.h graph.h mwis.h
+test_boss.o: test_boss.c bbsafe.h
+test_worker.o: test_worker.c bbsafe.h
+test_tell.o: test_tell.c bbsafe.h
