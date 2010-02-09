@@ -5,14 +5,18 @@ GUPATH=$(GUROBI_HOME)
 GUINCLUDE=$(GUPATH)/include
 GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
 
+# SEWELL_FLAG=-DHAVE_SEWELL
+# SEWELL_LIB=-L . -lsewell
+
 CC=gcc
-CFLAGS= -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE)
+CFLAGS=  -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE) $(SEWELL_FLAG)
 OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o heap.o util.o cliq_enum.o
 STABFILES=stable.o graph.o greedy.o util.o lpgurobi.o cliq_enum.o
-BOSSFILES=graph.o bbsafe.o util.o 
+BOSSFILES=graph.o bbsafe.o util.o
+
 
 color: $(OBJFILES)
-	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread
+	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread $(SEWELL_LIB)
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(GULIB) -lm -lpthread
