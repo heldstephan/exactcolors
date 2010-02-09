@@ -108,4 +108,14 @@ int COLORstable_freeenv(MWISenv** env);
 int COLORstable_free_ls_env(MWISls_env** env);
 int COLORstable_free_grb_env(MWISgrb_env** env);
 
+
+
+extern
+int SEWELL_optimize(int ** newset,
+                    int   *nnewset,
+                    int ncount, int ecount, const int elist[],
+                    COLORNWT nweights[],COLORNWT cutoff);
+
+
+
 #endif

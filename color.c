@@ -217,6 +217,7 @@ static void free_colordata(colordata* cd)
 
 }
 
+COLOR_MAYBE_UNUSED
 static int write_colordata(colordata* cd, FILE* file) {
    int rval = 0;
    int i;
@@ -253,7 +254,7 @@ static int write_colordata(colordata* cd, FILE* file) {
       }
       fprintf(file,"\n");
    }
-   
+
 
    fprintf(file,"nbestcolors %d\n", cd->nbestcolors);
    for (i = 0; i < cd->nbestcolors; ++ i) {
@@ -264,7 +265,7 @@ static int write_colordata(colordata* cd, FILE* file) {
       }
       fprintf(file,"\n");
    }
-   
+
    fprintf(file,"nsame %d\n",cd->nsame);
    fprintf(file,"same_children");
    for (i = 0; i < cd->nsame; ++ i) {
@@ -287,7 +288,7 @@ static int write_colordata(colordata* cd, FILE* file) {
       rval = write_colordata(cd->diff_children + i,file);
       COLORcheck_rval(rval,"Failed in write_colordata");
    }
-   
+
  CLEANUP:
    return rval;
 }
@@ -398,7 +399,7 @@ static int delete_old_colorclasses(colordata* cd)
    int rval   = 0;
    int i;
    int numdel = 0;
-   
+
    for (i = 0; i < cd->ccount; ++i) {
       if (cd->cclasses[i].age > cd->retirementage) {
          /* swap current class with last and delete it. */
@@ -730,11 +731,11 @@ static int are_in_same(const COLORset* debugcolors,int ndebugcolors,int v1,int v
    return (v1_color == v2_color);
 }
 
-static int mark_neighborhood(int* neighbor_marker, 
+static int mark_neighborhood(int* neighbor_marker,
                              int ncount, int ecount, int elist[],
                              int v)
 
-{  
+{
    int rval = 0;
    int i;
    COLORadjgraph G;
@@ -750,7 +751,7 @@ static int mark_neighborhood(int* neighbor_marker,
       neighbor_marker[v_i] = 1;
    }
    COLORadjgraph_free(&G);
-   
+
  CLEANUP:
    return rval;
 }
@@ -764,8 +765,8 @@ static int create_contracted_graph(colordata* cd,
    COLORadjgraph G;
 
 
-   
-   
+
+
    /* Create contracted graph */
    cd->ncount = ncount - 1;
    cd->ecount = ecount;
@@ -780,7 +781,7 @@ static int create_contracted_graph(colordata* cd,
    COLORadjgraph_init(&G);
    rval = COLORadjgraph_build(&G,cd->ncount,cd->ecount, cd->elist);
    COLORcheck_rval(rval,"COLORadjgraph_build");
-      
+
    rval =  COLORadjgraph_simplify(&G);
    COLORcheck_rval(rval,"COLORadjgraph_simplify");
 
@@ -792,7 +793,7 @@ static int create_contracted_graph(colordata* cd,
       int j = (i < v2 ) ?  i : i + 1;
       cd->orig_node_ids[i] = cd->parent->orig_node_ids[j];
    }
-   
+
  CLEANUP:
    COLORadjgraph_free(&G);
 
@@ -819,7 +820,7 @@ static int prune_duplicated_sets (colordata* cd)
    return rval;
 }
 
-static int transfer_same_cclasses(colordata* cd, 
+static int transfer_same_cclasses(colordata* cd,
                                   const int* v2_neighbor_marker,
                                   const COLORset* parent_cclasses,
                                   int   parent_ccount,
@@ -917,7 +918,7 @@ static int create_same (colordata* parent_cd, int v1, int v2)
    cd->debugcolors = parent_cd->debugcolors;
    cd->ndebugcolors = parent_cd->ndebugcolors;
 
-   rval = mark_neighborhood(v2_neighbor_marker,       
+   rval = mark_neighborhood(v2_neighbor_marker,
                             parent_cd->ncount,parent_cd->ecount,parent_cd->elist,
                             v2);
    COLORcheck_rval(rval,"Failed in mark_neighborhood");
@@ -936,7 +937,7 @@ static int create_same (colordata* parent_cd, int v1, int v2)
       COLORgraph_print(cd->ecount,cd->elist);
    }
 
-   rval = transfer_same_cclasses(cd, 
+   rval = transfer_same_cclasses(cd,
                                  v2_neighbor_marker,
                                  parent_cd->cclasses,
                                   parent_cd->ccount,
@@ -1072,7 +1073,7 @@ static int create_differ(colordata* parent_cd, int v1, int v2)
    rval = prune_duplicated_sets(cd);
    COLORcheck_rval(rval,"Failed in prune_duplicated_sets");
 
-   
+
  CLEANUP:
    if (rval) {
       if (cd) {
@@ -1098,7 +1099,7 @@ static int apply_diffpair_to_cclasses(COLORset** cclasses_ptr,
    int i;
    COLORset* cclasses = *cclasses_ptr;
    int       ccount   = *ccount_ptr;
-   
+
    for (i = 0; i < ccount; ++i) {
       int v1_in_class = 0;
       int j;
@@ -1119,7 +1120,7 @@ static int apply_diffpair_to_cclasses(COLORset** cclasses_ptr,
                memmove( cclasses[i].members + j,
                         cclasses[i].members + j + 1,
                         (cclasses[i].count - 1 - j)* sizeof(int));
-               cclasses[i].count--;               
+               cclasses[i].count--;
             } else {
                v2_covered = 1;
             }
@@ -1156,11 +1157,11 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
    COLORset*     tmp_cclasses;
    int           tmp_ccount;
    int*          v2_neighbor_marker = (int*) NULL;
-   int*          parent_v2_neighbor_marker = 
+   int*          parent_v2_neighbor_marker =
       (int*) COLOR_SAFE_MALLOC(parent_cd->ncount,int);
    COLORcheck_NULL(parent_v2_neighbor_marker,"Failed to allocate parent_v2_neighbor_marker");
 
-   v2_neighbor_marker = 
+   v2_neighbor_marker =
       (int*) COLOR_SAFE_MALLOC(parent_cd->ncount,int);
    COLORcheck_NULL(v2_neighbor_marker,"Failed to allocate v2_neighbor_marker");
 
@@ -1173,7 +1174,7 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
    COLORcheck_rval(rval,"COLORadjgraph_build");
    v1_node = &(G.nodelist[v1]);
    parent_cd->same_children = cd;
-   
+
 
    tmp_elist = (int*) COLOR_SAFE_MALLOC(2*(parent_cd->ecount+v1_node->degree-1),
                                         int);
@@ -1188,7 +1189,7 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
                                        colordata);
    COLORcheck_NULL(cd, "Failed to allocate cd");
    for (i = 0; i < v1_node->degree + 1; ++i) {init_colordata(cd + i);}
-      
+
 
    memcpy(cd,parent_cd->same_children,sizeof(colordata));
    free(parent_cd->same_children);
@@ -1199,20 +1200,20 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
                      parent_cd->ncount,parent_cd->ecount,parent_cd->elist,v2);
    for (i = 0; i < v1_node->degree; ++i) {
       int n1_i = v1_node->adj[i];
-      
+
       /** if n1_i is neighbor of v2, they cannot be colored equally.*/
       if (parent_v2_neighbor_marker[n1_i] == 1) {
          continue;
       }
-      
+
       cd = &(parent_cd->same_children[nsame++]);
-      
+
       cd->depth = parent_cd->depth + 1;
       cd->v1 = n1_i < v2 ? n1_i : v2;
       cd->v2 = n1_i > v2 ? n1_i : v2;
-         
+
       printf("Creating same for %d %d.\n",cd->v1,cd->v2);
-      
+
       cd->upper_bound = parent_cd->upper_bound;
       cd->lower_bound = parent_cd->lower_bound;
       cd->dbl_lower_bound = parent_cd->dbl_lower_bound;
@@ -1229,19 +1230,19 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
                                       cd->v1,cd->v2);
       COLORcheck_rval(rval,"create_contracted_graph_and_intersect");
 
-      rval = transfer_same_cclasses(cd, 
+      rval = transfer_same_cclasses(cd,
                                     v2_neighbor_marker,
                                     tmp_cclasses,
                                     tmp_ccount,
                                     cd->v1,cd->v2);
       COLORcheck_rval(rval,"Failed in transfer_same_cclasses");
-      
+
       if (i + 1 > v1_node->degree) {
          /** Insert edge v1,n1_i to create DIFFER(v1,n1_i).*/
          tmp_elist[2 * ecount]         = v1;
          tmp_elist[2 * ecount + 1]     = n1_i;
          ecount++;
-         rval = apply_diffpair_to_cclasses(&tmp_cclasses,&tmp_ccount,n1_i,v2);      
+         rval = apply_diffpair_to_cclasses(&tmp_cclasses,&tmp_ccount,n1_i,v2);
          COLORcheck_rval(rval,"Failed in apply_diffpair_to_cclasses");
       }
    }
@@ -1415,7 +1416,7 @@ static int find_strongest_children(int           *strongest_v1,
 
       rval = create_differ(cd,v1,v2);
       COLORcheck_rval(rval, "Failed in create_differ");
-      
+
       cd->same_children->maxiterations = 5;
       cd->diff_children->maxiterations = 5;
 
@@ -1517,7 +1518,7 @@ static int create_branches(colordata* cd)
 
    /*    Create DIFFER and SAME for strongest children */
    if (branch_with_same_sequence) {
-      rval = create_same_seq(cd,strongest_v1,strongest_v2); 
+      rval = create_same_seq(cd,strongest_v1,strongest_v2);
       COLORcheck_rval(rval, "Failed in create_same_seq");
    } else { /* branch with one same and one diff branch*/
       rval = create_same (cd,strongest_v1,strongest_v2);
@@ -1565,7 +1566,7 @@ static int collect_same_children(colordata* cd)
    int c;
 
    for (c = 0; c < cd->nsame; ++c) {
-      if ( cd->same_children[c].nbestcolors && 
+      if ( cd->same_children[c].nbestcolors &&
            (!cd->nbestcolors || cd->same_children[c].nbestcolors < cd->upper_bound) ) {
          int i;
          if (cd->nbestcolors) {
@@ -1629,8 +1630,8 @@ static int collect_diff_children(colordata* cd)
 
    for (c = 0; c < cd->ndiff; ++c) {
       if ( cd->diff_children[c].nbestcolors &&
-           ( !cd->nbestcolors || 
-             cd->diff_children[c].nbestcolors < cd->upper_bound) ) 
+           ( !cd->nbestcolors ||
+             cd->diff_children[c].nbestcolors < cd->upper_bound) )
          {
             if (cd->nbestcolors) {
                COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));

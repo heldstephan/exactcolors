@@ -33,15 +33,23 @@ static int it = 0;
 static const int max_ngreedy_fails = 1;
 static const int max_ngreedy_switchoff_fails = 10;
 
+#ifdef HAVE_SEWELL
+double   cpu_max = 300;    // -c option: maximum cpu second (def=300)
+int      prn_info = 0;     // -p option: controls level of printed info (def=0)
+int      reorder = 1;      // -r option: sort active nodes by ascending degree
+double   seed = 3.1567;    // -s option: random seed (def = 3.1567)
+#endif
+
 /* 
    Pending further empirical studies, this value should be set somewhere
    between 0.5 and 0.9.
 */
 static const double high_density_threshold = 0.8;
 
-int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
-                            int ecount, const int elist[], COLORNWT nweights[],
-                            COLORNWT cutoff);
+
+/* int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount, */
+/*                             int ecount, const int elist[], COLORNWT nweights[], */
+/*                             COLORNWT cutoff); */
 
 struct _MWISenv{
    MWISgrb_env* grb_env;
@@ -50,6 +58,7 @@ struct _MWISenv{
    int          write_mwis;
    int          ngreedy_fails;
 };
+
 
 static
 int COLORstable_max_weighted_node(COLORset** newsets, int* nnewsets, int ncount,
@@ -78,6 +87,7 @@ int COLORstable_max_weighted_node(COLORset** newsets, int* nnewsets, int ncount,
    return rval;
 }
 
+COLOR_MAYBE_UNUSED static
 int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                             int ecount, const int elist[], COLORNWT nweights[],
                             COLORNWT cutoff)
@@ -152,6 +162,12 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
 
       }
    } else {
+         printf("BEST SET ");
+         for (i = 0; i < (*newsets)->count;++i) {
+            printf(" %d",(*newsets)->members[i]);
+         }
+         printf("\n");
+
       COLORfree_sets(newsets,nnewsets);
    }
 
@@ -167,6 +183,64 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    return rval;
 }
 
+#ifdef HAVE_SEWELL
+static 
+int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
+                       int ecount, const int elist[], COLORNWT nweights[],
+                       COLORNWT cutoff)
+{
+   int            rval = 0;
+   int            i;
+   COLORNWT       objval = .0;
+   int            sewell_cutoff = cutoff < COLOR_MAXINT ? cutoff + 1 : cutoff;
+
+   *newsets  = COLOR_SAFE_MALLOC(1,COLORset);
+   *nnewsets = 1;
+
+   (*newsets)->members = (int*) NULL;
+   (*newsets)->count   = 0;
+
+   
+   rval = SEWELL_optimize( &((*newsets)->members),&((*newsets)->count),
+                           ncount, ecount,elist,nweights,sewell_cutoff);
+   COLORcheck_rval(rval,"Failed in SEWELL_optimize");
+
+   qsort((*newsets)->members,(*newsets)->count,sizeof(int),
+         COLORnode_comparator);
+
+   for (i = 0; i < (*newsets)->count; ++i) {
+      objval += nweights[(*newsets)->members[i]];
+   }
+
+   printf("Best sewell:   %13.10e ( %lld / %lld ).\n",
+          COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
+
+
+   if (objval > cutoff) {
+      if (*nnewsets) {
+         printf("NEW SET ");
+         for (i = 0; i < (*newsets)->count;++i) {
+            printf(" %d",(*newsets)->members[i]);
+         }
+         printf("\n");
+         
+         COLORcheck_set((*newsets),ncount,ecount,elist);
+      }
+   } else {
+      printf("BEST SET ");
+      for (i = 0; i < (*newsets)->count;++i) {
+         printf(" %d",(*newsets)->members[i]);
+      }
+      printf("\n");
+
+      COLORfree_sets(newsets,nnewsets);
+   }
+
+ CLEANUP:
+          
+   return rval;
+}
+#endif
 
 int COLORstable_initenv(MWISenv** env, const char* pname,
                         int write_mwis)
@@ -239,6 +313,7 @@ int COLORstable_wrapper(MWISenv** env,
 
       if( (*env)->write_mwis) {
          char filename [256];
+         printf("Writing instances %s.*.%d.*\n",(*env)->pname,it);
          sprintf(filename,"%s.mwclq.%d.dimacs",(*env)->pname,it);
          COLORstable_write_dimacs_clique(filename,
                                          ncount, ecount, elist, 
@@ -269,6 +344,15 @@ int COLORstable_wrapper(MWISenv** env,
 /*          if (*nnewsets) { goto CLEANUP;} */
 /*       } */
 
+#ifdef HAVE_SEWELL
+      rtime = COLORcpu_time();
+      rval = COLORstable_sewell(newsets, nnewsets,
+                                ncount, ecount, elist,
+                                nweights,cutoff);
+      COLORcheck_rval(rval,"COLORstable_LS failed");
+      rtime = COLORcpu_time() - rtime;
+      if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
+#else
       rtime = COLORcpu_time();
       rval = COLORstable_clique_enum(newsets, nnewsets,
                                      ncount, ecount, elist,
@@ -276,6 +360,9 @@ int COLORstable_wrapper(MWISenv** env,
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
       if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
+#endif
+
+
    }
 
  CLEANUP:
