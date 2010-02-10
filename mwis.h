@@ -41,6 +41,11 @@ int COLORstable_LS(MWISls_env** env,
                    int ecount, const int elist[], 
                    const COLORNWT nweights[],COLORNWT cutoff);
 
+int COLORstable_init_LS(MWISls_env** env,
+                        int ncount,
+                        int ecount, const int elist[],
+                        const COLORNWT nweights[], COLORNWT cutoff);
+
 int COLORstable_gurobi(MWISgrb_env** env,
                        COLORset** newsets, int* nnewsets,
                        int ncount, int ecount, const int elist[], COLORNWT nweights[],

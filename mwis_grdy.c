@@ -424,7 +424,7 @@ static int build_LP(soldata*  sol)
 }
 
 
-COLOR_MAYBE_UNUSED 
+COLOR_MAYBE_UNUSED
 static void init_greedy_neighbour_weigths(soldata* sol)
 {
    int i;
@@ -667,7 +667,7 @@ static void reinit_soldatas(soldata*  sol)
 
 static int init_mwis_grdy(soldata*  sol,
                           COLORadjgraph*     G,
-                          int          ncount,
+                           int          ncount,
                           const COLORNWT nweights[],
                           COLORNWT       cutoff)
 {
@@ -801,9 +801,9 @@ static int perform_2_improvement(soldata* sol, int x)
             /* Now find tight non-neighbor w:*/
             int l_i,n_i = 0;
             /* Loop through one-tight neighbors of x.*/
-            for(l_i = 0; 
+            for(l_i = 0;
                 (l_i < nodelist[x].degree )  && (n_i < nodelist[v].degree);
-                l_i++) 
+                l_i++)
             {
                int w_l = nodelist[x].adj[l_i];
                if (w_l == v) {continue;}
@@ -1086,7 +1086,7 @@ int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, cons
          rval = 1; goto CLEANUP;
       }
    }
-   
+
  CLEANUP:
    if (covered) free(covered);
    return rval;
@@ -1251,15 +1251,14 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
    return rval;
 }
 
-int COLORstable_LS(MWISls_env** env,
-                   COLORset** newsets, int* nnewsets, int ncount,
-                   int ecount, const int elist[],
-                   const COLORNWT nweights[], COLORNWT cutoff)
+int COLORstable_init_LS(MWISls_env** env,
+                        int ncount,
+                        int ecount, const int elist[],
+                        const COLORNWT nweights[], COLORNWT cutoff)
 {
    int rval = 0;
 
-   COLORadjgraph*     G  = (COLORadjgraph*) NULL;
-   soldata* sol = (soldata*) NULL;
+   COLORadjgraph*     G   = (COLORadjgraph*) NULL;
 
    if (! *env) {
       (*env) = (MWISls_env*) COLOR_SAFE_MALLOC (1,MWISls_env);
@@ -1278,7 +1277,32 @@ int COLORstable_LS(MWISls_env** env,
       rval = COLORadjgraph_simplify(G);
 
       COLORadjgraph_sort_adjlists_by_id(G);
+
+      rval = init_mwis_grdy(&(*env)->sol, & (*env)->G, ncount,
+                            nweights,cutoff);
+      COLORcheck_rval(rval,"Failed in init_mwis_grdy");
+
    }
+
+ CLEANUP:
+   return rval;
+}
+
+int COLORstable_LS(MWISls_env** env,
+                   COLORset** newsets, int* nnewsets, int ncount,
+                   int ecount, const int elist[],
+                   const COLORNWT nweights[], COLORNWT cutoff)
+{
+   int rval = 0;
+
+   COLORadjgraph*     G  = (COLORadjgraph*) NULL;
+   soldata* sol = (soldata*) NULL;
+
+   rval = COLORstable_init_LS(env,
+                              ncount,
+                              ecount,elist,
+                              nweights,cutoff);
+   COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
 
    G   = &((*env)->G);
    sol = &((*env)->sol);
@@ -1351,7 +1375,7 @@ static int decrease_nwn_of_neighbors(soldata* sol, int v)
 {
    int rval;
    int k;
-   
+
    COLORadjnode* nodelist = sol->G->nodelist;
 
    for (k = 0;k < nodelist[v].degree; ++k) {
@@ -1382,9 +1406,10 @@ int COLORstable_round_down_weights(MWISls_env* env,
    COLORNWT lb = 0;
    COLORNWT lb_frac = 0;
 /*    COLORNWT min_frac = (COLORNWT) ncount; */
-   COLORNWT min_frac = (COLORNWT) 1; 
+   COLORNWT min_frac = (COLORNWT) 1;
 
    int* minv_ptr;
+
 
    for (i = 0; i < ncount; ++i) {
       lb += nweights[i];
@@ -1409,7 +1434,7 @@ int COLORstable_round_down_weights(MWISls_env* env,
          sol->work_marker[i] += num_weighted_neighbors(sol,nweights,i);
          minv_ptr     = &(sol->inperm[i]);
          rval  = COLORNWTheap_insert(sol->heap, pos,
-                                     sol->work_marker[i], 
+                                     sol->work_marker[i],
                                      (void*) minv_ptr);
 /*          printf("Inserted node %d with key %d at pos %d, %d.\n", */
 /*                 i,sol->work_marker[i],*pos,sol->heapref[i]); */
@@ -1439,7 +1464,7 @@ int COLORstable_round_down_weights(MWISls_env* env,
       }
       perm_nwt_rquicksort(sol->sort_work,nweights,end);
 
-      while ( (lb_frac > 0) && 
+      while ( (lb_frac > 0) &&
               (start < end) &&
               ((adjust = nweights[sol->sort_work[end-1]]) > 0) ) {
          adjust = COLORNWTmin(adjust,lb_frac/(end-start));
@@ -1473,7 +1498,7 @@ int COLORstable_round_down_weights(MWISls_env* env,
    }
  CLEANUP:
    return rval;
-}
+   }
 
 int COLORstable_free_ls_env(MWISls_env** env)
 {
