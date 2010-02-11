@@ -125,7 +125,7 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                                            oster_nweights,&objval);
       COLORcheck_rval(rval,"Failed in COLORstable_max_weighted_node.");
    }
-   if (COLORdbg_lvl() >= 0) {
+   if (COLORdbg_lvl() > 0) {
       printf("Best enumeration:   %13.10e ( %lld / %lld ).\n",
              COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
    }
@@ -216,9 +216,10 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
       objval += nweights[(*newsets)->members[i]];
    }
 
-   printf("Best sewell:   %13.10e ( %lld / %lld ).\n",
-          COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
-
+   if (COLORdbg_lvl() > 0) {
+      printf("Best sewell:   %13.10e ( %lld / %lld ).\n",
+             COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
+   }
 
    if (objval > cutoff) {
       if (*nnewsets) {
@@ -362,7 +363,7 @@ int COLORstable_wrapper(MWISenv** env,
                                 nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 #else
       rtime = COLORcpu_time();
       rval = COLORstable_clique_enum(newsets, nnewsets,
@@ -370,7 +371,7 @@ int COLORstable_wrapper(MWISenv** env,
                                      nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl() >= 0) { printf("Clique enumeration took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 #endif
 
 

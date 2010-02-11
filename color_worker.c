@@ -68,7 +68,7 @@ int main (int ac, char **av)
     colordata   root_cdata;
     colordata*  root_cd = &root_cdata;
     COLOR_SFILE *s = (COLOR_SFILE *) NULL;
-
+    double cputime = COLORcpu_time();
     COLORset_dbg_lvl(-1);
 
     if (ac != 2) {
@@ -117,17 +117,19 @@ int main (int ac, char **av)
           printf ("No more work - shut down\n");
           goto CLEANUP;
        }
+       
 
        assert(task == COLOR_BOSS_YES);
 
 /*        sleep(3); */
-          
+       cputime = -COLORcpu_time();          
        rval = build_lp(root_cd);
        COLORcheck_rval(rval,"Failed in build_lp");
 
        rval = create_branches(root_cd);
        COLORcheck_rval(rval,"Failed in create_branches");
-       
+       cputime += COLORcpu_time();          
+
        rval = open_connection(&s, bosshost);
        COLORcheck_rval(rval,"open_connection failed.");
 
@@ -141,7 +143,10 @@ int main (int ac, char **av)
        COLORcheck_rval (rval, "COLORsafe_swrite_char failed (RECEIVE)");
 
        rval = COLORsafe_swrite_int (s, root_cd->id);
-       COLORcheck_rval (rval, "COLORsafe_swrite_char failed (RECEIVE)");
+       COLORcheck_rval (rval, "COLORsafe_swrite_int failed (root_cd->id)");
+
+       rval = COLORsafe_swrite_double (s, cputime);
+       COLORcheck_rval (rval, "COLORsafe_swrite_double failed (cputime)");
 
        include_bestcolors = 1;
        rval = send_colordata (s, root_cd,include_bestcolors);
