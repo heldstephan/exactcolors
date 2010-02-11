@@ -35,95 +35,41 @@
 #include "mwis.h"
 #include "plotting.h"
 
+#include "bbsafe.h"
 
-static char *edgefile = (char *) NULL;
-static char *outfile = (char *) NULL;
-static char *cclasses_outfile = (char *) NULL;
-static char *cclasses_infile = (char *) NULL;
-static char *color_infile = (char *) NULL;
+#include "color_private.h"
+
+
 
 
 static int debug = 0;
 static int write_mwis = 0;
 static int ncolordata = 0;
-static int initial_upper_bound = INT_MAX;
 
+static char* cclasses_outfile;
 static const int branch_with_same_sequence = 0;
 
-typedef struct colordata colordata;
-struct colordata {
 
-   /* The id of the node in the B&B tree.*/
-   int id;
-   int depth;
-
-   enum {
-      initialized        = 0,
-      LP_bound_estimated = 1,
-      LP_bound_computed  = 2,
-      finished           = 3,
-   } status;
-
-   /* The instance graph */
-   int ncount;
-   int ecount;
-   int *elist;
-   int *orig_node_ids;
-
-
-   /* The column generation LP. */
-   COLORlp * lp;
-   double *coef;
-   double *pi;
-
-   COLORNWT  mwis_pi_scalef;
-   COLORNWT *mwis_pi;
-   COLORNWT  lower_bound;
-   COLORNWT  upper_bound;
-   COLORNWT  lower_scaled_bound;
-   double    dbl_lower_bound;
-
-   /* The MWIS instances. */
-   MWISenv*  mwis_env;
-   int       ccount;
-   COLORset *cclasses;
-   int       gallocated;
-   COLORset *newsets;
-   int       nnewsets;
-
-   COLORset *bestcolors;
-   int       nbestcolors;
-
-
-   const COLORset *debugcolors;
-   int             ndebugcolors;
-   int   opt_track;
-
-   int maxiterations;
-   int retirementage;
-
-   int v1,v2;
-   colordata*       parent;
-   colordata*       same_children;
-   int              nsame;
-   colordata*       diff_children;
-   int              ndiff;
-
-   char  pname[256];
-};
-
-
-
-int main (int ac, char **av);
-static int parseargs (int ac, char **av);
-static void usage (char *f);
-static int get_problem_name(char* pname,const char* efname);
-static int build_lp(colordata* cd);
 static int compute_lower_bound(colordata* cd);
-static int compute_coloring(colordata* cd);
 static int grab_integral_solution(colordata* cd, double* x, double tolerance);
 
-static void init_colordata(colordata* cd)
+void COLORset_dbg_lvl(int dbglvl)
+{
+   debug = dbglvl;
+}
+
+void COLORset_cclasses_outfile(char* outfile)
+{
+   cclasses_outfile = outfile;
+}
+
+void COLORset_write_mwis(int write_mwis_par)
+{
+   write_mwis = write_mwis_par;
+}
+
+
+void init_colordata(colordata* cd)
 {
    cd->id = ncolordata++;
    cd->depth = 0;
@@ -138,9 +84,10 @@ static void init_colordata(colordata* cd)
    cd->pi = (double *) NULL;
    cd->mwis_pi_scalef = 1.0;
    cd->mwis_pi = (COLORNWT *) NULL;
-   cd->upper_bound = initial_upper_bound;
+   cd->upper_bound = COLORNWT_MAX;
    cd->lower_bound = 1;
-   cd->dbl_lower_bound = 1.0;
+   cd->dbl_safe_lower_bound = 1.0;
+   cd->dbl_est_lower_bound = 1.0;
    cd->lower_scaled_bound = 1;
 
 
@@ -163,8 +110,8 @@ static void init_colordata(colordata* cd)
 
    cd->maxiterations = 1000000;
    cd->retirementage = 1000000;
-
-  cd->v1 = cd->v2 = -1;
+   
+   cd->v1 = cd->v2 = -1;
    cd->parent = (colordata*) NULL;
 
    cd->same_children = (colordata*)NULL;
@@ -173,7 +120,7 @@ static void init_colordata(colordata* cd)
    cd->ndiff         = 0;
 }
 
-static void free_lbcolordata(colordata* cd)
+void free_lbcolordata(colordata* cd)
 {
    if (cd->lp) COLORlp_free (&(cd->lp));
    if (cd->coef) {
@@ -190,13 +137,14 @@ static void free_lbcolordata(colordata* cd)
    }
    COLORfree_sets(&(cd->newsets),&(cd->nnewsets));
    COLORfree_sets(&(cd->cclasses),&(cd->gallocated));
-
+   cd->ccount = 0;
 
    COLORstable_freeenv(&(cd->mwis_env));
 
 }
 
-static void free_colordata(colordata* cd)
+static 
+void free_temporary_data(colordata* cd)
 {
    int i;
    for (i = 0; i < cd->nsame;++ i) {
@@ -213,8 +161,11 @@ static void free_colordata(colordata* cd)
    if (cd->elist) free (cd->elist);
    if (cd->orig_node_ids) free(cd->orig_node_ids);
 
-    COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
-
+}
+void free_colordata(colordata* cd)
+{
+   free_temporary_data(cd);
+   COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
 }
 
 COLOR_MAYBE_UNUSED
@@ -243,7 +194,7 @@ static int write_colordata(colordata* cd, FILE* file) {
 
    fprintf(file,"lower_bound %d\n",cd->lower_bound);
    fprintf(file,"upper_bound %d\n",cd->upper_bound);
-   fprintf(file,"dbl_lower_bound %f\n",cd->dbl_lower_bound);
+   fprintf(file,"dbl_safe_lower_bound %f\n",cd->dbl_safe_lower_bound);
 
    fprintf(file,"ccount %d\n",cd->ccount);
    for (i = 0; i < cd->ccount; ++ i) {
@@ -293,11 +244,317 @@ static int write_colordata(colordata* cd, FILE* file) {
    return rval;
 }
 
+int send_colordata(COLOR_SFILE *s, colordata* cd, int include_best) {
+   int rval = 0;
+   int i;
+
+
+   rval = COLORsafe_swrite_int (s,cd->id);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int (s,cd->id)");
+
+   rval = COLORsafe_swrite_string (s,cd->pname);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_string(s,cd->pname)");
+
+   rval = COLORsafe_swrite_int (s,cd->depth);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->depth)");
+
+   rval = COLORsafe_swrite_uint(s,cd->status);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_uint(s,cd->status)");
+
+   rval = COLORsafe_swrite_int(s,cd->ncount);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->ncount)");
+
+   rval = COLORsafe_swrite_int(s,cd->ecount);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->ecount)");
+
+   for (i = 0; i < cd->ecount; ++ i) {
+      rval = COLORsafe_swrite_int(s,cd->elist[2*i]);
+      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i])");
+
+      rval = COLORsafe_swrite_int(s,cd->elist[2*i + 1]);
+      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i + 1])");
+   }
+
+   for (i = 0; i < cd->ncount; ++ i) {
+      rval = COLORsafe_swrite_int(s,cd->orig_node_ids[i]);
+      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->orig_node_ids[i])");
+   }
+
+   rval = COLORsafe_swrite_int(s,cd->lower_bound);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->lower_bound)");
+
+   rval = COLORsafe_swrite_int(s,cd->upper_bound);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->upper_bound)");
+
+   rval = COLORsafe_swrite_double(s,cd->dbl_safe_lower_bound);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_double(s,cd->dbl_safe_lower_bound)");
+
+   rval = COLORsafe_swrite_double(s,cd->dbl_est_lower_bound);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_double(s,cd->dbl_est_lower_bound)");
+
+
+   rval = COLORsafe_swrite_int(s,cd->ccount);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->ccount)");
+   for (i = 0; i < cd->ccount; ++ i) {
+      int j;
+      rval = COLORsafe_swrite_int(s,cd->cclasses[i].count);
+      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->cclasses[i].count)");
+      for (j = 0; j < cd->cclasses[i].count; ++j) {
+         rval = COLORsafe_swrite_int(s,cd->cclasses[i].members[j]);
+         COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->cclasses[i].members[j])");
+      }
+   }
+
+
+   if (include_best) {
+      rval = COLORsafe_swrite_int(s,cd->nbestcolors);
+      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->nbestcolors)");
+
+      for (i = 0; i < cd->nbestcolors; ++ i) {
+         int j;
+         rval = COLORsafe_swrite_int(s,cd->bestcolors[i].count);
+         COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->bestcolors[i].count)");
+         for (j = 0; j < cd->bestcolors[i].count; ++j) {
+            rval = COLORsafe_swrite_int(s,cd->bestcolors[i].members[j]);
+            COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->bestcolors[i].members[j])");
+         }
+      }
+   }
+
+
+   rval = COLORsafe_swrite_int(s,cd->v1);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->v1)");
+
+   rval = COLORsafe_swrite_int(s,cd->v2);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->v2)");
+
+
+
+   rval = COLORsafe_swrite_int(s,cd->nsame);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->nsame)");
+
+   rval = COLORsafe_swrite_int(s,cd->ndiff);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->ndiff)");
+
+   for (i = 0; i < cd->nsame; ++ i) {
+      rval = send_colordata(s,cd->same_children + i,include_best);
+      COLORcheck_rval(rval,"Failed in sent_colordata");
+   }
+
+   for (i = 0; i < cd->ndiff; ++ i) {
+      rval = send_colordata(s,cd->diff_children + i,include_best);
+      COLORcheck_rval(rval,"Failed in sent_colordata");
+   }
+
+ CLEANUP:
+   return rval;
+}
+
+static
+int receive_child_data(COLOR_SFILE *s,
+                       colordata** children,int nchildren,
+                       colordata* parent,
+                       int adopt_id, int include_best)
+{
+   int rval = 0;
+   int i;
+   if (nchildren) {
+      *children = COLOR_SAFE_MALLOC(nchildren,colordata);
+      
+      for (i = 0; i < nchildren; ++ i) {
+         init_colordata(*children + i);
+         rval = receive_colordata(s,*children + i,adopt_id,include_best);
+         if (!adopt_id) {
+            (*children)[i].parent = parent;
+         }
+         COLORcheck_rval(rval,"Failed in sent_colordata");
+      }
+   } else {
+      *children = (colordata*) NULL;
+   }
+ CLEANUP:
+   return rval;
+}
+
+int receive_colordata(COLOR_SFILE *s, colordata* cd, 
+                      int adopt_id,
+                      int include_best) {
+   int rval = 0;
+   int i;
+   int new_id;
+
+   rval = COLORsafe_sread_int (s,&new_id);
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int (s,cd->id)");
+   if (adopt_id && new_id != cd->id) {
+      cd->id= new_id;
+   }
+
+   rval = COLORsafe_sread_string(s,cd->pname,MAX_PNAME_LEN - 1);
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_string(s,cd->pname)");
+
+   rval = COLORsafe_sread_int(s,&(cd->depth));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->depth)");
+
+   rval = COLORsafe_sread_uint(s, &(cd->status));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_uint(s,cd->status)");
+
+   rval = COLORsafe_sread_int(s,&(cd->ncount));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->ncount)");
+
+   rval = COLORsafe_sread_int(s,&(cd->ecount));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->ecount)");
+
+   cd->elist = (int*) COLOR_SAFE_MALLOC(2 * cd->ecount, int);
+   COLORcheck_NULL(cd->elist, "Failed to allocate cd->elist");
+
+   for (i = 0; i < cd->ecount; ++ i) {
+      rval = COLORsafe_sread_int(s,cd->elist + 2*i);
+      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i)");
+
+      rval = COLORsafe_sread_int(s,cd->elist + 2*i + 1);
+      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i + 1)");
+   }
+
+   cd->orig_node_ids = COLOR_SAFE_MALLOC(cd->ncount,int);
+   COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
+
+   for (i = 0; i < cd->ncount; ++ i) {
+      rval = COLORsafe_sread_int(s,cd->orig_node_ids + i);
+      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->orig_node_ids + i)");
+   }
+
+   rval = COLORsafe_sread_int(s,&(cd->lower_bound));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->lower_bound)");
+
+   rval = COLORsafe_sread_int(s,&(cd->upper_bound));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->upper_bound)");
+
+   rval = COLORsafe_sread_double(s,&(cd->dbl_safe_lower_bound));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_double(s,cd->dbl_safe_lower_bound)");
+
+   rval = COLORsafe_sread_double(s,&(cd->dbl_est_lower_bound));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_double(s,cd->dbl_est_lower_bound)");
+
+
+   rval = COLORsafe_sread_int(s,&(cd->ccount));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,&(cd->ccount))");
+   cd->gallocated = cd->ccount;
+   if (cd->cclasses) {
+      free (cd->cclasses);
+      cd->cclasses = (COLORset*) NULL;
+   }
+   if (cd->ccount) {
+      assert(!cd->cclasses);
+      cd->cclasses = COLOR_SAFE_MALLOC(cd->ccount, COLORset);
+      COLORcheck_NULL(cd->cclasses,"Failed to allocate cd->cclasses");
+      for (i = 0; i < cd->ccount; ++ i) {
+         int j;
+         rval = COLORsafe_sread_int(s,&(cd->cclasses[i].count));
+         COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->cclasses[i].count)");
+
+         cd->cclasses[i].members = COLOR_SAFE_MALLOC(cd->cclasses[i].count,int);
+         COLORcheck_NULL(cd->cclasses[i].members,"Failed to allocate cd->cclasses[i].members");
+         
+         for (j = 0; j < cd->cclasses[i].count; ++j) {
+            rval = COLORsafe_sread_int(s,&(cd->cclasses[i].members[j]));
+            COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->cclasses[i].members[j])");
+         }
+      }
+   }
+
+   if (include_best) {
+      int nbest;
+      rval = COLORsafe_sread_int(s,&(nbest));
+      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->nbestcolors)");
+
+      if (nbest) {
+         cd->nbestcolors = nbest;
+
+         COLOR_IFFREE(cd->bestcolors, COLORset);
+         cd->bestcolors = COLOR_SAFE_MALLOC(cd->nbestcolors,COLORset);
+         COLORcheck_NULL(cd->bestcolors,"Failed to allocate cd->bestcolors");
+     
+         
+         for (i = 0; i < cd->nbestcolors; ++ i) {
+            int j;
+            rval = COLORsafe_sread_int(s,&(cd->bestcolors[i].count));
+            COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->bestcolors[i].count)");
+         
+            cd->bestcolors[i].members = COLOR_SAFE_MALLOC(cd->bestcolors[i].count,int);
+            COLORcheck_NULL(cd->bestcolors[i].members,"Failed to allocate cd->bestcolors[i].members");
+         
+            for (j = 0; j < cd->bestcolors[i].count; ++j) {
+               rval = COLORsafe_sread_int(s,&(cd->bestcolors[i].members[j]));
+               COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->bestcolors[i].members[j])");
+            }
+         }
+      }
+   }
+
+   rval = COLORsafe_sread_int(s,&(cd->v1));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->v1)");
+
+   rval = COLORsafe_sread_int(s,&(cd->v2));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->v2)");
+   
+   
+   rval = COLORsafe_sread_int(s,&(cd->nsame));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->nsame)");
+
+   rval = COLORsafe_sread_int(s,&(cd->ndiff));
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->ndiff)");
+
+
+   rval = receive_child_data(s,&(cd->same_children), cd->nsame,
+                             cd,
+                             adopt_id,include_best);
+   COLORcheck_rval(rval,"Failed in receive_child_data");
+
+   rval = receive_child_data(s,&(cd->diff_children), cd->ndiff,
+                             cd,
+                             adopt_id,include_best);
+   COLORcheck_rval(rval,"Failed in receive_child_data");
+
+/*    if (cd->nsame) { */
+/*       cd->same_children = COLOR_SAFE_MALLOC(cd->nsame,colordata); */
+
+/*       for (i = 0; i < cd->nsame; ++ i) { */
+/*          init_colordata(cd->same_children + i); */
+/*          rval = receive_colordata(s,cd->same_children + i,adopt_id,include_best); */
+/*          if (!adopt_id) { */
+/*             cd->same_children[i].parent = cd; */
+/*          } */
+/*          COLORcheck_rval(rval,"Failed in sent_colordata"); */
+/*       } */
+/*    } else { */
+/*       cd->same_children = (colordata*) NULL; */
+/*    } */
+
+/*    if (cd->ndiff) { */
+/*       cd->diff_children = COLOR_SAFE_MALLOC(cd->ndiff,colordata); */
+
+/*       for (i = 0; i < cd->ndiff; ++ i) { */
+/*          init_colordata(cd->diff_children + i); */
+/*          rval = receive_colordata(s,cd->diff_children + i,adopt_id,include_best); */
+/*          COLORcheck_rval(rval,"Failed in sent_colordata"); */
+/*          if (!adopt_id) { */
+/*             cd->same_children[i].parent = cd; */
+/*          } */
+/*       } */
+/*    } else { */
+/*       cd->diff_children = (colordata*) NULL; */
+/*    } */
+
+ CLEANUP:
+   return rval;
+}
+
+
 int COLORdbg_lvl() {
    return debug;
 }
 
-static int print_colors(COLORset* cclasses, int ccount)
+int print_colors(COLORset* cclasses, int ccount)
 {
    int i,j;
    for (i = 0; i < ccount; i++) {
@@ -320,13 +577,14 @@ static void compute_objective(colordata* cd)
       cd->lower_scaled_bound += (double) cd->mwis_pi[i];
    }
 
-   cd->dbl_lower_bound = COLORsafe_lower_dbl(cd->lower_scaled_bound,cd->mwis_pi_scalef);
-   printf("Current primal LP objective: %f (%lld / %lld).\n",
-          cd->dbl_lower_bound,
-          (long long) cd->lower_scaled_bound,
-          (long long) cd->mwis_pi_scalef );
-
-   cd->lower_bound = ceil(cd->dbl_lower_bound);
+   cd->dbl_safe_lower_bound = COLORsafe_lower_dbl(cd->lower_scaled_bound,cd->mwis_pi_scalef);
+   if (COLORdbg_lvl() > 0) {
+      printf("Current primal LP objective: %f (%lld / %lld).\n",
+             cd->dbl_safe_lower_bound,
+             (long long) cd->lower_scaled_bound,
+             (long long) cd->mwis_pi_scalef );
+   }
+   cd->lower_bound = ceil(cd->dbl_safe_lower_bound);
 
 }
 
@@ -413,12 +671,12 @@ static int delete_old_colorclasses(colordata* cd)
       }
    }
 
-   printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
-          numdel, numdel + cd->ccount, cd->retirementage);
-
    if (numdel) {
-      printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
-             numdel, numdel + cd->ccount, cd->retirementage);
+   
+      if (COLORdbg_lvl() > 0) {
+         printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
+                numdel, numdel + cd->ccount, cd->retirementage);
+      }
       COLORlp_free (&(cd->lp));
 
       rval = build_lp(cd);
@@ -539,7 +797,7 @@ static int concat_newsets(colordata* cd)
    return rval;
 }
 
-static int build_lp(colordata* cd)
+int build_lp(colordata* cd)
 {
     int i;
 
@@ -912,7 +1170,7 @@ static int create_same (colordata* parent_cd, int v1, int v2)
 
    cd->upper_bound = parent_cd->upper_bound;
    cd->lower_bound = parent_cd->lower_bound;
-   cd->dbl_lower_bound = parent_cd->dbl_lower_bound;
+   cd->dbl_safe_lower_bound = parent_cd->dbl_safe_lower_bound;
 
    cd->parent = parent_cd;
    cd->debugcolors = parent_cd->debugcolors;
@@ -977,7 +1235,7 @@ static int create_differ(colordata* parent_cd, int v1, int v2)
 
    cd->upper_bound = parent_cd->upper_bound;
    cd->lower_bound = parent_cd->lower_bound;
-   cd->dbl_lower_bound = parent_cd->dbl_lower_bound;
+   cd->dbl_safe_lower_bound = parent_cd->dbl_safe_lower_bound;
 
 
    /* Create  graph with extra edge (v1,v2) */
@@ -1212,11 +1470,13 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
       cd->v1 = n1_i < v2 ? n1_i : v2;
       cd->v2 = n1_i > v2 ? n1_i : v2;
 
-      printf("Creating same for %d %d.\n",cd->v1,cd->v2);
+      if (COLORdbg_lvl() > 1) {
+         printf("Creating same for %d %d.\n",cd->v1,cd->v2);
+      }
 
       cd->upper_bound = parent_cd->upper_bound;
       cd->lower_bound = parent_cd->lower_bound;
-      cd->dbl_lower_bound = parent_cd->dbl_lower_bound;
+      cd->dbl_safe_lower_bound = parent_cd->dbl_safe_lower_bound;
 
       cd->parent = parent_cd;
       cd->debugcolors = parent_cd->debugcolors;
@@ -1245,6 +1505,9 @@ static int create_same_seq (colordata* parent_cd, int v1, int v2)
          rval = apply_diffpair_to_cclasses(&tmp_cclasses,&tmp_ccount,n1_i,v2);
          COLORcheck_rval(rval,"Failed in apply_diffpair_to_cclasses");
       }
+
+      rval = compute_lower_bound(cd);
+      COLORcheck_rval(rval,"Failed in compute_lower_bound");
    }
 
    parent_cd->nsame         = nsame;
@@ -1307,7 +1570,7 @@ static int grab_integral_solution(colordata* cd,
 
    printf("Intermediate coloring:\n");
    print_colors(cd->bestcolors,cd->nbestcolors);
-   assert(cd->nbestcolors == (int) incumbent);
+   assert(cd->nbestcolors == (int) ceil(incumbent));
 
    if (cd->nbestcolors < cd->upper_bound) {
       cd->upper_bound = cd->nbestcolors;
@@ -1408,8 +1671,10 @@ static int find_strongest_children(int           *strongest_v1,
       inodepair_ref_key(&v1,&v2, (int)(min_nodepair - nodepair_refs));
 
       assert(v1 < v2);
-      printf("Creating branches for v1 = %d, v2 = %d (node-pair weight %f)\n",v1,v2,
-             nodepair_weights[(int)(min_nodepair-nodepair_refs)]);
+      if (COLORdbg_lvl() > 1) {
+         printf("Creating branches for v1 = %d, v2 = %d (node-pair weight %f)\n",v1,v2,
+                nodepair_weights[(int)(min_nodepair-nodepair_refs)]);
+      }
       /* Create DIFFER and SAME */
       rval = create_same (cd,v1,v2);
       COLORcheck_rval(rval, "Failed in create_same");
@@ -1423,8 +1688,8 @@ static int find_strongest_children(int           *strongest_v1,
       compute_lower_bound(cd->same_children);
       compute_lower_bound(cd->diff_children);
 
-      dbl_child_lb = (cd->same_children->dbl_lower_bound < cd->diff_children->dbl_lower_bound) ?
-         cd->same_children->dbl_lower_bound : cd->diff_children->dbl_lower_bound;
+      dbl_child_lb = (cd->same_children->dbl_safe_lower_bound < cd->diff_children->dbl_safe_lower_bound) ?
+         cd->same_children->dbl_safe_lower_bound : cd->diff_children->dbl_safe_lower_bound;
 
       free_colordata(cd->same_children);
       cd->nsame=0; free(cd->same_children); cd->same_children=(colordata*) NULL;
@@ -1437,22 +1702,27 @@ static int find_strongest_children(int           *strongest_v1,
          *strongest_v2     = v2;
          remaining_branches = max_non_improving_branches;
       }
-      printf("Found child bound of %f for v1 = %d, v2 = %d, nodepair_weight = %f .\n",dbl_child_lb,
-             v1, v2,
-             nodepair_weights[(int)(min_nodepair-nodepair_refs)]);
+      if (COLORdbg_lvl() > 1) {
+         printf("Found child bound of %f for v1 = %d, v2 = %d, nodepair_weight = %f .\n",dbl_child_lb,
+                v1, v2,
+                nodepair_weights[(int)(min_nodepair-nodepair_refs)]);
+      }
    }
    {
       int nodepair_ref = nodepair_ref_key(*strongest_v1,*strongest_v2);
-      printf("Found strongest child bound of %f for v1 = %d, "
-             "v2 = %d, nodepair_weight = %f .\n",
-             strongest_dbl_lb, *strongest_v1,
-             *strongest_v2, nodepair_weights[nodepair_ref]);
+
+      if (COLORdbg_lvl() > 0) {
+         printf("Found strongest child bound of %f for v1 = %d, "
+                "v2 = %d, nodepair_weight = %f .\n",
+                strongest_dbl_lb, *strongest_v1,
+                *strongest_v2, nodepair_weights[nodepair_ref]);
+      }
    }
  CLEANUP:
    return rval;
 }
 
-static int create_branches(colordata* cd)
+int create_branches(colordata* cd)
 {
    int rval = 0;
    int i;
@@ -1469,8 +1739,6 @@ static int create_branches(colordata* cd)
       we mark its most fractional column in s1_value.*/
    int*    mf_col = (int*) NULL;
    COLORNWTHeap*  cand_heap = (COLORNWTHeap*) NULL;
-
-   printf("Entered create_branches\n");
 
    rval = COLORNWTheap_init(&cand_heap,npairs);
    COLORcheck_rval(rval,"Failed in COLORNWTheap_init");
@@ -1509,7 +1777,11 @@ static int create_branches(colordata* cd)
       goto CLEANUP;
    }
 
-   printf("Collected %d branching candidates.\n",COLORNWTheap_size(cand_heap));
+         
+         
+   if (COLORdbg_lvl() > 1) {
+      printf("Collected %d branching candidates.\n",COLORNWTheap_size(cand_heap));
+   }
 
    rval = find_strongest_children(&strongest_v1,&strongest_v2,
                                   cd,cand_heap,nodepair_refs,
@@ -1523,10 +1795,15 @@ static int create_branches(colordata* cd)
    } else { /* branch with one same and one diff branch*/
       rval = create_same (cd,strongest_v1,strongest_v2);
       COLORcheck_rval(rval, "Failed in create_same");
-   }
-   rval = create_differ(cd,strongest_v1,strongest_v2);
-   COLORcheck_rval(rval, "Failed in create_differ");
+      rval = compute_lower_bound (cd->same_children);
+      COLORcheck_rval(rval, "Failed in compute_lower_bound");
 
+      rval = create_differ(cd,strongest_v1,strongest_v2);
+      COLORcheck_rval(rval, "Failed in create_differ");
+
+      rval = compute_lower_bound (cd->diff_children);
+      COLORcheck_rval(rval, "Failed in compute_lower_bound");
+   }
 
    if (cd->same_children && cd->ndebugcolors) {
       int same_opt_track = 0;
@@ -1609,7 +1886,7 @@ static int collect_same_children(colordata* cd)
 
             }
          }
-         print_colors(cd->bestcolors,cd->nbestcolors);
+/*          print_colors(cd->bestcolors,cd->nbestcolors); */
          fflush(stdout);
          rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
                                     cd->ncount, cd->ecount, cd->elist);
@@ -1678,9 +1955,10 @@ static int compute_lower_bound(colordata* cd)
    double lb_rtime;
 /*    int    parent_lb = cd->lower_bound; */
 
-   printf("Starting compute_lower_bound with lb %d (%f) and ub %d at depth %d (id = %d, opt_track = %d).\n",
-          cd->lower_bound,cd->dbl_lower_bound,cd->upper_bound,cd->depth,cd->id, cd->opt_track);
-
+   if (COLORdbg_lvl() > 1) {
+      printf("Starting compute_lower_bound with lb %d (%f) and ub %d at depth %d (id = %d, opt_track = %d).\n",
+             cd->lower_bound,cd->dbl_safe_lower_bound,cd->upper_bound,cd->depth,cd->id, cd->opt_track);
+   }
 
    lb_rtime = COLORcpu_time();
    last_snapshot_time = lb_rtime;
@@ -1716,7 +1994,7 @@ static int compute_lower_bound(colordata* cd)
       }
       rval = COLORlp_optimize(cd->lp);
       COLORcheck_rval (rval, "COLORlp_optimize failed");
-      printf("COLORlp_optimize succeeded\n");fflush(stdout);
+/*       printf("COLORlp_optimize succeeded\n");fflush(stdout); */
       rval = grow_ages(cd);
       COLORcheck_rval (rval, "grow_ages failed");
 
@@ -1731,13 +2009,17 @@ static int compute_lower_bound(colordata* cd)
                             cd->pi,cd->ncount);
 
       compute_objective(cd);
+      cd->dbl_est_lower_bound = cd->dbl_safe_lower_bound;
 
       if (iterations < cd->maxiterations) {
          int set_i;
 
+         /** Solve the MWIS problem. The node weigths might be scaled
+             down further in this method!*/
          rval = COLORstable_wrapper(&(cd->mwis_env),&(cd->newsets), &(cd->nnewsets),
                                     cd->ncount, cd->ecount,
                                     cd->elist, cd->mwis_pi,cd->mwis_pi_scalef);
+
          COLORcheck_rval (rval, "COLORstable_gurobi failed");
 
          for (set_i = 0; set_i < cd->nnewsets; ++set_i) {
@@ -1754,24 +2036,30 @@ static int compute_lower_bound(colordata* cd)
    } while ( (iterations < cd->maxiterations) &&
              !break_while_loop);
    if (iterations < cd->maxiterations) {
+      /** As the node weigths can have been scaled down further since
+          the last computation of the objective, we need to recompute
+          it here.*/
+      compute_objective(cd);
 
-      printf ("Found bound of %lld (%20.16g), upper_bound %d (id = %d, iterations = %d, opt_track = %d).\n",
-              (long long) cd->lower_bound,cd->dbl_lower_bound,
-              cd->upper_bound,cd->id,iterations, cd->opt_track);
-
-      if (COLORdbg_lvl()) {
-         print_graph_operations(cd);
+      if (COLORdbg_lvl() > 1) {
+         printf ("Found bound of %lld (%20.16g), upper_bound %d (id = %d, iterations = %d, opt_track = %d).\n",
+                 (long long) cd->lower_bound,cd->dbl_safe_lower_bound,
+                 cd->upper_bound,cd->id,iterations, cd->opt_track);
       }
 
       delete_old_colorclasses(cd);
 
       lb_rtime = COLORcpu_time() - lb_rtime;
       cd->status = LP_bound_computed;
-      printf("Computing initial lower bound took %f seconds.\n",lb_rtime);
+      if (COLORdbg_lvl()>=0) {
+         printf("Computing initial lower bound took %f seconds.\n",lb_rtime);
+      }
    } else {
       lb_rtime = COLORcpu_time() - lb_rtime;
       cd->status = LP_bound_estimated;
-      printf("Computing estimated lower bound took %f seconds.\n",lb_rtime);
+      if (COLORdbg_lvl()>=0) {
+         printf("Computing estimated lower bound took %f seconds.\n",lb_rtime);
+      }
    }
    fflush(stdout);
 
@@ -1844,37 +2132,294 @@ static int remove_finished_subtree(colordata* child)
 
 static int insert_into_branching_heap(COLORNWTHeap* heap, colordata* cd, double key_mult)
 {
-   int rval = compute_lower_bound (cd);
+   int rval = 0;
    int dummy_href;
    /** We use the lower bound adjusted by the depth of a node as a
        heap key.  The idea behind this is: in case of equal bounds
        deeper nodes should be preferred to potentially improve the
        upper bound faster.
     */
-   COLORNWT heap_key = (COLORNWT) (cd->dbl_lower_bound * key_mult) - cd->depth;
-   if (cd->lower_bound < cd->upper_bound) {
+   COLORNWT heap_key = (COLORNWT) (cd->dbl_est_lower_bound * key_mult) - cd->depth;
+
+   if (COLORdbg_lvl() > 1) {
+      printf("Inserting into branching heap with lb %d (%f) and ub %d at depth %d (id = %d):\n",
+             cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
+             cd->depth,
+             cd->id );
+      
+      print_graph_operations(cd);
+   }
+
+/*    if (cd->lower_bound < cd->upper_bound) { */
       COLORcheck_rval(rval,"Failed in compute_lower_bound (cd);");
       rval = COLORNWTheap_insert(heap,&dummy_href,
                                  heap_key,
                                  (void*) cd);
       COLORcheck_rval(rval, "Failed to COLORNWTheap_insert");
-   } else {
-      cd->status = finished;
+/*    } else { */
+/*       cd->status = finished; */
+/*       remove_finished_subtree(cd); */
+/*    } */
+ CLEANUP:
+   return rval;
+}
+
+static int sequential_branching(COLORNWTHeap* br_heap,
+                                COLORNWT global_upper_bound,
+                                double   key_mult)
+{
+   int rval = 0;
+   colordata*    cd;
+   printf("ENTERED SEQUENTIAL BRANCHING,\n");
+
+   while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) ) {
+      int i;
+      cd->upper_bound = global_upper_bound;
+      if (cd->lower_bound < cd->upper_bound) {
+         printf("Branching with lb %d (est. %f) and ub %d at depth %d (id = %d, "
+                "opt_track = %d, unprocessed nodes = %d).\n",
+                cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
+                cd->depth,
+                cd->id, cd->opt_track,COLORNWTheap_size(br_heap) );
+
+         /* Create children. If the current LP-solution turns out to be intergal,
+            cd->upper_bound might decrease!
+          */
+         rval = create_branches(cd);
+         COLORcheck_rval(rval,"Failed to create_branches");
+
+
+         for (i = 0; i < cd->nsame; ++i) {
+            /* printf("Adding same child to heap\n"); */
+            rval = insert_into_branching_heap(br_heap,&(cd->same_children[i]),key_mult);
+            COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
+         }
+         for (i = 0; i < cd->ndiff; ++i) {
+/*             printf("Adding diff child to heap\n"); */
+            rval = insert_into_branching_heap(br_heap,&(cd->diff_children[i]),key_mult);
+            COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
+         }
+      }
+      assert (cd->lower_bound <= cd->upper_bound);
+
+      if (global_upper_bound > cd->upper_bound) {
+         global_upper_bound = cd->upper_bound;
+      }
+
+      /** This is not simply an else-branch because the cd->upper_bound
+          can be decreased in create_branches if the current LP-relaxation is
+          intergal.
+      */
+      if (cd->lower_bound == cd->upper_bound) {
+         remove_finished_subtree(cd);
+      }
    }
  CLEANUP:
    return rval;
 }
 
+static int locate_colordata(colordata** cd, 
+                            colordata* root_cd,
+                            int cd_id)
+{
+   int rval = 0;
+   colordata** cd_stack = (colordata**) NULL;
 
-static int compute_coloring(colordata* root_cd)
+   int i;
+   int size    = ncolordata;
+   int stack_i = 0;
+
+   cd_stack = COLOR_SAFE_MALLOC(size, colordata*);
+   COLORcheck_NULL(cd_stack,"Failed to malloc cd_stack");
+
+   *cd = root_cd;
+   cd_stack[stack_i++] = *cd;
+
+   while ( stack_i && (*cd)->id != cd_id) {
+      for (i = 0; i < (*cd)->nsame; ++i) {
+         cd_stack[stack_i++] = (*cd)->same_children + i;
+      }
+      for (i = 0; i < (*cd)->ndiff; ++i) {
+         cd_stack[stack_i++] = (*cd)->diff_children + i;
+      }
+
+      if (stack_i){
+         *cd = cd_stack[--stack_i];
+      }
+   }
+   if ((*cd)->id != cd_id) {
+      fprintf(stderr,"Could not find given colordata id.\n");
+      rval = 1; goto CLEANUP;
+   }
+ CLEANUP:
+   if (cd_stack) {free(cd_stack);}
+   return rval;
+}
+
+static int parallel_branching(COLORNWTHeap* br_heap,
+                              colordata*    root_cd,
+                              COLORNWT global_upper_bound,
+                              double   key_mult)
+{
+   int rval = 0;
+   colordata*   cd    = (colordata*)    NULL;
+   COLOR_SPORT* lport = (COLOR_SPORT *) NULL;
+   COLOR_SFILE* s;
+   char request, grunt[1024];
+   int  i;
+   int npending = 0;
+
+   printf("ENTERED PARALLEL BRANCHING,\n");
+
+   lport = COLORsafe_snet_listen (COLOR_BOSS_PORT);
+   if (lport == (COLOR_SPORT *) NULL) {
+      fprintf (stderr, "COLORsafe_snet_listen failed\n");
+      rval = 1; goto CLEANUP;
+   }
+
+   do {
+      s = COLORsafe_snet_receive (lport);
+      if (!s) {
+         fprintf (stderr, "COLORsafe_snet_receive failed, ignoring\n");
+         continue;
+      }
+
+      if (COLORsafe_sread_string (s, grunt, 1023)) {
+         fprintf (stderr, "COLORsafe_sread_char string, abort con\n");
+         COLORsafe_sclose (s);
+         continue;
+      }
+
+      if (COLORsafe_sread_char (s, &request)) {
+         fprintf (stderr, "COLORsafe_sread_char failed, abort con\n");
+         COLORsafe_sclose (s);
+         continue;
+      }
+
+      switch (request) {
+      case COLOR_BOSS_SEND:
+         cd = (colordata*) COLORNWTheap_min(br_heap);
+         while (cd && cd->lower_bound >= global_upper_bound) {         
+            printf("Skipping with lb %d (%f) and ub %d at depth %d (id = %d, "
+                   "opt_track = %d, unprocessed nodes = %d).\n",
+                   cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
+                   cd->depth,
+                   cd->id, cd->opt_track,COLORNWTheap_size(br_heap) );
+            cd->status = finished;
+            remove_finished_subtree(cd);
+            cd = (colordata*) COLORNWTheap_min(br_heap);
+         }
+         if (cd) {
+            cd->upper_bound = global_upper_bound;
+            int include_bestcolors = 0;
+            printf("Branching with lb %d (%f) and ub %d at depth %d (id = %d, "
+                   "opt_track = %d, unprocessed nodes = %d).\n",
+                   cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
+                   cd->depth,
+                   cd->id, cd->opt_track,COLORNWTheap_size(br_heap) );
+            
+            /* Create children. If the current LP-solution turns out to be intergal,
+               cd->upper_bound might decrease!
+            */
+            
+            rval = COLORsafe_swrite_char (s, COLOR_BOSS_YES);
+            COLORcheck_rval (rval, "COLORsafe_swrite_int failed (YES)");
+            
+            npending++;
+            rval = send_colordata(s,cd,include_bestcolors);
+            COLORcheck_rval(rval,"Failed to create_branches");
+         } else {
+            if (npending) {
+               rval = COLORsafe_swrite_char (s, COLOR_BOSS_NO);
+            
+            } else {
+               rval = COLORsafe_swrite_char (s, COLOR_BOSS_EXIT);
+            }
+            if (rval) {
+               fprintf (stderr, "BOSS_NONE write failed - abort con\n");
+            }
+         }
+         COLORsafe_sclose (s);
+         break;
+      case COLOR_BOSS_RECEIVE:
+         {
+            int cd_id = -1;
+            int include_bestcolors = 1;
+            int adopt_id           = 0;
+            if (COLORsafe_sread_int (s, &cd_id)) {
+               fprintf (stderr, "COLORsafe_sread_char failed, abort con\n");
+               COLORsafe_sclose (s);
+               continue;
+            }
+
+            //  locate cd pointing to cd_id
+            rval = locate_colordata(&cd, root_cd,cd_id);
+            COLORcheck_rval(rval, "Failed in locate_colordata");
+
+            free_temporary_data(cd);
+            rval = receive_colordata (s, cd,adopt_id,include_bestcolors);
+            printf("Received data with ndiff = %d.\n",cd -> ndiff);
+            npending--;
+            if (rval) {
+               fprintf (stderr, "receive_result failed - abort connection\n");
+               COLORsafe_sclose (s);
+               break;
+            } else {
+               printf ("Received result %d from %s\n", cd_id, grunt);
+               fflush (stdout);
+               COLORsafe_sclose (s);
+               for (i = 0; i < cd->nsame; ++i) {
+/*                   printf("Adding same child to heap\n"); */
+                  rval = insert_into_branching_heap(br_heap,&(cd->same_children[i]),key_mult);
+                  COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
+               }
+               for (i = 0; i < cd->ndiff; ++i) {
+/*                   printf("Adding diff child to heap\n"); */
+                  rval = insert_into_branching_heap(br_heap,&(cd->diff_children[i]),key_mult);
+                  COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
+               }
+               assert (cd->lower_bound <= cd->upper_bound);
+                  
+               if (global_upper_bound > cd->upper_bound) {
+                  global_upper_bound = cd->upper_bound;
+                  
+               }
+               if (! (cd->nsame || cd->ndiff)) {
+                  /* assert(cd->status == finished); */
+                  remove_finished_subtree(cd);
+               }
+            }
+         }
+         break;
+      case COLOR_BOSS_EXIT:
+         printf ("Shutting down the test boss\n"); fflush (stdout);
+         COLORsafe_sclose (s);
+         goto CLEANUP;
+      default:
+         fprintf (stderr, "Invalid request %c\n", request);
+      }
+   }
+
+   while (npending || cd);
+
+ CLEANUP:
+   COLORsafe_snet_unlisten (lport);
+
+   return rval;
+}
+
+
+int compute_coloring(colordata* root_cd,
+                     int        parallel)
 {
    int           rval = 0;
    COLORNWTHeap* br_heap            = (COLORNWTHeap*) NULL;
-   colordata*    cd;
    double        key_mult           = (double) (COLORNWT_MAX - 1) / root_cd->ncount;
-   int           global_upper_bound = INT_MAX;
-
+   COLORNWT      global_upper_bound = COLORNWT_MAX;
    COLORNWTheap_init(&br_heap,root_cd->ncount * root_cd->ncount);
+
+   rval = compute_lower_bound(root_cd);
+   COLORcheck_rval(rval,"Failed in compute_lower_bound");
 
    rval = insert_into_branching_heap(br_heap,root_cd,key_mult);
    COLORcheck_rval(rval,"Failed in insert_into_branching_heap");
@@ -1897,49 +2442,12 @@ static int compute_coloring(colordata* root_cd)
 
    printf("Upper bound heuristic on root node took %f seconds.\n",colheur_rtime);
 
-
-
-   while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) ) {
-      int i;
-      cd->upper_bound = global_upper_bound;
-      if (cd->lower_bound < cd->upper_bound) {
-         printf("Branching with lb %d (%f) and ub %d at depth %d (id = %d, "
-                "opt_track = %d, unprocessed nodes = %d).\n",
-                cd->lower_bound,cd->dbl_lower_bound,cd->upper_bound,
-                cd->depth,
-                cd->id, cd->opt_track,COLORNWTheap_size(br_heap) );
-
-         /* Create children. If the current LP-solution turns out to be intergal,
-            cd->upper_bound might decrease!
-          */
-         rval = create_branches(cd);
-         COLORcheck_rval(rval,"Failed to create_branches");
-
-
-         for (i = 0; i < cd->nsame; ++i) {
-            printf("Adding same child to heap\n");
-            rval = insert_into_branching_heap(br_heap,&(cd->same_children[i]),key_mult);
-            COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
-         }
-         for (i = 0; i < cd->ndiff; ++i) {
-            printf("Adding diff child to heap\n");
-               rval = insert_into_branching_heap(br_heap,&(cd->diff_children[i]),key_mult);
-               COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
-         }
-      }
-      assert (cd->lower_bound <= cd->upper_bound);
-
-      if (global_upper_bound > cd->upper_bound) {
-         global_upper_bound = cd->upper_bound;
-      }
-
-      /** This is not simply an else-branch because the cd->upper_bound
-          can be decreased in create_branches if the current LP-relaxation is
-          intergal.
-      */
-      if (cd->lower_bound == cd->upper_bound) {
-         remove_finished_subtree(cd);
-      }
+   if (parallel) {
+      rval = parallel_branching(br_heap,root_cd,global_upper_bound,key_mult);
+      COLORcheck_rval(rval,"Failed in parallel_branching");
+   } else {
+      sequential_branching(br_heap,global_upper_bound,key_mult);
+      COLORcheck_rval(rval,"Failed in sequential_branching");
    }
 
  CLEANUP:
@@ -1948,178 +2456,8 @@ static int compute_coloring(colordata* root_cd)
    return rval;
 }
 
-int main (int ac, char **av)
-{
-    int rval = 0;
-    int i;
-    double start_time;
-    double tot_rtime;
-
-    colordata  _colordata;
-    colordata* cd = &_colordata;
 
 
-    COLORset*  debugcolors = (COLORset*) NULL;
-    int       ndebugcolors = 0;
-
-
-    init_colordata(cd);
-
-    rval = parseargs (ac, av);
-    if (rval) goto CLEANUP;
-
-    cd->upper_bound = initial_upper_bound;
-    get_problem_name(cd->pname,edgefile);
-
-
-    if (debug) printf ("Debugging turned on\n");
-    if (outfile) printf ("Output File: %s\n", outfile);
-    fflush (stdout);
-
-
-    rval = COLORread_dimacs (edgefile, &(cd->ncount), &(cd->ecount),
-                             &(cd->elist), (int **) NULL);
-    COLORcheck_rval (rval, "COLORread_diamcs failed");
-    cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
-    COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
-    for (i = 0; i < cd->ncount; ++i) {cd->orig_node_ids[i] = i;}
-    start_time = COLORcpu_time();
-
-    if (cclasses_infile != (char*) NULL) {
-       rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
-                                           cd->ncount,cclasses_infile,cd->pname);
-       COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-    } else {
-       rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
-                           &(cd->ccount), &(cd->cclasses));
-       COLORcheck_rval (rval, "COLORgreedycd failed");
-
-       /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
-       printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
-       print_colors(cd->cclasses,cd->ccount);
-       COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
-                      cd->cclasses,cd->ccount);
-       cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
-    }
-
-    if (color_infile != (char*) NULL) {
-       rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
-                                           cd->ncount,color_infile,cd->pname);
-       COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-       rval = COLORcheck_coloring(debugcolors,ndebugcolors,cd->ncount,
-                           cd->ecount,cd->elist);
-       COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
-       cd->debugcolors = debugcolors;
-       cd->ndebugcolors = ndebugcolors;
-       cd->opt_track = 1;
-    }
-
-
-    rval = compute_coloring(cd);
-    COLORcheck_rval(rval, "Failed to compute_coloring");
-
-    if (cd->nbestcolors == cd->upper_bound) {
-       printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
-       print_colors(cd->bestcolors,cd->nbestcolors);
-    } else {
-       assert(cd->upper_bound == initial_upper_bound);
-       printf("Lower bound reached predefined upper bound %d.\n",initial_upper_bound);
-    }
-    tot_rtime = COLORcpu_time() - start_time;
-    printf("Computing coloring took %f seconds.\n",tot_rtime);
-
-
-CLEANUP:
-    if (debugcolors) free (debugcolors);
-    free_colordata(cd);
-    return rval;
-}
-
-static int parseargs (int ac, char **av)
-{
-    int c;
-    int rval = 0;
-
-    while ((c = getopt (ac, av, "dmo:r:w:c:u:")) != EOF) {
-        switch (c) {
-        case 'd':
-           /* each -d increases the verbosity by one.*/
-           ++debug;
-            break;
-        case 'o':
-            outfile = optarg;
-            break;
-        case 'm':
-           write_mwis = 1;
-           break;
-        case 'r':
-           cclasses_infile = optarg;
-           break;
-        case 'w':
-           cclasses_outfile = optarg;
-           break;
-        case 'c':
-           color_infile = optarg;
-           break;
-        case 'u':
-           initial_upper_bound = atoi(optarg);
-           break;
-        default:
-            usage (av[0]);
-            rval = 1;  goto CLEANUP;
-        }
-    }
-
-    if (ac <= optind) {
-        rval = 1; goto CLEANUP;
-    } else {
-        edgefile = av[optind++];
-    }
-
-CLEANUP:
-
-    if (rval) usage (av[0]);
-    return rval;
-}
-
-static void usage (char *f)
-{
-    fprintf (stderr, "Usage %s: [-see below-] edge_file\n", f);
-    fprintf (stderr, "   -d    turn on debugging\n");
-    fprintf (stderr, "   -o f  write coloring to file f\n");
-    fprintf (stderr, "   -m    write final stable set and clique instances\n");
-    fprintf (stderr, "   -r f  read initial stable sets from file f\n");
-    fprintf (stderr, "   -w f  write stable sets from file f\n");
-    fprintf (stderr, "   -c f  read initial coloring from file f\n");
-    fprintf (stderr, "   -u int  initial upper bound f\n");
-}
-
- static int get_problem_name(char* pname,const char* efname)
-{
-   int    rval = 0;
-   int    len = 0;
-   const char * fname = strrchr(efname,'/');
-   char * lastdot = strrchr(efname,'.');
-   if(!fname) {
-      /* no slashes in efname.*/
-      fname = efname;
-   } else {
-      fname++;
-   }
-
-   if (lastdot) {
-      len = lastdot - fname + 1;
-   } else {
-      len = strlen(fname);
-   }
-
-   if (snprintf(pname,len,"%s",fname) < 0) {
-      rval = 1;
-   }
-   printf("Extracted problem name %s\n",pname);
-
-   return 0;
-}
 
 double COLORwall_time (void)
 {
