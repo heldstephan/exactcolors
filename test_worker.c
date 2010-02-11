@@ -65,10 +65,10 @@ int main (int ac, char **av)
             s = COLORsafe_snet_open (bosshost, COLOR_BOSS_PORT);
             if (!s) {
                 fprintf (stderr, "COLORsafe_snet_open failed\n");
-                sleep (100);
+                sleep (10);
             }
             k++;
-        } while (!s && k < 5);
+        } while (!s && k < 2);
 
         if (!s) {
             fprintf (stderr, "Could not connect in %d trys.\n", k);
@@ -99,17 +99,17 @@ int main (int ac, char **av)
         fflush (stdout);
 
         printf ("Sleep 10 seconds, to simulate work\n"); fflush (stdout);
-        sleep (10);
+        sleep (2);
 
         k = 0;
         do {
             s = COLORsafe_snet_open (bosshost, COLOR_BOSS_PORT);
             if (!s) {
                 fprintf (stderr, "COLORsafe_snet_open failed\n");
-                sleep (100);
+                sleep (10);
             }
             k++;
-        } while (!s && k < 5);
+        } while (!s && k < 2);
 
         if (!s) {
             fprintf (stderr, "Could not connect in %d trys.\n", k);

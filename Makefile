@@ -3,20 +3,26 @@
 GUPATH=$(GUROBI_HOME)
 
 GUINCLUDE=$(GUPATH)/include
-GULIB=$(GUPATH)/lib/libgurobi.so.2.0.1
+GULIB=$(GUPATH)/lib/libgurobi.so.2.0.2
 
 # SEWELL_FLAG=-DHAVE_SEWELL
 # SEWELL_LIB=-L . -lsewell
 
 CC=gcc
-CFLAGS=  -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE) $(SEWELL_FLAG)
-OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o heap.o util.o cliq_enum.o
+CFLAGS=  -O3  -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(GUINCLUDE) $(SEWELL_FLAG)
+OBJFILES=color.o graph.o greedy.o lpgurobi.o mwis.o mwis_grb.o mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o lpgurobi.o cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
+CBOSSFILES=color_main.o $(OBJFILES)
+CWORKERFILES=color_worker.o $(OBJFILES)
 
+all: color color_worker stable queen test_boss test_worker test_tell
 
-color: $(OBJFILES)
-	$(CC) $(CFLAGS) -o color $(OBJFILES) $(GULIB) -lm -lpthread $(SEWELL_LIB)
+color: $(CBOSSFILES)
+	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(GULIB) -lm -lpthread $(SEWELL_LIB)
+
+color_worker: $(CWORKERFILES)
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(GULIB) -lm -lpthread
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(GULIB) -lm -lpthread
@@ -33,10 +39,13 @@ test_worker: test_worker.o $(BOSSFILES)
 test_tell: test_tell.o $(BOSSFILES)
 	$(CC) $(CFLAGS) -o test_tell test_tell.o $(BOSSFILES) -lm -lpthread
 
+tags:
+	etags *.[hc]
 clean:
 	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
 
-color.o:     color.c color.h lp.h color_defs.h
+color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h
+color_worker.o: color_worker.c color_private.h color_defs.h bbsafe.h
 heap.o:      heap.c heap.h color_defs.h
 graph.o:     graph.c graph.h color_defs.h
 greedy.o:    greedy.c  color.h graph.h color_defs.h
@@ -50,3 +59,4 @@ cliq_enum.o: color.h lp.h graph.h mwis.h
 test_boss.o: test_boss.c bbsafe.h
 test_worker.o: test_worker.c bbsafe.h
 test_tell.o: test_tell.c bbsafe.h
+
