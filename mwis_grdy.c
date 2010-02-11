@@ -1118,11 +1118,13 @@ static int add_soldata(soldata* sol)
    ++(cclasses->cnt);
    {
       int i;
-      printf("NEW SET ");
-      for (i = 0; i < sol->solcount;++i) {
-         printf(" %d",newmembers[i]);
+      if (COLORdbg_lvl() > 0) {
+         printf("NEW SET ");
+         for (i = 0; i < sol->solcount;++i) {
+            printf(" %d",newmembers[i]);
+         }
+         printf("\n");
       }
-      printf("\n");
    }
  CLEANUP:
    if (rval) {
@@ -1241,7 +1243,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
          num_starts = sol->ncount / nsoldatas;
       }
    }
-   if (COLORdbg_lvl()) {
+   if (COLORdbg_lvl()> 0) {
       printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
              COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
              sol->cclasses.cnt, last_valid_start,last_improving_start);

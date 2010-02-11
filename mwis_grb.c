@@ -64,7 +64,7 @@ static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *
 
 
       if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
-         if(COLORdbg_lvl()) {
+         if(COLORdbg_lvl() > 0) {
             printf("Terminating gurobi based on current objective value %f\n.",
                    objective);
          }
@@ -341,14 +341,17 @@ static int mwis_optimize_model(MWISgrb_env** env,
          fprintf (stderr, "out of memory for newset.members\n");
          rval = 1;  goto CLEANUP;
       }
-      printf("NEW SET ");
-      for (i = 0, j = 0; i < ncount;++i) {
-         if ( value_is_one((*env)->x_opt[i]) ) {
-            newset->members[j++] = i;
-            printf(" %d",i);
+         
+      if (COLORdbg_lvl() > 0) {
+         printf("NEW SET ");
+         for (i = 0, j = 0; i < ncount;++i) {
+            if ( value_is_one((*env)->x_opt[i]) ) {
+               newset->members[j++] = i;
+               printf(" %d",i);
+            }
          }
+         printf("\n");
       }
-      printf("\n");
    } else if (objective >  1.0 - COLORlp_int_tolerance() ) {
       fprintf(stderr,"WARNING: MWIS is hardly decidable with objective %g.\n",
               objective);

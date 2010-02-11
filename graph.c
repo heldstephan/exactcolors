@@ -351,9 +351,10 @@ int  COLORadjgraph_delete_unweighted(COLORadjgraph* G,
    rval = COLORadjgraph_build(G,ncount,ecount,newelist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
 
-   
-   printf("Reduced graph has %d nodes and %d edges.\n",
-          ncount,ecount);
+   if (COLORdbg_lvl() > 1) {
+      printf("Reduced graph has %d nodes and %d edges.\n",
+             ncount,ecount);
+   }
 
    
 

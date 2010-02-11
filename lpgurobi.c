@@ -47,7 +47,7 @@ int COLORlp_init (COLORlp **p, const char *name)
     COLORcheck_rval (rval, "GRBloadenv failed");
 
     /* Set to 1 to turn on Gurobi output, 0 to turn off output */
-    rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_OUTPUTFLAG, COLORdbg_lvl() ? 1 : 0);
+    rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_OUTPUTFLAG, (COLORdbg_lvl() > 0) ? 1 : 0);
     COLORcheck_rval_grb (rval, "GRBsetintparam OUTPUTFLAG failed",(*p)->env);
 
     rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_THREADS , 1);
