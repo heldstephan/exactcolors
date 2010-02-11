@@ -125,8 +125,10 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                                            oster_nweights,&objval);
       COLORcheck_rval(rval,"Failed in COLORstable_max_weighted_node.");
    }
-   printf("Best enumeration:   %13.10e ( %lld / %lld ).\n",
-          COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
+   if (COLORdbg_lvl() >= 0) {
+      printf("Best enumeration:   %13.10e ( %lld / %lld ).\n",
+             COLORsafe_lower_dbl(objval,cutoff),(long long ) objval,(long long ) cutoff);
+   }
 
    if (objval > cutoff) {
       if (*nnewsets) {
@@ -134,7 +136,8 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
          int orig_i  = 0;
          while ( ! nweights[orig_i] ) {orig_i ++;}
 
-         printf("NEW SET ");
+         if (COLORdbg_lvl() > 0) {printf("NEW SET ");}
+         
          for (i = 0; i < (*newsets)->count;++i) {
             while (oster_i < (*newsets)->members[i]) {
                oster_i++;
@@ -142,9 +145,9 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
                while ( ! nweights[orig_i] ) {orig_i++;}
             }
             (*newsets)->members[i] = orig_i;
-            printf(" %d",(*newsets)->members[i]);
+            if (COLORdbg_lvl() > 0) {printf(" %d",(*newsets)->members[i]);}
          }
-         printf("\n");
+         if (COLORdbg_lvl() > 0) {printf("\n");}
 
          COLORcheck_set((*newsets),ncount,ecount,elist);
 
@@ -162,12 +165,13 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
 
       }
    } else {
+      if (COLORdbg_lvl() > 0) {
          printf("BEST SET ");
          for (i = 0; i < (*newsets)->count;++i) {
             printf(" %d",(*newsets)->members[i]);
          }
          printf("\n");
-
+      }
       COLORfree_sets(newsets,nnewsets);
    }
 
@@ -218,13 +222,15 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
 
    if (objval > cutoff) {
       if (*nnewsets) {
-         printf("NEW SET ");
-         for (i = 0; i < (*newsets)->count;++i) {
-            printf(" %d",(*newsets)->members[i]);
+         if (COLORdbg_lvl() > 0) {
+            printf("NEW SET ");
+            for (i = 0; i < (*newsets)->count;++i) {
+               printf(" %d",(*newsets)->members[i]);
+            }
+            printf("\n");
+            
+            COLORcheck_set((*newsets),ncount,ecount,elist);
          }
-         printf("\n");
-         
-         COLORcheck_set((*newsets),ncount,ecount,elist);
       }
    } else {
       printf("BEST SET ");
@@ -279,7 +285,7 @@ int COLORstable_wrapper(MWISenv** env,
       COLORstable_initenv(env,default_pname,default_write_mwis);
    }
 
-   if (( *env)->ngreedy_fails ==  max_ngreedy_fails) {
+   if (( *env)->ngreedy_fails ==  max_ngreedy_fails && COLORdbg_lvl() > 0) {
       printf("Greedy failed %d times in a row => not using greedy any more.\n",
              ( *env)->ngreedy_fails);
    }
@@ -292,7 +298,7 @@ int COLORstable_wrapper(MWISenv** env,
                             nweights,cutoff);
       COLORcheck_rval(rval,"COLORstable_LS failed");
       rtime = COLORcpu_time() - rtime;
-      if (COLORdbg_lvl() ) { printf("Greedy took %f seconds\n",rtime);}
+      if (COLORdbg_lvl() > 0) { printf("Greedy took %f seconds\n",rtime);}
    }
 
    /* Uncomment to enforce gurobi.*/
