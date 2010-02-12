@@ -50,6 +50,13 @@ static char* cclasses_outfile;
 static const int branch_with_same_sequence = 0;
 
 
+typedef struct branching_joblist branching_joblist;
+struct branching_joblist {
+   colordata* cd;
+   branching_joblist* next;
+};
+
+
 static int compute_lower_bound(colordata* cd);
 static int grab_integral_solution(colordata* cd, double* x, double tolerance);
 
@@ -1785,6 +1792,7 @@ int create_branches(colordata* cd)
                                   nodepair_weights);
    COLORcheck_rval(rval, "Failed in find_strongest_children");
 
+
    /*    Create DIFFER and SAME for strongest children */
    if (branch_with_same_sequence) {
       rval = create_same_seq(cd,strongest_v1,strongest_v2);
@@ -1978,7 +1986,8 @@ static int compute_lower_bound(colordata* cd)
       ++iterations;
 
       if (iterations > cd->retirementage && cd->ccount > 3 * cd->ncount) {
-         delete_old_colorclasses(cd);
+         rval = delete_old_colorclasses(cd);
+         COLORcheck_rval (rval, "delete_old_colorclasses failed");
       }
 
       if (cclasses_outfile) {
@@ -2044,7 +2053,9 @@ static int compute_lower_bound(colordata* cd)
                  cd->upper_bound,cd->id,iterations, cd->opt_track);
       }
 
-      delete_old_colorclasses(cd);
+      cd->retirementage = 1;
+      rval = delete_old_colorclasses(cd);
+      COLORcheck_rval (rval, "delete_old_colorclasses failed");
 
       lb_rtime = COLORcpu_time() - lb_rtime;
       cd->status = LP_bound_computed;
@@ -2253,45 +2264,57 @@ static int sequential_branching(COLORNWTHeap* br_heap,
 }
 
 static int locate_colordata(colordata** cd, 
-                            colordata* root_cd,
+                            branching_joblist** joblist,
                             int cd_id)
 {
    int rval = 0;
-   colordata** cd_stack = (colordata**) NULL;
+   branching_joblist*  cur_job = (branching_joblist*) NULL;
+   branching_joblist* prev_job = (branching_joblist*) NULL;
 
-   int i;
-   int size    = ncolordata;
-   int stack_i = 0;
 
-   cd_stack = COLOR_SAFE_MALLOC(size, colordata*);
-   COLORcheck_NULL(cd_stack,"Failed to malloc cd_stack");
+   cur_job = *joblist;
 
-   *cd = root_cd;
-   cd_stack[stack_i++] = *cd;
-
-   while ( stack_i && (*cd)->id != cd_id) {
-      for (i = 0; i < (*cd)->nsame; ++i) {
-         cd_stack[stack_i++] = (*cd)->same_children + i;
-      }
-      for (i = 0; i < (*cd)->ndiff; ++i) {
-         cd_stack[stack_i++] = (*cd)->diff_children + i;
-      }
-
-      if (stack_i){
-         *cd = cd_stack[--stack_i];
-      }
+   while (cur_job && cur_job->cd->id != cd_id) {
+      prev_job = cur_job;
+      cur_job  = cur_job->next;
    }
-   if ((*cd)->id != cd_id) {
-      fprintf(stderr,"Could not find given colordata id.\n");
+   
+   if (!cur_job) {
+      fprintf(stderr,"Job %d not found!!!\n",cd_id);
       rval = 1; goto CLEANUP;
    }
+
+   *cd = cur_job->cd;
+   if (prev_job) {
+      prev_job->next = cur_job->next;
+   } else {
+      *joblist = cur_job->next;
+   }
+
+   COLOR_FREE(cur_job,branching_joblist);
+
  CLEANUP:
-   if (cd_stack) {free(cd_stack);}
    return rval;
 }
 
+static int prepend_to_joblist(branching_joblist** joblist,colordata* cd)
+{
+   int rval = 0;
+
+   branching_joblist* new_job = COLOR_SAFE_MALLOC(1,branching_joblist);
+   COLORcheck_NULL(new_job,"Failed to allocate new_job");
+
+   new_job->cd   = cd;
+   new_job->next = *joblist;
+
+   *joblist = new_job;
+
+ CLEANUP:
+   return rval;
+}
+
+
 static int parallel_branching(COLORNWTHeap* br_heap,
-                              colordata*    root_cd,
                               double*       child_cputimes,
                               COLORNWT      global_upper_bound,
                               double        key_mult)
@@ -2303,6 +2326,7 @@ static int parallel_branching(COLORNWTHeap* br_heap,
    char request, grunt[1024];
    int  i;
    int npending = 0;
+   branching_joblist* joblist = (branching_joblist*) NULL;
 
    *child_cputimes = 0;
 
@@ -2362,9 +2386,14 @@ static int parallel_branching(COLORNWTHeap* br_heap,
             rval = COLORsafe_swrite_char (s, COLOR_BOSS_YES);
             COLORcheck_rval (rval, "COLORsafe_swrite_int failed (YES)");
             
+            cd->status = submitted_for_branching;
             npending++;
             rval = send_colordata(s,cd,include_bestcolors);
             COLORcheck_rval(rval,"Failed to create_branches");
+
+            rval = prepend_to_joblist(&joblist,cd);
+            COLORcheck_rval(rval,"Failed to add_to_joblist");
+            
          } else {
             if (npending) {
                rval = COLORsafe_swrite_char (s, COLOR_BOSS_NO);
@@ -2398,7 +2427,7 @@ static int parallel_branching(COLORNWTHeap* br_heap,
             *child_cputimes += child_cputime;
 
             //  locate cd pointing to cd_id
-            rval = locate_colordata(&cd, root_cd,cd_id);
+            rval = locate_colordata(&cd, &joblist,cd_id);
             COLORcheck_rval(rval, "Failed in locate_colordata");
 
             
@@ -2500,7 +2529,7 @@ int compute_coloring(colordata* root_cd,
    
    if (parallel) {
       double child_cputimes;
-         rval = parallel_branching(br_heap,root_cd,&child_cputimes,
+         rval = parallel_branching(br_heap,&child_cputimes,
                                 global_upper_bound,key_mult);
       COLORcheck_rval(rval,"Failed in parallel_branching");
       branching_rtime += child_cputimes;
