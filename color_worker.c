@@ -62,14 +62,17 @@ static int open_connection(COLOR_SFILE** s,const char* bosshost)
 
 int main (int ac, char **av)
 {
-    int rval = 0;
+    int   rval     = 0;
     char* bosshost = (char *) NULL;
-    char task, myname[256];
+    char  task;
+    char myname[MAX_PNAME_LEN],my_hostname[MAX_PNAME_LEN];
+    pid_t my_pid   = getpid();
     colordata   root_cdata;
     colordata*  root_cd = &root_cdata;
     COLOR_SFILE *s = (COLOR_SFILE *) NULL;
     double cputime = COLORcpu_time();
     COLORset_dbg_lvl(-1);
+
 
     if (ac != 2) {
         usage (av[0]);
@@ -78,9 +81,14 @@ int main (int ac, char **av)
 
     bosshost = av[1];
 
-    rval = gethostname (myname, 127);
+    rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
     COLORcheck_rval (rval, "gethostname failed");
-    printf ("Machine Name: %s\n", myname);  fflush (stdout);
+
+    printf ("Machine Name: %s pid: %lld\n", my_hostname,(long long) my_pid);
+    fflush (stdout);
+
+    snprintf(myname,MAX_PNAME_LEN, "%s:%lld",
+             my_hostname, (long long) my_pid);
 
     while (1) {
        int include_bestcolors = 0;
@@ -133,7 +141,7 @@ int main (int ac, char **av)
        rval = open_connection(&s, bosshost);
        COLORcheck_rval(rval,"open_connection failed.");
 
-       printf ("Send boss the completed problem %d\n", root_cd->id);
+       printf ("Send the completed problem %d to boss\n", root_cd->id);
        fflush (stdout);
 
        rval = COLORsafe_swrite_string (s, myname);

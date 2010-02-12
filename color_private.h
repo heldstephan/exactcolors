@@ -7,7 +7,7 @@
 
 
 typedef struct colordata colordata;
-#define MAX_PNAME_LEN 256
+#define MAX_PNAME_LEN 128
 
 struct colordata {
 
@@ -16,10 +16,11 @@ struct colordata {
    int depth;
 
    enum {
-      initialized        = 0,
-      LP_bound_estimated = 1,
-      LP_bound_computed  = 2,
-      finished           = 3,
+      initialized              = 0,
+      LP_bound_estimated       = 1,
+      LP_bound_computed        = 2,
+      submitted_for_branching  = 3,
+      finished                 = 4,
    } status;
 
    
