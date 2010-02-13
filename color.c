@@ -2191,19 +2191,23 @@ static int insert_into_branching_heap(COLORNWTHeap* heap, colordata* cd, double 
       print_graph_operations(cd);
    }
 
-/*    if (cd->lower_bound < cd->upper_bound) { */
+   if (cd->lower_bound < cd->upper_bound) {
       COLORcheck_rval(rval,"Failed in compute_lower_bound (cd);");
       rval = COLORNWTheap_insert(heap,&dummy_href,
                                  heap_key,
                                  (void*) cd);
       COLORcheck_rval(rval, "Failed to COLORNWTheap_insert");
-/*    } else { */
-/*       cd->status = finished; */
-/*       remove_finished_subtree(cd); */
-/*    } */
+   } else {
+      cd->status = finished;
+      printf("Skipping  with lb %d (%f) and ub %d at depth %d (id = %d, "
+             "opt_track = %d, unprocessed nodes = %d) (insertion).\n",
+             cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
+             cd->depth,
+             cd->id, cd->opt_track,COLORNWTheap_size(heap) );
+   }
 
-      rval = trigger_lb_changes(cd);
-      COLORcheck_rval(rval,"Failed in trigger_lb_changes");
+   rval = trigger_lb_changes(cd);
+   COLORcheck_rval(rval,"Failed in trigger_lb_changes");
 
  CLEANUP:
    return rval;
@@ -2460,10 +2464,7 @@ static int parallel_branching(COLORNWTHeap* br_heap,
                   global_upper_bound = cd->upper_bound;
                   
                }
-               if (! (cd->nsame || cd->ndiff)) {
-                  /* assert(cd->status == finished); */
-                  remove_finished_subtree(cd);
-               }
+               remove_finished_subtree(cd);
             }
          }
          break;
