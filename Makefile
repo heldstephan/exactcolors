@@ -22,7 +22,7 @@ color: $(CBOSSFILES)
 	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(GULIB) -lm -lpthread $(SEWELL_LIB)
 
 color_worker: $(CWORKERFILES)
-	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(GULIB) -lm -lpthread
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(GULIB) -lm -lpthread $(SEWELL_LIB)
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(GULIB) -lm -lpthread
