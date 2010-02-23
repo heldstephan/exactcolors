@@ -391,7 +391,7 @@ static int build_LP(soldata*  sol)
    rval = COLORlp_init (&(sol->lp), "GreedyLP");
    COLORcheck_rval(rval,"Failed in COLORlp_init for \"GreedyLP\"");
 
-   rval =  COLORlp_objective_sense (sol->lp, -1);
+   rval =  COLORlp_objective_sense (sol->lp, COLORlp_MAX);
    COLORcheck_rval(rval,"Failed in COLORlp_objective_sense");
 
    for (i = 0; i < ncount; i++) {

@@ -20,7 +20,12 @@
 #include <math.h>
 #include "lp.h"
 #include "color.h"
+#include <gurobi_c.h>
 
+struct COLORlp {
+    GRBenv *env;
+    GRBmodel *model;
+};
 
 const double int_tolerance = 0.00001;
 
@@ -144,8 +149,21 @@ int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
        char sense, double rhs, char *name) 
 {
     int rval = 0;
+    char isense;
 
-    rval = GRBaddconstr (p->model, nzcount, cind, cval, sense, rhs, name); 
+    switch (sense) {
+    case COLORlp_EQUAL: 
+        isense = GRB_EQUAL; break;
+    case COLORlp_LESS_EQUAL:    
+        isense = GRB_LESS_EQUAL; break;
+    case COLORlp_GREATER_EQUAL:    
+        isense = GRB_GREATER_EQUAL; break;
+    default: 
+        fprintf (stderr, "unknown variable sense: %c\n", sense);
+        rval = 1;  goto CLEANUP;
+    }
+
+    rval = GRBaddconstr (p->model, nzcount, cind, cval, isense, rhs, name); 
     COLORcheck_rval_grb (rval, "GRBaddconstr failed", p->env);
     rval = GRBupdatemodel (p->model);
     COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
@@ -156,11 +174,24 @@ CLEANUP:
 }
 
 int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval, 
-       double obj, double lb, double ub, char vartype, char *name) 
+       double obj, double lb, double ub, char sense, char *name) 
 {
     int rval = 0;
+    char isense;
 
-    rval = GRBaddvar (p->model, nzcount, cind, cval, obj, lb, ub, vartype,
+    switch (sense) {
+    case COLORlp_CONTINUOUS: 
+        isense = GRB_CONTINUOUS; break;
+    case COLORlp_BINARY:    
+        isense = GRB_BINARY; break;
+    case COLORlp_INTEGER:    
+        isense = GRB_INTEGER; break;
+    default: 
+        fprintf (stderr, "unknown variable sense: %c\n", sense);
+        rval = 1;  goto CLEANUP;
+    }
+
+    rval = GRBaddvar (p->model, nzcount, cind, cval, obj, lb, ub, isense,
                       name); 
     COLORcheck_rval_grb (rval, "GRBaddvar failed", p->env);
     rval = GRBupdatemodel (p->model);
@@ -243,13 +274,27 @@ CLEANUP:
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
 {
-   int nvars,i;
-   int rval= GRBgetintattr(p->model,GRB_INT_ATTR_NUMVARS,&nvars);
+   int nvars,i, rval = 0;
+   char isense;
+
+   switch (sense) {
+   case COLORlp_CONTINUOUS: 
+       isense = GRB_CONTINUOUS; break;
+   case COLORlp_BINARY:    
+       isense = GRB_BINARY; break;
+   case COLORlp_INTEGER:    
+       isense = GRB_INTEGER; break;
+   default: 
+       fprintf (stderr, "unknown variable sense: %c\n", sense);
+       rval = 1;  goto CLEANUP;
+   }
+
+   rval= GRBgetintattr(p->model,GRB_INT_ATTR_NUMVARS,&nvars);
    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_NUMVARS failed",
                         p->env);
    
    for (i = 0; i < nvars; i++) {
-      rval = GRBsetcharattrelement(p->model,GRB_CHAR_ATTR_VTYPE,i,sense);
+      rval = GRBsetcharattrelement(p->model,GRB_CHAR_ATTR_VTYPE,i,isense);
       COLORcheck_rval_grb (rval, "GRBsetintattrelement GRB_CHAR_ATTR_VTYPE failed",
                            p->env);
    }

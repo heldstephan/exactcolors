@@ -338,9 +338,11 @@ int COLORstable_wrapper(MWISenv** env,
 
 
          sprintf(filename,"%s.mwis.%d.lp",(*env)->pname,it);
+#ifdef USE_GUROBI
          COLORstable_write_mps(filename,
                                ncount, ecount, elist,
                                nweights,cutoff);
+#endif
       }
 
 
@@ -391,8 +393,10 @@ int COLORstable_freeenv(MWISenv** env)
    if (*env) {
       grb_rval = COLORstable_free_ls_env(&(*env)->ls_env);
       if(ls_rval) printf("COLORstable_free_ls_env failed.");
+#ifdef USE_GUROBI
       ls_rval  = COLORstable_free_grb_env(&(*env)->grb_env);
       if(grb_rval) printf("COLORstable_free_grb_env failed.");
+#endif
 
       free(*env);
       *env = (MWISenv*) NULL;
