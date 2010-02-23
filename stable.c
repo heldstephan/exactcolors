@@ -372,7 +372,7 @@ static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
 
     rval = COLORlp_init (lp, "stableset");
     COLORcheck_rval (rval, "COLORlp_init failed");
-    rval = COLORlp_objective_sense (*lp, -1);  /* Set to Max */
+    rval = COLORlp_objective_sense (*lp, COLORlp_MAX);  
 
     for (i = 0; i < ncount; i++) {
         w = (double) weights[i];
@@ -408,8 +408,8 @@ static int add_cut_to_lp (COLORlp *lp, stablecut *c)
     COLORcheck_NULL (coef, "out of memory for coef");
     for (i = 0; i < c->count; i++) coef[i] = 1.0;
 
-    rval = COLORlp_addrow (lp, c->count, c->inodes, coef, 'L', rhs,
-                           NULL);
+    rval = COLORlp_addrow (lp, c->count, c->inodes, coef, COLORlp_LESS_EQUAL,
+                           rhs, NULL);
     if (rval) COLORlp_printerrorcode (rval);
     COLORcheck_rval (rval, "COLORlp_addrow failed");
 

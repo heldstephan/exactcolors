@@ -30,7 +30,7 @@ static char *cclasses_infile = (char *) NULL;
 static char *color_infile = (char *) NULL;
 
 static int initial_upper_bound = INT_MAX;
-static int parallel_branching  = 1;
+static int parallel_branching  = 0;
 
 static int get_problem_name(char* pname,const char* efname);
 

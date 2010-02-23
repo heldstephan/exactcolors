@@ -699,10 +699,12 @@ static int write_mwis_instances(colordata* cd)
    if ( (cd->id == 0) && write_mwis) {
       char   mps_fname[256];
 
+#ifdef USE_GUROBI
       sprintf(mps_fname,"%s.mwis.lp",cd->pname);
       rval = COLORstable_write_mps(mps_fname,cd->ncount,cd->ecount,cd->elist,
                                    cd->mwis_pi,cd->mwis_pi_scalef);
       COLORcheck_rval(rval,"Failed in COLORstable_write_mps");
+#endif
 
       sprintf(mps_fname,"%s.mwis.dimacs",cd->pname);
       rval = COLORstable_write_dimacs(mps_fname,cd->ncount,cd->ecount,cd->elist,
@@ -809,7 +811,7 @@ int build_lp(colordata* cd)
     COLORcheck_rval (rval, "COLORlp_init failed");
 
     for (i = 0; i < cd->ncount; i++) {
-       char sense = 'G';
+        char sense = COLORlp_GREATER_EQUAL;
         rval = COLORlp_addrow (cd->lp, 0, (int *) NULL, (double *) NULL, sense,
                                1.0, (char*) NULL);
         COLORcheck_rval (rval, "COLORlp_addrow failed");
@@ -820,8 +822,9 @@ int build_lp(colordata* cd)
     for (i = 0; i < cd->ncount; i++) cd->coef[i] = 1.0;
 
     for (i = 0; i < cd->ccount; i++) {
-       rval = COLORlp_addcol (cd->lp, cd->cclasses[i].count, cd->cclasses[i].members,
-                              cd->coef, 1.0, 0.0, 1.0, COLORlp_CONTINUOUS, (char*) NULL);
+       rval = COLORlp_addcol (cd->lp, cd->cclasses[i].count,
+                    cd->cclasses[i].members, cd->coef, 1.0, 0.0, 1.0,
+                    COLORlp_CONTINUOUS, (char*) NULL);
        if (rval) COLORlp_printerrorcode (rval);
        COLORcheck_rval (rval, "COLORlp_addcol failed");
     }
@@ -858,7 +861,7 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
 
    for (i = 0; i < cd->ncount; ++i) {colored[i] = 0;}
 
-   COLORlp_set_all_coltypes(cd->lp,GRB_BINARY);
+   rval = COLORlp_set_all_coltypes(cd->lp, COLORlp_BINARY);
    COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
 
    COLORlp_write (cd->lp, "lpheur.lp");
@@ -877,7 +880,7 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
 
    grab_integral_solution(cd,colsol,COLORlp_int_tolerance());
 
-   COLORlp_set_all_coltypes(cd->lp,GRB_CONTINUOUS);
+   COLORlp_set_all_coltypes(cd->lp,COLORlp_CONTINUOUS);
    COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
 
    printf ("Found lower bound of %lld and upper bound of %g.\n",
@@ -888,8 +891,9 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
    COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
 
    print_colors(cd->bestcolors,cd->nbestcolors);
- CLEANUP:
-  if (colsol) free(colsol);
+
+CLEANUP:
+   if (colsol) free(colsol);
    if (colored) free(colored);
    return rval;
 }
@@ -2026,7 +2030,7 @@ static int compute_lower_bound(colordata* cd)
                                     cd->ncount, cd->ecount,
                                     cd->elist, cd->mwis_pi,cd->mwis_pi_scalef);
 
-         COLORcheck_rval (rval, "COLORstable_gurobi failed");
+         COLORcheck_rval (rval, "COLORstable_wrapper failed");
 
          for (set_i = 0; set_i < cd->nnewsets; ++set_i) {
             rval = COLORlp_addcol (cd->lp, cd->newsets[set_i].count,

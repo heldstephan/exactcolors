@@ -17,12 +17,7 @@
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <gurobi_c.h>
-
-typedef struct COLORlp {
-    GRBenv *env;
-    GRBmodel *model;
-} COLORlp;
+typedef struct COLORlp COLORlp;
 
 typedef struct COLORlp_warmstart {
     int      rcount;
@@ -35,13 +30,16 @@ typedef struct COLORlp_warmstart {
 int  COLORlp_init (COLORlp **p, const char *name);
 void COLORlp_free (COLORlp **p);
 
-#define COLORlp_CONTINUOUS GRB_CONTINUOUS
-#define COLORlp_BINARY     GRB_BINARY
-#define COLORlp_INTEGER    GRB_INTEGER
+#define COLORlp_CONTINUOUS 0
+#define COLORlp_BINARY     1
+#define COLORlp_INTEGER    2
 
-#define COLORlp_EQUAL         GRB_EQUAL
-#define COLORlp_LESS_EQUAL    GRB_LESS_EQUAL
-#define COLORlp_GREATER_EUQAL GRB_GREATER_EQUAL
+#define COLORlp_EQUAL         'E'
+#define COLORlp_LESS_EQUAL    'L'
+#define COLORlp_GREATER_EQUAL 'G'
+
+#define COLORlp_MIN  1
+#define COLORlp_MAX -1
 
 int COLORlp_optimize (COLORlp *p);
 int COLORlp_objval (COLORlp *p, double *obj);
