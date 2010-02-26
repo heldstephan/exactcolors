@@ -1,6 +1,7 @@
 # Adapt GUPATH to point to your gurobi installation
 # or set the environment variable GUROBI_HOME accordingly
 GUPATH=$(GUROBI_HOME)
+CPLEXPATH=$(CPLEX_HOME)
 QSPATH=/home/fac/bico/QS/work
 
 #LPINCLUDE=$(GUPATH)/include
@@ -9,9 +10,13 @@ QSPATH=/home/fac/bico/QS/work
 #GRBMWIS=mwis_grb.o
 #GUROBI_FLAG=-DUSE_GUROBI
 
-LPINCLUDE=$(QSPATH)
-LPLIB=$(QSPATH)/qsopt.a
-LPSOURCE=lpqsopt.o
+LPINCLUDE=$(CPLEXPATH)/include/ilcplex
+LPLIB=$(CPLEXPATH)/lib/x86-64_debian4.0_4.1/static_pic/libcplex.a
+LPSOURCE=lpcplex.o
+
+#LPINCLUDE=$(QSPATH)
+#LPLIB=$(QSPATH)/qsopt.a
+#LPSOURCE=lpqsopt.o
 
 
 # SEWELL_FLAG=-DHAVE_SEWELL
@@ -59,6 +64,7 @@ heap.o:      heap.c heap.h color_defs.h
 graph.o:     graph.c graph.h color_defs.h
 greedy.o:    greedy.c  color.h graph.h color_defs.h
 lpgurobi.o:  lpgurobi.c color.h lp.h color_defs.h
+lpcplex.o:   lpcplex.c color.h lp.h color_defs.h
 lpqsopt.o:   lpqsopt.c color.h lp.h color_defs.h
 mwis.o:      mwis.c mwis.h color.h color_defs.h
 mwis_grdy.o: mwis_grdy.c color.h graph.h color_defs.h heap.h
