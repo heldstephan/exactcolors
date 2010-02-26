@@ -1,29 +1,35 @@
 # Adapt GUPATH to point to your gurobi installation
 # or set the environment variable GUROBI_HOME accordingly
-GUPATH=$(GUROBI_HOME)
-CPLEXPATH=$(CPLEX_HOME)
-QSPATH=/home/fac/bico/QS/work
+#GUPATH=$(GUROBI_HOME)
+#CPLEXPATH=$(CPLEX_HOME)
+QSPATH=$(QSOPT_HOME)
 
-#LPINCLUDE=$(GUPATH)/include
-#LPLIB=$(GUPATH)/lib/libgurobi.so.2.0.1
-#LPSOURCE=lpgurobi.o
-#GRBMWIS=mwis_grb.o
-#GUROBI_FLAG=-DUSE_GUROBI
+LPINCLUDE=$(QSPATH)
+LPLIB=$(QSPATH)/qsopt.a
+LPSOURCE=lpqsopt.o
 
+ifneq ($(GUPATH),)
+LPINCLUDE=$(GUPATH)/include
+LPLIB=$(GUPATH)/lib/libgurobi.so.2.0.2
+LPSOURCE=lpgurobi.o
+GRBMWIS=mwis_grb.o
+GUROBI_FLAG=-DUSE_GUROBI
+endif
+
+ifneq ($(CPLEXPATH),)
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
 LPLIB=$(CPLEXPATH)/lib/x86-64_debian4.0_4.1/static_pic/libcplex.a
 LPSOURCE=lpcplex.o
+GRBMWIS=
+GUROBI_FLAG=
+endif
 
-#LPINCLUDE=$(QSPATH)
-#LPLIB=$(QSPATH)/qsopt.a
-#LPSOURCE=lpqsopt.o
 
-
-# SEWELL_FLAG=-DHAVE_SEWELL
-# SEWELL_LIB=-L . -lsewell
+SEWELL_FLAG=-DHAVE_SEWELL
+SEWELL_LIB=-L . -lsewell
 
 CC=gcc
-CFLAGS=  -O3  -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE) $(SEWELL_FLAG)
+CFLAGS=  -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE) $(SEWELL_FLAG)
 OBJFILES=color.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
