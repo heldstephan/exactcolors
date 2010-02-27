@@ -902,9 +902,11 @@ CLEANUP:
 
 static void COLORset_SWAP(COLORset *c1,COLORset *c2,COLORset *t)
 {
-   memcpy(t,c2,sizeof(COLORset));
-   memcpy(c2,c1,sizeof(COLORset));
-   memcpy(c1,t,sizeof(COLORset));
+   if (c1 != c2) {
+      memcpy(t,c2,sizeof(COLORset));
+      memcpy(c2,c1,sizeof(COLORset));
+      memcpy(c1,t,sizeof(COLORset));
+   }
 }
 
 static int COLORset_less(COLORset *c1,COLORset *c2)
