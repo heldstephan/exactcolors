@@ -85,3 +85,9 @@ int COLORparms_set_write_mwis(COLORparms* parms,int write_mwis)
    parms->write_mwis = write_mwis;
    return 0;
 }
+
+int COLORparms_set_parallel(COLORparms* parms,int parallel)
+{
+   parms->parallel_branching = parallel;
+   return 0;
+}

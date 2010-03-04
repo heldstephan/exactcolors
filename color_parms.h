@@ -47,6 +47,7 @@ int COLORparms_set_backupdir(COLORparms* parms,       const char* filename);
 
 int COLORparms_set_initial_upper_bound(COLORparms* parms,int bound);
 int COLORparms_set_write_mwis(COLORparms* parms,int write_mwis);
+int COLORparms_set_parallel(COLORparms* parms,int parallel);
 
 
 #endif

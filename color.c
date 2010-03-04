@@ -2257,7 +2257,7 @@ static int sequential_branching(COLORproblem* problem)
    colordata*    cd;
    COLORNWTHeap* br_heap = problem->br_heap;
    
-   printf("ENTERED SEQUENTIAL BRANCHING,\n");
+   printf("ENTERED SEQUENTIAL BRANCHING.\n");
 
    while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) ) {
       int i;
@@ -2381,7 +2381,7 @@ static int parallel_branching(COLORproblem* problem,
 
    *child_cputimes = 0;
 
-   printf("ENTERED PARALLEL BRANCHING,\n");
+   printf("ENTERED PARALLEL BRANCHING, waiting for workers.\n");
 
    lport = COLORsafe_snet_listen (COLOR_BOSS_PORT);
    if (lport == (COLOR_SPORT *) NULL) {
