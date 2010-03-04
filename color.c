@@ -42,6 +42,9 @@
 #include "color_private.h"
 
 static int debug = 0;
+/* 'double integral_incumbent_tolerance' is used only in an assertion,
+   but not in actually performing code.*/
+static const double integral_incumbent_tolerance = 10e-10;
 
 typedef struct branching_joblist branching_joblist;
 struct branching_joblist {
@@ -1569,7 +1572,8 @@ static int grab_integral_solution(colordata* cd,
 
    printf("Intermediate coloring:\n");
    print_colors(cd->bestcolors,cd->nbestcolors);
-   assert(cd->nbestcolors == (int) ceil(incumbent));
+   assert(fabs ((double)cd->nbestcolors -  incumbent) <= 
+          integral_incumbent_tolerance );
 
    if (cd->nbestcolors < cd->upper_bound) {
       cd->upper_bound = cd->nbestcolors;
@@ -1603,11 +1607,11 @@ static void inodepair_ref_key(int* v1, int* v2,int index)
    *v1 = index - (*v2 * (*v2 -1) / 2);
 }
 
-static int insert_fractional_pairs_to_heap(colordata* cd, const double x[],
-                                           int*          nodepair_refs,
-                                           double*       nodepair_weights,
-                                           int           npairs,
-                                           COLORNWTHeap* heap)
+static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
+                                             int*          nodepair_refs,
+                                             double*       nodepair_weights,
+                                             int           npairs,
+                                             COLORNWTHeap* heap)
 {
    int rval = 0;
    int i;
@@ -1615,7 +1619,7 @@ static int insert_fractional_pairs_to_heap(colordata* cd, const double x[],
 
    for (i = 0; i < cd->ccount; ++i) {
       int j;
-      if (x[i] <= 0.0 || x[i] >= 1.0 ) {continue;}
+      if (x[i] <= 0.0 || x[i] >= 1 ) {continue;}
       for (j = 0; j < cd->cclasses[i].count; ++j) {
          int v1 = cd->cclasses[i].members[j];
          int k;
@@ -1766,10 +1770,10 @@ int create_branches(colordata* cd,COLORproblem* problem)
    rval = COLORlp_x(cd->lp,x);
    COLORcheck_rval(rval,"Failed in COLORlp_x");
 
-   rval = insert_fractional_pairs_to_heap(cd, x,nodepair_refs,
-                                          nodepair_weights,npairs,
-                                          cand_heap);
-   COLORcheck_rval(rval, "Failed in insert_fractional_paris_to_heap");
+   rval = insert_fractional_pairs_into_heap(cd, x,nodepair_refs,
+                                            nodepair_weights,npairs,
+                                            cand_heap);
+   COLORcheck_rval(rval, "Failed in insert_fractional_paris_into_heap");
 
    if (COLORNWTheap_size(cand_heap) == 0) {
       printf("LP returned integral solution.\n");
@@ -2646,7 +2650,7 @@ int compute_coloring(COLORproblem* problem)
       COLORcheck_rval(rval,"Failed in parallel_branching");
       branching_rtime += child_cputimes;
    } else {
-      sequential_branching(problem);
+      rval = sequential_branching(problem);
       COLORcheck_rval(rval,"Failed in sequential_branching");
    }
    branching_rtime += COLORcpu_time();

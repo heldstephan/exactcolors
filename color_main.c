@@ -139,7 +139,7 @@ int main (int ac, char **av)
 {
     int rval = 0;
     int i;
-    double start_time;
+    double  start_time = COLORcpu_time();
     double tot_rtime;
 
     
@@ -179,7 +179,6 @@ int main (int ac, char **av)
        cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
        COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
        for (i = 0; i < cd->ncount; ++i) {cd->orig_node_ids[i] = i;}
-       start_time = COLORcpu_time();
 
        if (parms->cclasses_infile != (char*) NULL) {
           rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
