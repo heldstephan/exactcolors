@@ -22,15 +22,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "color_parms.h"
 #include "color_private.h"
-
-static char *edgefile = (char *) NULL;
-static char *outfile = (char *) NULL;
-static char *cclasses_infile = (char *) NULL;
-static char *color_infile = (char *) NULL;
-
-static int initial_upper_bound = INT_MAX;
-static int parallel_branching  = 0;
 
 static int get_problem_name(char* pname,const char* efname);
 
@@ -38,6 +31,7 @@ static void usage (char *f)
 {
     fprintf (stderr, "Usage %s: [-see below-] edge_file\n", f);
     fprintf (stderr, "   -d    turn on debugging\n");
+    fprintf (stderr, "   -b d  write intermediate solutions to directory d\n");
     fprintf (stderr, "   -o f  write coloring to file f\n");
     fprintf (stderr, "   -m    write final stable set and clique instances\n");
     fprintf (stderr, "   -r f  read initial stable sets from file f\n");
@@ -47,37 +41,47 @@ static void usage (char *f)
 }
 
 
-static int parseargs (int ac, char **av)
+static int parseargs (int ac, char **av, COLORparms* parms)
 {
     int c;
     int rval = 0;
     int debug = COLORdbg_lvl();
 
-    while ((c = getopt (ac, av, "dmo:r:w:c:u:")) != EOF) {
+    while ((c = getopt (ac, av, "dmo:r:w:c:u:b:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
-           ++debug;
+           ++(debug);
            COLORset_dbg_lvl(debug);
            break;
         case 'o':
-           outfile = optarg;
+           rval = COLORparms_set_outfile(parms,optarg);
+           COLORcheck_rval(rval,"Failed in COLORparms_set_outfile");
            break;
         case 'm':
-           COLORset_write_mwis(1);
+           COLORparms_set_write_mwis(parms,1);
            break;
         case 'r':
-           cclasses_infile = optarg;
+           rval = COLORparms_set_cclasses_infile(parms,optarg);
+           COLORcheck_rval(rval,"Failed in COLORparms_set_cclasses_infile");
            break;
         case 'w':
-           COLORset_cclasses_outfile(optarg);
+           rval = COLORparms_set_cclasses_outfile(parms,optarg);
+           COLORcheck_rval(rval,"Failed in COLORparms_set_cclasses_outfile");
            break;
         case 'c':
-           color_infile = optarg;
+           rval = COLORparms_set_color_infile(parms,optarg);
+           COLORcheck_rval(rval,"Failed in COLORparms_set_color_infile");
            break;
         case 'u':
-           initial_upper_bound = atoi(optarg);
+           rval = COLORparms_set_initial_upper_bound(parms,atoi(optarg));
+           COLORcheck_rval(rval,"Failed in COLORparms_set_initial_upper_bound");
+
            break;
+	case 'b':
+           rval = COLORparms_set_backupdir(parms,optarg);
+           COLORcheck_rval(rval,"Failed in COLORparms_set_backupdir");
+	   break;
         default:
            usage (av[0]);
            rval = 1;  goto CLEANUP;
@@ -87,13 +91,14 @@ static int parseargs (int ac, char **av)
     if (ac <= optind) {
         rval = 1; goto CLEANUP;
     } else {
-       edgefile = av[optind++];
+       rval =  COLORparms_set_edgefile(parms,av[optind++]);
+       COLORcheck_rval(rval,"Failed in COLORparms_set_edgefile");
     }
 
 CLEANUP:
 
     if (rval) usage (av[0]);
-    return rval;
+return  (rval);
 }
 
  static int get_problem_name(char* pname,const char* efname)
@@ -131,82 +136,95 @@ int main (int ac, char **av)
     double start_time;
     double tot_rtime;
 
-    colordata  _colordata;
-    colordata* cd = &_colordata;
+    
+    COLORproblem colorproblem;
+    COLORparms* parms = &(colorproblem.parms);
+    colordata*  cd = &(colorproblem.root_cd);
 
 
     COLORset*  debugcolors = (COLORset*) NULL;
-    int       ndebugcolors = 0;
+    int        ndebugcolors = 0;
 
 
-    init_colordata(cd);
-
-    rval = parseargs (ac, av);
+    COLORproblem_init(&colorproblem);
+    cd->id = 0;
+    colorproblem.ncolordata = 1;
+    
+    rval = parseargs (ac, av,parms);
     if (rval) goto CLEANUP;
 
-    cd->upper_bound = initial_upper_bound;
-    get_problem_name(cd->pname,edgefile);
+    cd->upper_bound = parms->initial_upper_bound;
+    get_problem_name(cd->pname,parms->edgefile);
 
 
     if (COLORdbg_lvl() > 1) printf ("Debugging turned on\n");
-    if (outfile) printf ("Output File: %s\n", outfile);
+/*     if (parms->outfile)      printf ("Output File: %s\n", parms->outfile); */
     fflush (stdout);
 
 
-    rval = COLORread_dimacs (edgefile, &(cd->ncount), &(cd->ecount),
+    rval = COLORread_dimacs (parms->edgefile, &(cd->ncount), &(cd->ecount),
                              &(cd->elist), (int **) NULL);
     COLORcheck_rval (rval, "COLORread_diamcs failed");
-    cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
-    COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
-    for (i = 0; i < cd->ncount; ++i) {cd->orig_node_ids[i] = i;}
-    start_time = COLORcpu_time();
 
-    if (cclasses_infile != (char*) NULL) {
-       rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
-                                           cd->ncount,cclasses_infile,cd->pname);
-       COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-    } else {
-       rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
-                           &(cd->ccount), &(cd->cclasses));
-       COLORcheck_rval (rval, "COLORgreedycd failed");
+    if (COLORget_backupdir()) {
+       rval = recover_colordata(cd,&colorproblem);
+    } 
+    if (cd->status == initialized) {
+       cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
+       COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
+       for (i = 0; i < cd->ncount; ++i) {cd->orig_node_ids[i] = i;}
+       start_time = COLORcpu_time();
 
-       /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
-       printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
-       print_colors(cd->cclasses,cd->ccount);
-       COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
-                      cd->cclasses,cd->ccount);
-       cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
+       if (parms->cclasses_infile != (char*) NULL) {
+          rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
+                                              cd->ncount,parms->cclasses_infile,cd->pname);
+          COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
+       } else {
+          rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
+                              &(cd->ccount), &(cd->cclasses));
+          COLORcheck_rval (rval, "COLORgreedycd failed");
+
+          /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
+          printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
+          print_colors(cd->cclasses,cd->ccount);
+          COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
+                         cd->cclasses,cd->ccount);
+          cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
+          colorproblem.global_upper_bound = cd->upper_bound;
+       }
+
+       if (parms->color_infile != (char*) NULL) {
+          rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
+                                              cd->ncount,parms->color_infile,cd->pname);
+          COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
+          rval = COLORcheck_coloring(debugcolors,ndebugcolors,cd->ncount,
+                                     cd->ecount,cd->elist);
+          COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
+          cd->debugcolors = debugcolors;
+          cd->ndebugcolors = ndebugcolors;
+          cd->opt_track = 1;
+       }
     }
 
-    if (color_infile != (char*) NULL) {
-       rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
-                                           cd->ncount,color_infile,cd->pname);
-       COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-       rval = COLORcheck_coloring(debugcolors,ndebugcolors,cd->ncount,
-                           cd->ecount,cd->elist);
-       COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
-       cd->debugcolors = debugcolors;
-       cd->ndebugcolors = ndebugcolors;
-       cd->opt_track = 1;
-    }
-
-
-    rval = compute_coloring(cd,parallel_branching);
+    rval = compute_coloring(&colorproblem);
     COLORcheck_rval(rval, "Failed to compute_coloring");
 
     if (cd->nbestcolors == cd->upper_bound) {
        printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
        print_colors(cd->bestcolors,cd->nbestcolors);
     } else {
-       assert(cd->upper_bound == initial_upper_bound);
-       printf("Lower bound reached predefined upper bound %d.\n",initial_upper_bound);
+       assert(cd->upper_bound == parms->initial_upper_bound);
+       printf("Lower bound reached predefined upper bound %d.\n",
+              parms->initial_upper_bound);
     }
     tot_rtime = COLORcpu_time() - start_time;
     printf("Computing coloring took %f seconds.\n",tot_rtime);
 
 
 CLEANUP:
+    COLORproblem_free(&colorproblem);
+
     if (debugcolors) free (debugcolors);
-    free_colordata(cd);
+
     return rval;
 }

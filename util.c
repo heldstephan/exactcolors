@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 
 #include "color.h"
 
@@ -45,6 +46,25 @@ void COLORutil_freerus (void *p)
     }
     free (p);
 }
+
+int COLORfile_exists(const char* filename)
+{
+   FILE * file = fopen(filename, "r");
+   if (file)
+   {
+      fclose(file);
+      return 1;
+   }
+   return 0;
+}
+
+int COLORdir_exists(const char* dirname)
+{
+   struct stat st;
+
+   return (stat(dirname,&st) == 0);
+}
+
 
 
 /****************************************************************************/
@@ -224,3 +244,4 @@ int COLORcopy_sets (COLORset **s,int *nsets,
  CLEANUP:
    return rval;
 }
+

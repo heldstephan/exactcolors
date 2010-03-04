@@ -275,8 +275,8 @@ int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;
 
-    rval = QSwrite_prob_file (p->p, fname, "LP");
-    COLORcheck_rval (rval, "QSwrite_prob_file failed");
+    rval = QSwrite_prob (p->p, fname, "LP");
+    COLORcheck_rval (rval, "QSwrite_prob failed");
 
 CLEANUP:
 
