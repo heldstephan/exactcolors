@@ -2221,7 +2221,8 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    /** We use the lower bound adjusted by the depth of a node as a
        heap key.  The idea behind this is: in case of equal bounds
        deeper nodes should be preferred to potentially improve the
-       upper bound faster.
+       upper bound faster. Also we prefer same-branches over diff-branches
+       by subtracting cd->id % 2.
     */
    COLORNWT heap_key = 
       (COLORNWT) (cd->dbl_est_lower_bound * problem->key_mult) - cd->depth - cd->id % 2;
@@ -2478,7 +2479,6 @@ static int parallel_branching(COLORproblem* problem,
 
             free_temporary_data(cd);
             rval = receive_colordata (s, cd,adopt_id,include_bestcolors,problem);
-            printf("Received data with ndiff = %d.\n",cd -> ndiff);
             npending--;
             if (rval) {
                fprintf (stderr, "receive_result failed - abort connection\n");
