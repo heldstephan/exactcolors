@@ -37,6 +37,7 @@ static void usage (char *f)
     fprintf (stderr, "   -r f  read initial stable sets from file f\n");
     fprintf (stderr, "   -w f  write stable sets from file f\n");
     fprintf (stderr, "   -c f  read initial coloring from file f\n");
+    fprintf (stderr, "   -p    start boss of parallel coloring\n");
     fprintf (stderr, "   -u int  initial upper bound f\n");
 }
 
@@ -47,7 +48,7 @@ static int parseargs (int ac, char **av, COLORparms* parms)
     int rval = 0;
     int debug = COLORdbg_lvl();
 
-    while ((c = getopt (ac, av, "dmo:r:w:c:u:b:")) != EOF) {
+    while ((c = getopt (ac, av, "dmpo:r:w:c:u:b:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
@@ -75,6 +76,11 @@ static int parseargs (int ac, char **av, COLORparms* parms)
            break;
         case 'u':
            rval = COLORparms_set_initial_upper_bound(parms,atoi(optarg));
+           COLORcheck_rval(rval,"Failed in COLORparms_set_initial_upper_bound");
+
+           break;
+        case 'p':
+           rval = COLORparms_set_parallel(parms,1);
            COLORcheck_rval(rval,"Failed in COLORparms_set_initial_upper_bound");
 
            break;
