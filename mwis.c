@@ -316,9 +316,10 @@ int COLORstable_wrapper(MWISenv** env,
                                        nweights,cutoff);
             COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
          }
-         rval = COLORstable_round_down_weights((*env)->ls_env,
-                                               nweights,cutoff);
       }
+
+      rval = COLORstable_round_down_weights((*env)->ls_env,
+                                            nweights,cutoff);
 
       if( (*env)->write_mwis) {
          char filename [256];
