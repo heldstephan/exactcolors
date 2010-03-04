@@ -5,6 +5,8 @@
 #include "lp.h"
 #include "mwis.h"
 
+#include "heap.h"
+#include "color_parms.h"
 
 typedef struct colordata colordata;
 #define MAX_PNAME_LEN 128
@@ -23,7 +25,7 @@ struct colordata {
       finished                 = 4,
    } status;
 
-   
+
    /* The instance graph */
    int ncount;
    int ecount;
@@ -73,28 +75,57 @@ struct colordata {
    char             pname[MAX_PNAME_LEN];
 };
 
+struct COLORproblem {
+   COLORparms    parms;
+   int           ncolordata;
+   colordata     root_cd;
+   COLORNWTHeap* br_heap;
+   double        key_mult;
+   COLORNWT      global_upper_bound;
+};
+
 void init_colordata(colordata* cd);
+
+int set_id_and_name(colordata*  cd, 
+                    int         id,
+                    const char* name);
+
+int init_unique_colordata(colordata*  cd, 
+                          int         id,
+                          const char* name);
 
 int build_lp(colordata* cd);
 
 void free_lbcolordata(colordata* cd);
-
+void free_children_data(colordata* cd);
 void free_colordata(colordata* cd);
 
-int create_branches(colordata* cd);
+int create_branches(colordata* cd, COLORproblem* problem);
 
 int send_colordata(COLOR_SFILE *s, colordata* cd, int include_best);
 
-int receive_colordata(COLOR_SFILE *s, colordata* cd, 
-                      int adopt_id,int include_best);
+int receive_colordata(COLOR_SFILE *s, colordata* cd,
+                      int adopt_id,int include_best,
+                      COLORproblem* problem);
 
-int compute_coloring(colordata* root_cd,int parallel);
+int compute_coloring(COLORproblem* problem);
 
 int print_colors(COLORset* cclasses, int ccount);
 
 void COLORset_dbg_lvl(int dbglvl);
 
 void COLORset_cclasses_outfile(char* outfile);
+
+void COLORset_backupdir(char* backupdir);
+
+const char* COLORget_backupdir(void );
+
+int recover_colordata(colordata* cd,COLORproblem* problem);
+
+int backup_colordata(colordata* cd);
+
+int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp);
+
 
 void COLORset_write_mwis(int write_mwis);
 

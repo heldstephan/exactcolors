@@ -19,7 +19,12 @@
 
 #include <stdio.h>
 #include <limits.h>
+#ifndef COMPILE_FOR_VALGRIND
 #include <fenv.h>
+#else 
+#include <float.h>
+#include <math.h>
+#endif
 
 #ifdef __GNUC__
     #define COLOR_MAYBE_UNUSED __attribute__((used))
@@ -35,6 +40,9 @@ double COLORcpu_time (void);
 
 void *COLORutil_allocrus (size_t size);
 void  COLORutil_freerus (void *p);
+
+int COLORfile_exists(const char* filename);
+int COLORdir_exists(const char* dirname);
 
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
@@ -55,6 +63,14 @@ void  COLORutil_freerus (void *p);
        fflush(stdout);                                                     \
        fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
        goto CLEANUP;                                                       \
+    }                                                                      \
+}
+
+#define COLORcheck_fileio(rval,msg) {                                      \
+    if (prval < 0) {                                                       \
+       fflush(stdout);                                                     \
+       fprintf (stderr, "%s at %s, line %d\n", (msg),__FILE__,__LINE__);   \
+       rval = 1; goto CLEANUP;                   			   \
     }                                                                      \
 }
 
@@ -106,6 +122,7 @@ COLOR_MAYBE_UNUSED static inline COLORNWT COLORNWTmin(COLORNWT a,COLORNWT b)
       return a < b ? a : b;
 }
 
+#ifndef COMPILE_FOR_VALGRIND
 COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
 {
    double result;
@@ -121,6 +138,23 @@ COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT
    fesetround(oldround);
    return result;
 }
+#else
+COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
+{
+   double result;
+   double denom_mult;
+   denom_mult = denominator;
+   denom_mult = nextafter(denom_mult, DBL_MAX);
+
+   denom_mult = 1 / denom_mult;
+   denom_mult = nextafter(denom_mult, -DBL_MAX);
+
+   result = (double) numerator * denom_mult;
+   result = nextafter(result, -DBL_MAX);
+
+   return result;
+}
+#endif
 
 COLOR_MAYBE_UNUSED static double COLORunsafe_dbl(COLORNWT numerator,COLORNWT denominator)
 {

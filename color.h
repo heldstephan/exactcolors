@@ -26,6 +26,9 @@ typedef struct COLORset {
     struct COLORset *next;
 } COLORset;
 
+
+typedef struct COLORproblem COLORproblem;
+
 #define COLOR_PRANDMAX 1000000007
 
 typedef struct COLORrandstate {
@@ -36,6 +39,9 @@ typedef struct COLORrandstate {
 
 
 int COLORdbg_lvl(void);
+
+void COLORproblem_init(COLORproblem* problem);
+void COLORproblem_free(COLORproblem* problem);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses);

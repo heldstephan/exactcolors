@@ -302,9 +302,6 @@ int COLORstable_wrapper(MWISenv** env,
       if (COLORdbg_lvl() > 0) { printf("Greedy took %f seconds\n",rtime);}
    }
 
-   /* Uncomment to enforce gurobi.*/
-/*    COLORfree_sets(newsets,nnewsets); */
-
    if (*nnewsets) {
       ( *env)->ngreedy_fails = 0;
    } else {
@@ -525,6 +522,7 @@ int COLOR_double2COLORNWT(COLORNWT nweights[],
    return 0;
 }
 
+#ifndef COMPILE_FOR_VALGRIND
 int COLOR_COLORNWT2double(double         dbl_nweights[],
                           const COLORNWT nweights[],
                           COLORNWT       divider,
@@ -549,6 +547,29 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
 
    return 0;
 }
+#else
+int COLOR_COLORNWT2double(double         dbl_nweights[],
+                          const COLORNWT nweights[],
+                          COLORNWT       divider,
+                          int            ncount)
+{
+   int    i;
+ 
+   double div_multiplier = (double) divider;
+   div_multiplier = nextafter(div_multiplier,-DBL_MAX);
+   div_multiplier = 1 / div_multiplier;
+   div_multiplier = nextafter(div_multiplier, DBL_MAX);
+
+   assert(divider > 0);
+
+   for (i = 0; i < ncount;++i) {
+      dbl_nweights[i] = ((double) nweights[i]) * div_multiplier  + DBL_EPSILON;
+      dbl_nweights[i] = nextafter(dbl_nweights[i],DBL_MAX);
+   }
+
+   return 0;
+}
+#endif
 
 int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
                                  int ncount,
