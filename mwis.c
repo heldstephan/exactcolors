@@ -234,12 +234,13 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
          }
       }
    } else {
-      printf("BEST SET ");
-      for (i = 0; i < (*newsets)->count;++i) {
-         printf(" %d",(*newsets)->members[i]);
+      if (COLORdbg_lvl() > 0) {
+         printf("BEST SET ");
+         for (i = 0; i < (*newsets)->count;++i) {
+            printf(" %d",(*newsets)->members[i]);
+         }
+         printf("\n");
       }
-      printf("\n");
-
       COLORfree_sets(newsets,nnewsets);
    }
 
