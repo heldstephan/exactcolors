@@ -17,7 +17,7 @@
 # Adapt GUPATH to point to your gurobi installation
 # or set the environment variable GUROBI_HOME accordingly
 #GUPATH=$(GUROBI_HOME)
-#CPLEXPATH=$(CPLEX_HOME)
+CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 LPINCLUDE=$(QSPATH)

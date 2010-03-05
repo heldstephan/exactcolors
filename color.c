@@ -808,7 +808,6 @@ int build_lp(colordata* cd)
        rval = COLORlp_write (cd->lp, "look.lp");
        COLORcheck_rval (rval, "COLORlp_write failed");
     }
-    printf("REALLOCATING CD->PI OF SIZE %d.\n", cd->ncount);
     cd->pi = (double *) realloc (cd->pi,cd->ncount * sizeof (double));
     COLORcheck_NULL (cd->pi, "out of memory for pi");
  CLEANUP:
@@ -2070,13 +2069,13 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
 
       lb_rtime = COLORcpu_time() - lb_rtime;
       cd->status = LP_bound_computed;
-      if (COLORdbg_lvl()>=0) {
+      if (COLORdbg_lvl()> 0) {
          printf("Computing initial lower bound took %f seconds.\n",lb_rtime);
       }
    } else {
       lb_rtime = COLORcpu_time() - lb_rtime;
       cd->status = LP_bound_estimated;
-      if (COLORdbg_lvl()>=0) {
+      if (COLORdbg_lvl()> 0) {
          printf("Computing estimated lower bound took %f seconds.\n",lb_rtime);
       }
    }

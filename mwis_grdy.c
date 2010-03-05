@@ -343,8 +343,8 @@ static int add_zero_weigthed(soldata* sol)
    for (i = 0; i < nnodes; ++i) {
       int v = sol->sort_work[i];
       if (sol->nweights[v] != 0) {
-         printf ("Failed to add vertex %d with weight %f upfront.\n",
-                 v,COLORunsafe_dbl(sol->nweights[v],sol->cutoff));
+/*          printf ("Failed to add vertex %d with weight %f upfront.\n", */
+/*                  v,COLORunsafe_dbl(sol->nweights[v],sol->cutoff)); */
       }
       changes += add_iff_free(sol,v);
    }
