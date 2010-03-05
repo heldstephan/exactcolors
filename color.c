@@ -2227,8 +2227,19 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
        upper bound faster. Also we prefer same-branches over diff-branches
        by subtracting cd->id % 2.
     */
-   COLORNWT heap_key = 
-      (COLORNWT) (cd->dbl_est_lower_bound * problem->key_mult) - cd->depth - cd->id % 2;
+   COLORNWT heap_key = 0;
+   switch (problem->parms.branching_strategy) {
+   case COLOR_dfs_strategy:
+      heap_key = (COLORNWT) (cd->dbl_est_lower_bound) 
+	 - cd->depth * 10000
+	 - cd->id % 2;
+      break;
+   case COLOR_min_lb_strategy:
+   default:
+      heap_key = (COLORNWT) (cd->dbl_est_lower_bound * problem->key_mult) 
+	 - cd->depth
+	 - cd->id % 2;
+   }
 
    if (COLORdbg_lvl() > 1) {
       printf("Inserting into branching heap with lb %d (%f) and ub %d at depth %d (id = %d):\n",
