@@ -17,11 +17,17 @@
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+enum COLORBranchingStrategy {
+   COLOR_min_lb_strategy = 1,
+   COLOR_dfs_strategy    = 2
+};
+
 typedef struct COLORparms {
    int      write_mwis;
    int      initial_upper_bound;
    int      parallel_branching;
    int      branch_with_same_sequence;
+   int      branching_strategy;
 
    char *edgefile;
    char *outfile;

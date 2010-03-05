@@ -23,12 +23,15 @@
 
 #include "color_parms.h"
 
+
 void COLORparms_init(COLORparms* parms)
 {
    parms->write_mwis                = 0;
    parms->branch_with_same_sequence = 0;
    parms->initial_upper_bound       = INT_MAX;
    parms->parallel_branching        = 0;
+   parms->branching_strategy        = COLOR_min_lb_strategy;
+   /* parms->branching_strategy        = COLOR_dfs_strategy; */
 
 
    parms->edgefile                  = (char*) NULL;    
@@ -108,3 +111,5 @@ int COLORparms_set_parallel(COLORparms* parms,int parallel)
    parms->parallel_branching = parallel;
    return 0;
 }
+
+

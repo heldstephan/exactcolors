@@ -309,14 +309,12 @@ int COLORstable_wrapper(MWISenv** env,
 
       ++(( *env)->ngreedy_fails);
 
-      if (( *env)->ngreedy_fails> max_ngreedy_fails) {
-         if (!(*env)->ls_env) {
-            rval = COLORstable_init_LS(&((*env)->ls_env),
-                                       ncount,
-                                       ecount, elist,
+      if (!(*env)->ls_env) {
+	 rval = COLORstable_init_LS(&((*env)->ls_env),
+				    ncount,
+				    ecount, elist,
                                        nweights,cutoff);
-            COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
-         }
+	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
       }
 
       rval = COLORstable_round_down_weights((*env)->ls_env,
