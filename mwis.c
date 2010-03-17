@@ -641,6 +641,9 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
 
  CLEANUP:
    if (ifile) fclose(ifile);
+   COLOR_IFFREE(buf,char);
+   COLOR_IFFREE(setbuffer,int);
+
    return rval;
 }
 
