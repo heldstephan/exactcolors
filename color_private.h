@@ -128,8 +128,6 @@ int compute_coloring(COLORproblem* problem);
 
 int print_colors(COLORset* cclasses, int ccount);
 
-void COLORset_dbg_lvl(int dbglvl);
-
 void COLORset_cclasses_outfile(char* outfile);
 
 void COLORset_backupdir(char* backupdir);

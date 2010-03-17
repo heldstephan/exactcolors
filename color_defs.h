@@ -44,6 +44,10 @@ void  COLORutil_freerus (void *p);
 int COLORfile_exists(const char* filename);
 int COLORdir_exists(const char* dirname);
 
+int COLORdbg_lvl(void);
+void COLORset_dbg_lvl(int dbglvl);
+
+
 #define COLOR_SWAP(a,b,t) (((t)=(a)),((a)=(b)),((b)=(t)))
 
 #define COLOR_SAFE_MALLOC(nnum,type)                                       \

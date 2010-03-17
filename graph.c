@@ -394,7 +394,9 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
     while (fgets (buf, 254, in) != (char *) NULL) {
         p = buf;
         if (p[0] == 'c') {
-            printf ("Comment: %s", p+1);
+	   if (COLORdbg_lvl()) {
+	      printf ("Comment: %s", p+1);
+	   }
         } else if (p[0] == 'p') {
             const char* delim = " \t\n";
             char* data = (char *) NULL;
@@ -416,8 +418,10 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
             data = strtok(NULL,delim);
             sscanf (data, "%d", &ecount);
 
-            printf ("Number of Nodes: %d\n", ncount);
-            printf ("Number of Edges: %d\n", ecount);
+	    if (COLORdbg_lvl()) {
+	       printf ("Number of Nodes: %d\n", ncount);
+	       printf ("Number of Edges: %d\n", ecount);
+	    }
             elist = COLOR_SAFE_MALLOC (2*ecount, int);
             COLORcheck_NULL (elist, "out of memory for elist");
             nweights = COLOR_SAFE_MALLOC (ncount, int);

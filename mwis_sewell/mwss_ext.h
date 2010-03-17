@@ -22,7 +22,10 @@ typedef int NWT; /* node weight type */
 extern
 int SEWELL_optimize(int** newset,
                     int*  nnewset,
-                    int   ncount, int ecount, const int elist[], NWT nweights[]/* , */
-/*                     NWT   goal */);
+                    int   ncount, int ecount, const int elist[], NWT nweights[],
+                    NWT   goal);
+
+extern
+int SEWELL_node_limit(void);
 
 #endif

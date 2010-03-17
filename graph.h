@@ -47,4 +47,5 @@ int  COLORedge_stat(const COLORadjgraph* G);
 
 int  COLORgraph_print(int ecount, const int elist[]);
 
+ 
 #endif

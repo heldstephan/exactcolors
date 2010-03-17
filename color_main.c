@@ -35,7 +35,7 @@ static void usage (char *f)
     fprintf (stderr, "   -o f  write coloring to file f\n");
     fprintf (stderr, "   -m    write final stable set and clique instances\n");
     fprintf (stderr, "   -r f  read initial stable sets from file f\n");
-    fprintf (stderr, "   -w f  write stable sets from file f\n");
+    fprintf (stderr, "   -w f  write stable sets to file f\n");
     fprintf (stderr, "   -c f  read initial coloring from file f\n");
     fprintf (stderr, "   -p    start boss of parallel coloring\n");
     fprintf (stderr, "   -u int  initial upper bound f\n");

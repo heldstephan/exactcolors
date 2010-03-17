@@ -38,8 +38,6 @@ typedef struct COLORrandstate {
 } COLORrandstate;
 
 
-int COLORdbg_lvl(void);
-
 void COLORproblem_init(COLORproblem* problem);
 void COLORproblem_free(COLORproblem* problem);
 
