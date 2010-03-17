@@ -2241,7 +2241,7 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
 	 - cd->id % 2;
    }
 
-   if (COLORdbg_lvl() > 1) {
+   if (COLORdbg_lvl()) {
       printf("Inserting into branching heap with lb %d (%f) and ub %d at depth %d (id = %d):\n",
              cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
              cd->depth,

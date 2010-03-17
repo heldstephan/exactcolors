@@ -14,17 +14,18 @@
 #     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# Adapt GUPATH to point to your gurobi installation
-# or set the environment variable GUROBI_HOME accordingly
+# exactcolors requires one of the following 3 LP solvers: Gurobi, Cplex, or QSopt.
+# Please set the environment path and uncomment the lines correspondingly.
+# You might also need to adopt the  LPINCLUDE & LPLIB  paths further below.
 #GUPATH=$(GUROBI_HOME)
 CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
-
-
+ifneq ($(QSPATH),)
 LPINCLUDE=$(QSPATH)
 LPLIB=$(QSPATH)/qsopt.a
 LPSOURCE=lpqsopt.o
+endif 
 
 ifneq ($(GUPATH),)
 LPINCLUDE=$(GUPATH)/include
@@ -36,7 +37,6 @@ endif
 
 ifneq ($(CPLEXPATH),)
 PROCESSOR := $(shell uname -p)
-#  modify the LIBPATH according to your system.
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
 LPLIB=$(CPLEXPATH)/lib/x86-64_debian4.0_4.1/static_pic/libcplex.a
 ifeq ($(PROCESSOR), i686)
@@ -47,13 +47,33 @@ GRBMWIS=
 GUROBI_FLAG=
 endif
 
-
-SEWELL_FLAG=-DHAVE_SEWELL
-SEWELL_LIB=-L . -lsewell
-
 CC=gcc
-CFLAGS=  -O3 -g -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE) $(SEWELL_FLAG)
+CFLAGS= -g
+CFLAGS+= -O3
+
+#
+# Valgrind does not support fegetround & fesetround. With following compile option
+# their use is circumvented. We also recommend to use QSopt as the LP-solver while
+# debugging with valgrind, as the commercial solvers impose valgrind errors internally.
+# 
 # CFLAGS+= -DCOMPILE_FOR_VALGRIND
+
+
+
+
+####################################################
+# Below this comment changes should be unnecessary.#
+####################################################
+
+SEWELL_DIR=mwis_sewell
+SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
+SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
+
+CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
+export CFLAGS
+
+
+
 OBJFILES=color.o color_backup.o color_parms.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
@@ -62,11 +82,14 @@ CWORKERFILES=color_worker.o $(OBJFILES)
 
 all: color color_worker stable queen test_boss test_worker test_tell
 
-color: $(CBOSSFILES)
-	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LIB)
+color: $(CBOSSFILES) $(SEWELL_LIB)
+	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
 color_worker: $(CWORKERFILES)
-	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LIB)
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+
+$(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
+	cd $(SEWELL_DIR) && $(MAKE)
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
@@ -87,6 +110,8 @@ tags:
 	etags *.[hc]
 clean:
 	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
+	cd $(SEWELL_DIR) && $(MAKE) clean
+
 
 color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h
 color_worker.o: color_worker.c color_private.h color_defs.h bbsafe.h
