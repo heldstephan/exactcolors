@@ -19,7 +19,8 @@
 
 enum COLORBranchingStrategy {
    COLOR_min_lb_strategy = 1,
-   COLOR_dfs_strategy    = 2
+   COLOR_dfs_strategy    = 2,
+   COLOR_hybrid_strategy = 3
 };
 
 typedef struct COLORparms {
