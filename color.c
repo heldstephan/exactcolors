@@ -1777,6 +1777,12 @@ int create_branches(colordata* cd,COLORproblem* problem)
    if (COLORNWTheap_size(cand_heap) == 0) {
       printf("LP returned integral solution.\n");
       grab_integral_solution(cd,x,0.0);
+      if (problem->parms.branching_strategy == COLOR_hybrid_strategy) {
+         if (cd->upper_bound - problem->root_cd.lower_bound <= 1) {
+            printf("Switching to minimum LB branching strategy.");
+            problem->parms.branching_strategy = COLOR_min_lb_strategy;
+         }
+      }
       goto CLEANUP;
    }
 
@@ -2230,6 +2236,7 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    COLORNWT heap_key = 0;
    switch (problem->parms.branching_strategy) {
    case COLOR_dfs_strategy:
+   case COLOR_hybrid_strategy:
       heap_key = (COLORNWT) (cd->dbl_est_lower_bound) 
 	 - cd->depth * 10000
 	 - cd->id % 2;
