@@ -27,6 +27,7 @@
 
 #include "color.h"
 
+#include "mwis_sewell/mwss_ext.h"
 #include "mwis.h"
 
 static int it = 0;
@@ -331,7 +332,7 @@ int COLORstable_wrapper(MWISenv** env,
 #endif
       }
 
-      if (density < high_density_threshold) {
+      if ( ncount <= SEWELL_node_limit() && density < high_density_threshold) {
          COLORNWT sewell_objval;
 
          rtime = COLORcpu_time();

@@ -70,8 +70,8 @@ extern
 int SEWELL_optimize(int ** newset,
                     int   *nnewset,
                     int ncount, int ecount, const int elist[],
-                    NWT nweights[]/* , */
-/*                     NWT goal */)
+                    NWT nweights[],
+                    NWT goal)
 {
    int rval = 0;
    wstable_info   info;
@@ -95,7 +95,7 @@ int SEWELL_optimize(int ** newset,
 
 
    initialize_max_wstable(&graph,&info);
-   call_max_wstable(&graph,&data,&parms,&info);
+   call_max_wstable(&graph,&data,&parms,&info, (double) goal);
 
    if (*newset) {free(*newset);}
 
@@ -115,3 +115,8 @@ int SEWELL_optimize(int ** newset,
    return rval;
 }
 
+extern
+int SEWELL_node_limit()
+{
+   return MAX_NODES;
+}

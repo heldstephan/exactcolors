@@ -128,7 +128,8 @@ void free_graph(MWSSgraphpnt graph);
 
 void call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
                       wstable_parameterspnt parameters,
-                      wstable_infopnt info);
+                      wstable_infopnt info,
+		      double goal);
 int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int *n_best_stable, double *z_best, wstable_infopnt info,
                 wstable_parameterspnt parameters, nodepnt *list, int n_list, double lower_bound,
                 double goal);

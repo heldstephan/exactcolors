@@ -34,6 +34,7 @@ Previous History
 */
 
 #include <limits.h>
+#include <float.h>
 
 #include "mwss_ext.h"
 
@@ -101,7 +102,8 @@ void default_parameters(wstable_parameterspnt parms)
 
 void call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
                       wstable_parameterspnt parameters,
-                      wstable_infopnt info)
+                      wstable_infopnt info,
+		      double goal)
 /*
    1. This routine sets up the data and calls max_wstable.
    2. Written 12/23/09.
@@ -112,14 +114,12 @@ void call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
 */
 {
    int                  i, n_best_stable, status;
-   double               goal, lower_bound, z_best;
+   double               lower_bound, z_best;
    nodepnt              *best_stable, *list;
 
    MALLOC(best_stable, graph->n_nodes + 1, nodepnt);
    MALLOC(list, graph->n_nodes + 1, nodepnt);
    for(i = 1; i <= graph->n_nodes; i++) list[i] = graph->node_list + i;
-   goal = 0;
-   for(i = 1; i <= graph->n_nodes; i++) goal += graph->weight[i];
    lower_bound = 0;
    //lower_bound = 8750000;
    status = max_wstable(graph, data, best_stable, &n_best_stable, &z_best, info,
@@ -1704,11 +1704,11 @@ void testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms
 */
 {
    int      rep;
-
+   double   goal = DBL_MAX;
    for(rep = 1; rep <= 100; rep++) {
       rgrphgen(graph, n, density, dseed);
       initialize_max_wstable(graph, info);
-      call_max_wstable(graph, data, parms, info);
+      call_max_wstable(graph, data, parms, info,goal);
       free_reinitialize_graph(graph, data);
    }
    //printf("%10.3f %10.3f\n", info->clique_cover_cpu, info->cpu);

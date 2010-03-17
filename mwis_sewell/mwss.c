@@ -14,6 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include <float.h>
 #include "mwss.h"
 
 char     *prob_file;       // problem file
@@ -39,7 +40,7 @@ int main(int ac, char **av)
    MWSSdata       data;
    wstable_info   info;
    wstable_parameters parms;
-
+   double         goal = DBL_MAX;     
    default_parameters(&parms);
 
    parseargs (ac, av, &parms);
@@ -60,7 +61,8 @@ int main(int ac, char **av)
       if(parms.prn_info > 0) prn_graph(&graph);
 
       initialize_max_wstable(&graph, &info);
-      call_max_wstable(&graph, &data, &parms, &info);
+      
+      call_max_wstable(&graph, &data, &parms, &info,goal);
       free_graph(&graph);
    }
    return EXIT_SUCCESS;
