@@ -40,55 +40,53 @@ Previous History
 
 #include "mwss.h"
 
-//static   char     adj[MAX_NODES+1][MAX_NODES+1];  // adjacency matrix of the graph
-                                                  // Note that it does not use first row or column
-//static   int      n_nodes;                // number of nodes in the graph
-//static   int      n_edges;                // number of edges in the graph
-//static   tnode    node_list[MAX_NODES+1]; // vector of nodes of the graph
-//static   nodepnt  *edge_list;             // space for list of edges
-//static   nodepnt  **adj_last;             // points to last active node in adjacency list
+//_________________________________________________________________________________________________
 
-//static   int      active_flag = 0;                    // used to test active status of a node
-//static   nodepnt  cur_sol[MAX_NODES+1];               // Stores the current stable set during search
-//static   nodepnt  act[MAX_NODES+1][MAX_NODES+1];      // Lists of active nodes at each level of search
-//static   int      n_act[MAX_NODES+1];                 // n_active[d] = # of active nodes at depth d
-//static   double   best_z;                             // Weight of best stable set found so far
-//static   nodepnt  best_sol[MAX_NODES+1];              // Stores the best stable set found so far
-//static   int      n_best;                             // # of nodes in best stable set found so far
-//static   nodepnt  neighbors[MAX_NODES+1];             // work vector used by maximal_wclique
-//static   int      count[MAX_NODES+1];                 // work vector used by ascending_distrib_sort
-//static   nodepnt  list2[MAX_NODES+1];                 // work vector used by ascending_radix_sort
+void reset_pointers(MWSSgraphpnt graph, 
+                    MWSSdatapnt data,
+                    wstable_infopnt info)
+{
+   graph->adj        = (char**) NULL;
+   graph->node_list  = (tnode*) NULL;
+   graph->edge_list  = (nodepnt*) NULL;
+   graph->adj_last   = (nodepnt**) NULL;
+   graph->weight     = (MWISNW*) NULL;
+   
+   data->cur_sol     = (nodepnt*) NULL;
+   data->act         = (nodepnt**) NULL;
+   data->best_sol    = (nodepnt*) NULL;
+   
 
-// Variables used by the Ostergard maximum clique/stable set routines.
+   info->n_sub_depth = (int*) NULL;
+}
 
-//static   int   oster_cur_sol[MAX_NODES+1];            // Stores the current clique during search
-//static   int   eligible[MAX_NODES+1][MAX_NODES+1];    // Lists of eligible nodes at each level of search
-//static   int   found;                                 // found = 1 if a larger clique/stable set has been found
-//static   int   n_elig[MAX_NODES+1];                   // n_eligible[d] = # of eligible nodes at depth d
-//static   int   oster_best_z;                          // Number of nodes in largest clique/stable set found so far
-//static   int   oster_best_sol[MAX_NODES+1];           // Stores the best clique/stable set found so far
-//static   int   ub[MAX_NODES+1];                       // Used by oster_wclique.
-//static   int   oster_neighbors[MAX_NODES+1];          // Work vector used by maximum_clique
 
 //_________________________________________________________________________________________________
 
-void initialize_max_wstable(MWSSgraphpnt graph, wstable_infopnt info)
+int initialize_max_wstable(MWSSgraphpnt graph, wstable_infopnt info)
 /*
    1. This function should be called precisely once, prior to using max_wstable for the first time.
 */
 {
+   int rval = 0;
    int   i;
 
    info->n_calls = 0;
    info->cpu = 0;
    info->clique_cover_cpu = 0;
+   MWIS_MALLOC(info->n_sub_depth,graph->n_nodes + 1,int);
+   MWIScheck_NULL(info->n_sub_depth,"Failed to allocate info->n_sub_depth");
 
    for(i = 1; i <= graph->n_nodes; i++) {
       //new_memory((void**) &node_list[i].adj_last, n_nodes+1, sizeof(nodepnt *));
-      MALLOC(graph->node_list[i].adj_last, graph->n_nodes+1, nodepnt *);
+      MWIS_MALLOC(graph->node_list[i].adj_last, graph->n_nodes+1, nodepnt*);
+      MWIScheck_NULL(graph->node_list[i].adj_last,"Failed to allocate graph->node_list[i].adj_last");
+
       graph->node_list[i].adj_last[0] = graph->adj_last[i];
       graph->node_list[i].adj2 = graph->adj_last[i];
    }
+ CLEANUP:
+   return rval;
 }
 //_________________________________________________________________________________________________
 void default_parameters(wstable_parameterspnt parms)
@@ -100,10 +98,10 @@ void default_parameters(wstable_parameterspnt parms)
 }
 //_________________________________________________________________________________________________
 
-void call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
-                      wstable_parameterspnt parameters,
-                      wstable_infopnt info,
-		      double goal)
+int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
+                     wstable_parameterspnt parameters,
+                     wstable_infopnt info,
+                     MWISNW goal)
 /*
    1. This routine sets up the data and calls max_wstable.
    2. Written 12/23/09.
@@ -113,27 +111,40 @@ void call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
       c. Accept a pointer to the data structures required for the search.
 */
 {
+   int                  rval = 0;
    int                  i, n_best_stable, status;
-   double               lower_bound, z_best;
-   nodepnt              *best_stable, *list;
+   MWISNW               lower_bound, z_best;
+   nodepnt*             best_stable = (nodepnt*) NULL;
+   nodepnt*             list        = (nodepnt*) NULL;
 
-   MALLOC(best_stable, graph->n_nodes + 1, nodepnt);
-   MALLOC(list, graph->n_nodes + 1, nodepnt);
+   MWIS_MALLOC(best_stable, graph->n_nodes + 1, nodepnt);
+   MWIScheck_NULL(best_stable,"Failed to allocate best_stable");
+
+   MWIS_MALLOC(list, graph->n_nodes + 1, nodepnt);
+   MWIScheck_NULL(list,"Failed to allocate list");
+
+   rval = allocate_data(data, graph->n_nodes);
+   MWIScheck_rval(rval,"Failed in allocate_data");
+
    for(i = 1; i <= graph->n_nodes; i++) list[i] = graph->node_list + i;
    lower_bound = 0;
    //lower_bound = 8750000;
-   status = max_wstable(graph, data, best_stable, &n_best_stable, &z_best, info,
-                        parameters, list, graph->n_nodes, lower_bound, goal);
+   rval = max_wstable(graph, data, best_stable, &n_best_stable, &z_best, info,
+                      parameters, list, graph->n_nodes, lower_bound, goal, &status);
+   MWIScheck_rval(rval,"Failed in max_wstable");
 
-   free(best_stable);
-   free(list);
+ CLEANUP:
+   MWIS_IFFREE(best_stable,nodepnt);
+   MWIS_IFFREE(list,nodepnt);
+   
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int *n_best_stable, double *z_best, wstable_infopnt info,
-                wstable_parameterspnt parameters, nodepnt *list, int n_list, double lower_bound,
-                double goal)
+int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int *n_best_stable, MWISNW *z_best, wstable_infopnt info,
+                wstable_parameterspnt parameters, nodepnt *list, int n_list, MWISNW lower_bound,
+                MWISNW goal, int *status)
 /*
    1. This routine searches for a weighted stable set in the graph induced
       by the nodes in list.  It only searches for stable sets with weight greater than goal.
@@ -174,10 +185,21 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       c. Accept a pointer to the data structures required for the search.
 */
 {
-   int      adj_last_offset, i, depth, n_active, n_out, status, v;
-   double   cpu, greedy_weight, sum_weight;
+   int      rval = 0;
+   int      adj_last_offset, i, depth, n_active, n_out, v;
+   double   cpu;
+   MWISNW   greedy_weight, sum_weight;
    outnode  *out;
    osterdata   oster_data;
+
+   reset_osterdata_pointers(&oster_data);
+
+   if(parameters->clique_cover == 2) {
+      rval = allocate_osterdata(&oster_data, graph->n_nodes);
+      MWIScheck_rval(rval, "Failed in allocate_osterdata");
+   }
+
+   *status = 0;
 
    depth = 1;
    n_active = n_list;
@@ -204,7 +226,8 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    data->best_z = lower_bound;
    data->n_best = 0;
    for(i = 0; i <= graph->n_nodes; i++) data->best_sol[i] = NULL;
-   greedy_weight = greedy_wstable(graph, list, n_list, data->best_sol, &data->n_best);
+   rval = greedy_wstable(graph, list, n_list, data->best_sol, &data->n_best,&greedy_weight);
+   MWIScheck_rval(rval,"Failed in greedy_stable");
    if(greedy_weight > data->best_z) {
       data->best_z = greedy_weight;
    }
@@ -216,26 +239,28 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
 
    adj_last_offset = 0;
 
-   MALLOC(out, graph->n_nodes, outnode);
+   MWIS_MALLOC(out, graph->n_nodes, outnode);
+   MWIScheck_NULL(out,"Failed to allocate out");
+
    n_out = 0;
 
-   wstable(graph, data, &oster_data, adj_last_offset, 0, 1, goal, out, n_out, info, parameters);
+   rval = wstable(graph, data, &oster_data, adj_last_offset, 0, 1, goal, out, n_out, info, parameters);
+   MWIScheck_rval(rval,"Failed in wstable");
 
    if(data->best_z > lower_bound) {
       *z_best = data->best_z;
       *n_best_stable = data->n_best;
       for(i = 1; i <= data->n_best; i++) best_stable[i] = data->best_sol[i];
-      status = 1;
+      *status = 1;
       //printf("best_z = %8.3f  greedy = %8.3f\n", best_z, greedy_weight);
       cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
       if(parameters->prn_info) {
-         printf("%3d %5d %8.0f %12d %10.3f %10.3f\n", 
+         printf("%3d %5d %10d %12d %10.0f %10.0f\n", 
                 graph->n_nodes, graph->n_edges, data->best_z, 
                 info->n_subproblems, info->clique_cover_cpu, cpu);
       }
-   } else {
-      status = 0;
    }
+   
 
    info->cpu += (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
 
@@ -245,7 +270,7 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    //        adj_matrix,cover,reorder,lower_bound,upper_bound);
 
    if(parameters->prn_info) {
-      printf("best_z = %6.3f\n", data->best_z);
+      printf("best_z = %d\n", data->best_z);
       //prn_nodes(best_stable,n_best_stable);
       printf("n_subproblems = %d\n", info->n_subproblems);
       printf("depth n_sub_depth\n");
@@ -254,13 +279,15 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
 
    free(out);
 
-   return(status);
+ CLEANUP:
+   free_osterdata(&oster_data);
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-void wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int adj_last_offset, double cur_z, int depth, double goal, outnode *out, int n_out,
-           wstable_infopnt info, wstable_parameterspnt parameters)
+int wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int adj_last_offset, MWISNW cur_z, int depth, MWISNW goal, outnode *out, int n_out,
+            wstable_infopnt info, wstable_parameterspnt parameters)
 //int      cover;          /* 1 to use clique_cover2,  2 to use clique_oc_cover */
 //int      n_active;       /* number of node in active                           */
 //int      *n_best_stable; /* number of node in the maximum stable set           */
@@ -321,9 +348,10 @@ void wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int 
       c. Accept a pointer to the data structures required by oster_maximum_clique.
 */
 {
+   int      rval = 0;
    int      branch, j, n_active, n_branch_nodes, n_sub_active, n_sub_out, v;
    nodepnt  *active, branch_node;
-   outnode  *sub_out;
+   outnode  *sub_out = (outnode*) NULL;
 
    assert(cur_z >= 0.0);
    assert((1 <= depth) && (depth <= graph->n_nodes));
@@ -346,29 +374,28 @@ void wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int 
          data->best_sol[j] = data->cur_sol[j];
       }
       if(parameters->prn_info >= 1) {
-         printf("\n Better stable set found.  depth = %3d best_z = %8.3f\n", depth, data->best_z);
+         printf("\n Better stable set found.  depth = %3d best_z = %10d\n", depth, data->best_z);
          prn_nodes(data->best_sol, data->n_best);
       }
    }
 
    if (n_active == 0) {
-      return;
+      goto CLEANUP;
    }
 
    reorder_nodes(graph, adj_last_offset, active, n_active);
 
-   MALLOC(sub_out, n_active + n_out + 1, outnode);
+   MWIS_MALLOC(sub_out, n_active + n_out + 1, outnode);
+   MWIScheck_NULL(sub_out,"Failed to allocate sub_out");
 
    graph->active_flag++;
    for(j = 1; j <= n_active; j++) active[j]->active = graph->active_flag;
    if(reorder_out(graph, adj_last_offset/* , depth */, n_out, out) == 0) {
-      //printf("p1 ");
-      free(sub_out);
-      return;
+      goto CLEANUP;
    }
 
-   determine_branch_nodes(graph, data, oster_data, active, adj_last_offset, cur_z, n_active, &n_branch_nodes, out, n_out, info, parameters);
-
+   rval = determine_branch_nodes(graph, data, oster_data, active, adj_last_offset, cur_z, n_active, &n_branch_nodes, out, n_out, info, parameters);
+   MWIScheck_rval(rval,"Failed in determine_branch_nodes");
    //if((parameters->prn_info >= 2) || ((depth == 4) && (n_branch_nodes > 0))) {
    if(parameters->prn_info >= 2) {
       prn_stable(active, data->best_z, cur_z, active + n_active - n_branch_nodes, depth, n_active, n_branch_nodes, info, 1);
@@ -383,7 +410,8 @@ void wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int 
       if(branch) {
          new_out(adj_last_offset, branch_node, out, n_out, sub_out, &n_sub_out);
 
-         wstable(graph, data, oster_data, adj_last_offset+1, cur_z + branch_node->weight, depth+1, goal, sub_out, n_sub_out, info, parameters);
+         rval = wstable(graph, data, oster_data, adj_last_offset+1, cur_z + branch_node->weight, depth+1, goal, sub_out, n_sub_out, info, parameters);
+         MWIScheck_rval(rval,"Failed in wstable");
       }
       out[++n_out].pntv = branch_node;
       out[n_out].w_in_cur_sol = 0;
@@ -393,15 +421,19 @@ void wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int 
       //   fflush(stdout);
       //}
    }
-
-   free(sub_out);
-   return;
+   
+ CLEANUP:
+   MWIS_IFFREE(sub_out,outnode);
+   if (rval) {
+      printf("ERROR in wstable");
+   }
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-void determine_branch_nodes(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, nodepnt *active, int adj_last_offset, double cur_z, int n_active,
-                       int *n_branch_nodes, outnode *out, int n_out, wstable_infopnt info, wstable_parameterspnt parameters)
+int determine_branch_nodes(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, nodepnt *active, int adj_last_offset, MWISNW cur_z, int n_active,
+                           int *n_branch_nodes, outnode *out, int n_out, wstable_infopnt info, wstable_parameterspnt parameters)
 /*
    1. This routine determines the nodes on which to branch.
    2. Modified 3/5/10 to accept a pointer to the graph.
@@ -410,12 +442,17 @@ void determine_branch_nodes(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt o
       b. Accept a pointer to the data structures required by oster_maximum_clique.
 */
 {
+   int      rval = 0;
    int      i, n_active2;
-   double   available_weight;
-   nodepnt  *active2, *branch_nodes;
+   MWISNW   available_weight;
+   nodepnt* active2      = (nodepnt*) NULL;
+   nodepnt* branch_nodes = (nodepnt*) NULL;
 
-   MALLOC(branch_nodes, n_active+1, nodepnt);
-   MALLOC(active2, n_active+1, nodepnt);
+   MWIS_MALLOC(branch_nodes, n_active+1, nodepnt);
+   MWIScheck_NULL(branch_nodes,"Failed to allocate branch_nodes");
+
+   MWIS_MALLOC(active2, n_active+1, nodepnt);
+   MWIScheck_NULL(branch_nodes,"Failed to allocate active2");
 
    *n_branch_nodes = 0;
    n_active2 = 0;
@@ -437,22 +474,24 @@ void determine_branch_nodes(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt o
 
    branch_out(active, active2, branch_nodes, n_active, &n_active2, n_branch_nodes, out, n_out);
 
-   ascending_distrib_sort(branch_nodes, graph->n_nodes, *n_branch_nodes);  // Don't sort branch nodes if using branch_neighbors
-                                                                      // Must sort them inside of branch_neighbours
+   rval = ascending_distrib_sort(branch_nodes, graph->n_nodes, *n_branch_nodes);  // Don't sort branch nodes if using branch_neighbors
+                                                                                  // Must sort them inside of branch_neighbours
+   MWIScheck_rval(rval,"Failed in ascending_distrib_sort");
 
    for(i = 1; i <= *n_branch_nodes; i++) active2[++n_active2] = branch_nodes[i];
    for(i = 1; i <= n_active; i++) active[i] = active2[i];
 
    //cout << "n_branch_nodes = " << *n_branch_nodes << endl;
    //prn_nodes(active, n_active);
-
-   free(branch_nodes);
-   free(active2);
+ CLEANUP:
+   MWIS_IFFREE(branch_nodes,nodepnt);
+   MWIS_IFFREE(active2,nodepnt);
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-void stable_sub_problem(MWSSdatapnt data, int adj_last_offset, int *branch, nodepnt branch_node, double cur_z,
+void stable_sub_problem(MWSSdatapnt data, int adj_last_offset, int *branch, nodepnt branch_node, MWISNW cur_z,
                         int depth, int j, int *n_sub_active)
 /*
    1. This routine creates a subproblem for the node to which branch_node points.
@@ -466,7 +505,7 @@ void stable_sub_problem(MWSSdatapnt data, int adj_last_offset, int *branch, node
 {
    char     *adjv;
    int      cnt, i;
-   double   sub_weight;
+   MWISNW   sub_weight;
    nodepnt  *active, *sub_active, pntw;
 
    assert(data->act[depth][j] == branch_node);
@@ -502,7 +541,7 @@ void stable_sub_problem(MWSSdatapnt data, int adj_last_offset, int *branch, node
 //_________________________________________________________________________________________________
 
 void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt *active, nodepnt *active2, int adj_last_offset, nodepnt *branch_nodes,
-              int n_active, int *n_active2, double available_weight, int *n_branch_nodes, wstable_infopnt info, wstable_parameterspnt parameters)
+              int n_active, int *n_active2, MWISNW available_weight, int *n_branch_nodes, wstable_infopnt info, wstable_parameterspnt parameters)
 /*
    1. This routine finds a weighted clique cover for the nodes in active.
    2. The weight of the cliques in the cover is <= available_weight.
@@ -525,7 +564,7 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
 */
 {
    int      i, n_act2;
-   double   min_weight;
+   MWISNW   min_weight;
    nodepnt  min_node, pntv;
    clock_t  start_time;
 
@@ -544,13 +583,13 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
       // Find the active node with the smallest remaining weight.
       // Remove covered nodes from active2.
 
-      min_weight = 1.0E75;
+      min_weight = MWISNW_MAX;
       min_node = NULL;
       i = 1;
       while(i <= n_act2) {
          pntv = active2[i];
 
-         if(pntv->remaining_weight < EPSILON) {
+         if(pntv->remaining_weight <= MWISNW_EPSILON) {
             pntv->active = 0;
             active2[i] = active2[n_act2];
             active2[n_act2] = NULL;
@@ -569,7 +608,7 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
       if(min_node == NULL) break;
 
       pntv = min_node;
-      assert(pntv->remaining_weight > EPSILON);
+      assert(pntv->remaining_weight > MWISNW_EPSILON);
       assert(pntv->active == graph->active_flag);
       pntv->active = 0;
 
@@ -591,7 +630,7 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
    *n_branch_nodes = 0;
    for(i = 1; i <= n_active; i++) {
       pntv = active[i];
-      if(pntv->remaining_weight < EPSILON) {
+      if(pntv->remaining_weight <= MWISNW_EPSILON) {
          active2[++n_act2] = pntv;
       } else {
          branch_nodes[++(*n_branch_nodes)] = pntv;
@@ -604,7 +643,7 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
 
 //_________________________________________________________________________________________________
 
-void maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
+int maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
 /*
    1. This routine finds a maximal clique among the active neighbors of v.
    2. This routine assumes that pntw->active has already been set equal
@@ -619,13 +658,17 @@ void maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
    8. Modified 3/11/10.  Made neighbors a local variable.
 */
 {
-   double   min_weight, v_weight;
+   int rval = 0;
+   MWISNW   min_weight, v_weight;
    nodepnt  min_node,pntw;
    char     *adjw;
    int      i,limit,n_neighbors;
    nodepnt  pntz,*ppnt,*ppnt_last;
-   nodepnt  neighbors[MAX_NODES+1];
+   nodepnt* neighbors = (nodepnt*) NULL;
 
+   MWIS_MALLOC(neighbors,graph->n_nodes + 1,nodepnt);
+   MWIScheck_NULL(neighbors,"Failed to allocate nodepnt");
+   
    min_node = NULL;
    n_neighbors = 0;
    v_weight = pntv->remaining_weight;
@@ -633,7 +676,7 @@ void maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
 
 /* Initialize neighbors of v.  Find the first node to add to clique. */
 
-   min_weight = 1.0E75;
+   min_weight = MWISNW_MAX;
    ppnt_last = pntv->adj_last[adj_last_offset];
    for (ppnt = pntv->adj; ppnt <= ppnt_last; ppnt++) {
       pntw = *ppnt;
@@ -655,7 +698,7 @@ void maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
       //printf(" %3d", pntw->name);
       adjw = pntw->adjacent;
       min_node = NULL;
-      min_weight = 1.0E75;
+      min_weight = MWISNW_MAX;
       limit = n_neighbors;
       n_neighbors = 0;
       for (i = 1; i <= limit; i++) {
@@ -672,6 +715,10 @@ void maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
    }
    pntv->remaining_weight = 0;
    //printf(")\n");
+
+ CLEANUP:
+   MWIS_IFFREE(neighbors,nodepnt);
+   return rval;
 }
 
 //_________________________________________________________________________________________________
@@ -690,7 +737,7 @@ void maximum_clique(MWSSgraphpnt graph, osterdatapnt oster_data, int adj_last_of
    8. Modified 3/12/10 to accept a pointer to the data structures required by oster_maximum_clique.
 */
 {
-   double   v_weight;
+   MWISNW   v_weight;
    nodepnt  pntw;
    int      i, n_neighbors;
    nodepnt  *ppnt, *ppnt_last;
@@ -964,7 +1011,7 @@ void reorder_nodes(MWSSgraphpnt graph, int adj_last_offset, nodepnt *list, int n
 {
    int      active_flag, i;
 /*    int      ascending_key(); */
-   double   surplus;
+   MWISNW   surplus;
    nodepnt  pnt,pntu,*ppnt1,*ppnt2,*ppnt_last;
 
    graph->active_flag++;
@@ -1106,7 +1153,7 @@ int reorder_out(MWSSgraphpnt graph, int adj_last_offset/* , int depth */, int n_
 */
 {
    int      active_flag, branch, i;
-   double   sum_weight;
+   MWISNW   sum_weight;
    nodepnt  pntu, pntw, *ppnt1, *ppnt2, *ppnt_last;
 
    active_flag = graph->active_flag;
@@ -1142,7 +1189,7 @@ void new_out(int adj_last_offset, nodepnt branch_node, outnode *out, int n_out, 
 {
    char     *adjv;
    int      i;
-   double   branch_weight;
+   MWISNW   branch_weight;
    nodepnt  pnt;
 
    adjv = branch_node->adjacent;
@@ -1167,7 +1214,7 @@ void new_out(int adj_last_offset, nodepnt branch_node, outnode *out, int n_out, 
 
 //_________________________________________________________________________________________________
 
-void ascending_distrib_sort(nodepnt *list, int m, int n)
+int ascending_distrib_sort(nodepnt *list, int m, int n)
 /*
    1. This routine sorts list in ascending order of key.
    2. It assumes that 0 <= key < m.
@@ -1179,10 +1226,16 @@ void ascending_distrib_sort(nodepnt *list, int m, int n)
    6. Modified 3/11/10.  Made count and list2 local variables instead of global variables.
 */
 {
-   int      i,i2,sum;
-   int      count[MAX_NODES+1];
-   nodepnt  list2[MAX_NODES+1];
+   int       rval = 0;
+   int       i,i2,sum;
+   int*      count;
+   nodepnt*  list2 = (nodepnt*) NULL;
+   
+   MWIS_MALLOC(count, m + 1, int);
+   MWIScheck_NULL(count,"Failed to allocate count");
 
+   MWIS_MALLOC(list2, m + 1, nodepnt);
+   MWIScheck_NULL(list2,"Failed to allocate list2");
 
    for(i = 0; i < m; i++) count[i] = 0;
    for(i = 1; i <= n; i++) {
@@ -1201,16 +1254,22 @@ void ascending_distrib_sort(nodepnt *list, int m, int n)
       i2 = count[list2[i]->key]--;
       list[i2] = list2[i];
    }
+   
+ CLEANUP:
+   MWIS_IFFREE(count,int);
+   MWIS_IFFREE(list2,nodepnt);
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-double greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stable_set, int *n_stable_set)
+int greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stable_set, int *n_stable_set,
+                   MWISNW* greedy_weight)
 /*
    1. This routine finds a stable set in the graph induced by the nodes in list.
       It repeatedly finds a node of minimum surplus, places that node in stable_set,
       and removes that node's neighbors from list.
-   2. The weight of the stable set is returned.
+   2. *greedy_weight is set to the weight of the stable set.
    3. This routine replaces an earlier version of greedy_stable.  This one
       uses a different algorithm to update the degrees after each iteration.
       The new running time is O(m), where m is the number of edges in the graph
@@ -1230,17 +1289,24 @@ double greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *st
    8. Modified 3/12/10 to accept a pointer to the graph.
 */
 {
+   int      rval = 0;
    int      i, limit, n_active, n_list2, n_neighbors;
-   double   alpha_w, min_surplus, v_weight;
-   nodepnt  *list2, min_node, *neighbors, *ppnt, pntv, pntw;
-
-   MALLOC(list2, MAX_NODES+1, nodepnt);
-   MALLOC(neighbors, MAX_NODES+1, nodepnt);
+   MWISNW   alpha_w, min_surplus, v_weight;
+   nodepnt* list2     = (nodepnt*) NULL;
+   nodepnt* neighbors = (nodepnt*) NULL;
+   nodepnt  min_node, *ppnt, pntv, pntw;
+   
+   alpha_w = 0;
+   
+   MWIS_MALLOC(list2, graph->n_nodes+1, nodepnt);
+   MWIScheck_NULL(list2,"Failed to allocate list2");
+   MWIS_MALLOC(neighbors, graph->n_nodes+1, nodepnt);
+   MWIScheck_NULL(neighbors, "Failed to allocate neighbors");
 
    n_active = n_list;
    n_list2 = n_list;
    *n_stable_set = 0;
-   alpha_w = 0;
+
    if(n_list > 0) {
       graph->active_flag++;
       //for(i = 1; i <= n_nodes; i++) {
@@ -1269,7 +1335,7 @@ double greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *st
 
          // Find the node with minimum surplus and reduce list2 to active nodes.
 
-         min_surplus = 1.0E75;
+         min_surplus = MWISNW_MAX;
          min_node = NULL;
          limit = n_list2;
          n_list2 = 0;
@@ -1319,21 +1385,155 @@ double greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *st
 
    }
 
-   free(list2);
-   free(neighbors);
+ CLEANUP:
+   MWIS_IFFREE(list2,nodepnt);
+   MWIS_IFFREE(neighbors,nodepnt);
 
-   return(alpha_w);
+   *greedy_weight = alpha_w;
+   return rval;
+}
+//_________________________________________________________________________________________________
+int allocate_data(MWSSdatapnt data, int n_nodes)
+{
+   int rval = 0;
+   int i;
+
+   data->n_nodes = n_nodes;
+
+   MWIS_MALLOC(data->cur_sol, n_nodes + 1, nodepnt);
+   MWIScheck_NULL(data->cur_sol,"Failed to allocate data->cur_sol");
+
+   MWIS_MALLOC(data->act, n_nodes + 1, nodepnt*);
+   MWIScheck_NULL(data->act,"Failed to allocate data->act");
+   for (i = 0; i <= n_nodes; ++i) {
+      MWIS_MALLOC(data->act[i], n_nodes + 1, nodepnt);
+      MWIScheck_NULL(data->act[i],"Failed to allocate data->act[i]");
+   }
+   MWIS_MALLOC(data->n_act, n_nodes + 1, int);
+   MWIScheck_NULL(data->n_act,"Failed to allocate data->n_act");
+
+
+   MWIS_MALLOC(data->best_sol, n_nodes + 1, nodepnt);
+   MWIScheck_NULL(data->best_sol,"Failed to allocate data->best_sol");
+   
+ CLEANUP:
+   return rval;
+}
+
+//_________________________________________________________________________________________________
+int allocate_graph(MWSSgraphpnt graph, int n_nodes)
+{
+   int rval = 0;
+   int i;
+   graph->n_nodes = n_nodes;
+   
+   MWIS_MALLOC(graph->adj, graph->n_nodes + 1, char*);
+   MWIScheck_NULL(graph->adj,"Failed to allocate graph->adj");
+   
+   for(i = 0; i <= graph->n_nodes; i++) {
+      MWIS_MALLOC(graph->adj[i], graph->n_nodes + 1, char);
+      MWIScheck_NULL(graph->adj[i],"Failed to allocate graph->adj[i]");
+   }   
+
+   MWIS_MALLOC(graph->node_list, graph->n_nodes + 1, tnode);
+   MWIScheck_NULL(graph->node_list,"Failed to allocate graph->node_list");
+
+   MWIS_MALLOC(graph->weight, graph->n_nodes + 1, MWISNW);
+   MWIScheck_NULL(graph->weight,"Failed to allocate graph->weight");
+   
+ CLEANUP:
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-void build_graph(MWSSgraphpnt graph)
+void reset_osterdata_pointers(osterdatapnt odata)
 {
+   odata->oster_cur_sol = (int*) NULL;
+
+   odata->eligible = (int**) NULL;
+
+   odata->n_elig = (int*) NULL;
+
+   odata->oster_best_sol = (int*) NULL;
+   
+   odata->ub = (int*) NULL;
+
+   odata->oster_neighbors = (int*) NULL;
+   
+}
+
+//_________________________________________________________________________________________________
+
+int allocate_osterdata(osterdatapnt odata, int n_nodes)
+{
+   int rval = 0;
+   int i;
+
+   odata->n_nodes = n_nodes;
+
+   MWIS_MALLOC(odata->oster_cur_sol,n_nodes + 1, int);
+   MWIScheck_NULL(odata->oster_cur_sol, "Failed to allocate odata->oster_cur_sol");
+
+   MWIS_MALLOC(odata->eligible,n_nodes + 1, int*);
+   MWIScheck_NULL(odata->eligible, "Failed to allocate odata->eligible");
+
+   for (i = 0; i <= n_nodes; ++i) {
+      MWIS_MALLOC(odata->eligible[i],n_nodes + 1, int);
+      MWIScheck_NULL(odata->eligible[i], "Failed to allocate odata->eligible[i]");
+   }
+
+   MWIS_MALLOC(odata->n_elig,n_nodes + 1, int);
+   MWIScheck_NULL(odata->n_elig, "Failed to allocate odata->n_elig");
+
+   MWIS_MALLOC(odata->oster_best_sol,n_nodes + 1, int);
+   MWIScheck_NULL(odata->oster_best_sol, "Failed to allocate odata->oster_best_sol");
+   
+   MWIS_MALLOC(odata->ub,n_nodes + 1, int);
+   MWIScheck_NULL(odata->ub, "Failed to allocate odata->ub");
+
+   MWIS_MALLOC(odata->oster_neighbors,n_nodes + 1, int);
+   MWIScheck_NULL(odata->oster_neighbors, "Failed to allocate odata->oster_neighbors");
+
+ CLEANUP:
+   return rval;
+}
+
+//_________________________________________________________________________________________________
+
+void free_osterdata(osterdatapnt odata)
+{
+   int i;
+
+   MWIS_IFFREE(odata->oster_cur_sol, int);
+
+
+   for (i = 0; odata->eligible && i <= odata->n_nodes; ++i) {
+      MWIS_IFFREE(odata->eligible[i], int);
+   }
+   MWIS_IFFREE(odata->eligible, int*);
+
+   MWIS_IFFREE(odata->n_elig, int);
+
+   MWIS_IFFREE(odata->oster_best_sol, int);
+   
+   MWIS_IFFREE(odata->ub, int);
+
+   MWIS_IFFREE(odata->oster_neighbors, int);
+}
+
+//_________________________________________________________________________________________________
+
+
+int build_graph(MWSSgraphpnt graph)
+{
+   int      rval = 0;
    int      i, j;
    nodepnt  *p;
 
+ 
    graph->n_edges = 0;
-   for(i = 1; i < graph->n_nodes; i++) {
+   for(i = 1; i < graph->n_nodes; i++) {    
       for(j = i+1; j <= graph->n_nodes; j++) {
          if(graph->adj[i][j] == 1) {
             graph->n_edges++;
@@ -1342,8 +1542,11 @@ void build_graph(MWSSgraphpnt graph)
    }
 
    //MALLOC(node_list, n_nodes+1, tnode);
-   MALLOC(graph->edge_list, (2*graph->n_edges)+graph->n_nodes, nodepnt);
-   MALLOC(graph->adj_last, graph->n_nodes+1, nodepnt*);
+   MWIS_MALLOC(graph->edge_list, (2*graph->n_edges)+graph->n_nodes, nodepnt);
+   MWIScheck_NULL(graph->edge_list,"Failed to allocate graph->edge_list");
+   MWIS_MALLOC(graph->adj_last, graph->n_nodes+1, nodepnt*);
+   MWIScheck_NULL(graph->adj_last,"Failed to allocate graph->adj_last");
+
    graph->node_list[0].adjacent = NULL;
    for(i = 1; i <= graph->n_nodes; i++) {
       graph->node_list[i].adjacent = graph->adj[i];
@@ -1400,6 +1603,8 @@ void build_graph(MWSSgraphpnt graph)
       graph->adj_last[i] = p + graph->node_list[i].degree - 1;
       p += (graph->node_list[i].degree + 1);
    }
+ CLEANUP:
+   return rval;
 }
 
 //_________________________________________________________________________________________________
@@ -1510,7 +1715,7 @@ void prn_graph(MWSSgraphpnt graph)
       printf("\n");
    }
    for(i = 1; i <= graph->n_nodes; i++) {
-      printf("%3d %10.0f\n", i, graph->weight[i]);
+      printf("%3d %10d\n", i, graph->weight[i]);
    }
 }
 
@@ -1558,7 +1763,7 @@ void prn_node_weights(nodepnt *list, int n)
    int      i;
 
    for (i = 1; i <= n; i++) {
-      printf(" %5.3f", list[i]->weight);
+      printf(" %10d", list[i]->weight);
       if((i % 16) == 0) printf("\n");
    }
    if ( (i % 16) != 0 ) printf("\n");
@@ -1566,11 +1771,12 @@ void prn_node_weights(nodepnt *list, int n)
 
 //_________________________________________________________________________________________________
 
-void prn_stable(nodepnt *active, double best_z, double cur_z, nodepnt *branch_nodes, int depth,
+void prn_stable(nodepnt *active, MWISNW best_z, MWISNW cur_z, nodepnt *branch_nodes, int depth,
                 int n_active, int n_branch_nodes, wstable_infopnt info, int prn_level)
 {
    int      i;
-   double   cpu, ratio, ratio2, sum_w, sum_uncovered;
+   double   cpu,ratio, ratio2;
+   MWISNW   sum_w, sum_uncovered;
 
    sum_w = 0;
    for(i = 1; i <= n_active; i++) sum_w += active[i]->weight;
@@ -1580,10 +1786,10 @@ void prn_stable(nodepnt *active, double best_z, double cur_z, nodepnt *branch_no
    ratio2 = sum_w / (best_z - cur_z);
    cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
    if(prn_level > 1) {
-      printf("depth = %3d n_sub = %10d  cpu = %8.2f cur_z = %10.0f best_z = %10.0f  sum_w = %10.0f n_active = %3d sum_covered = %10.0f n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
+      printf("depth = %3d n_sub = %10d  cpu = %10.0f cur_z = %10d best_z = %10d  sum_w = %10d n_active = %3d sum_covered = %10d n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
               depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
    } else {
-      printf("%3d %10d  %8.2f %10.0f %10.0f  %10.0f %3d %10.0f %3d %5.2f %5.2f \n", depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
+      printf("%3d %10d  %8.2f %10d %10d  %10d %3d %10d %3d %5.2f %5.2f \n", depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
    }
    if(prn_level >= 3) {
       printf("active\n");
@@ -1604,7 +1810,7 @@ void prn_stable(nodepnt *active, double best_z, double cur_z, nodepnt *branch_no
       c:\sewell\research\stable\dbfs\dbfs\dbfs.cpp.
 */
 
-void rgrphgen(MWSSgraphpnt graph, int n, double density, double* dseed)
+int rgrphgen(MWSSgraphpnt graph, int n, double density, double* dseed)
 /*
    1. This function generate a random graph, where the probability of
       an edge being included equals density.
@@ -1632,10 +1838,14 @@ void rgrphgen(MWSSgraphpnt graph, int n, double density, double* dseed)
       b. Eliminate weight as an input parameter.
 */
 {
+   int      rval = 0;
    int      i, row, col;
    double   save_seed;
 
    save_seed = *dseed;
+
+   rval = allocate_graph(graph,n);
+   MWIScheck_rval(rval,"Failed in build_graph");
 
    // Initialize the node names and degrees.
 
@@ -1679,12 +1889,14 @@ void rgrphgen(MWSSgraphpnt graph, int n, double density, double* dseed)
    }
 
    build_graph(graph);
+ CLEANUP:
+   return rval;
 }
 
 //_________________________________________________________________________________________________
 
-void testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
-               int n, double density, double* dseed, wstable_infopnt info)
+int testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
+              int n, double density, double* dseed, wstable_infopnt info)
 /*
    1. This function randomly generate graphs and solves them.
       an edge being included equals density.
@@ -1703,15 +1915,26 @@ void testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms
       c. Accept a pointer to the data structures required for the search.
 */
 {
+   int      rval = 0;
    int      rep;
-   double   goal = DBL_MAX;
-   for(rep = 1; rep <= 100; rep++) {
-      rgrphgen(graph, n, density, dseed);
-      initialize_max_wstable(graph, info);
-      call_max_wstable(graph, data, parms, info,goal);
-      free_reinitialize_graph(graph, data);
+   MWISNW   goal = MWISNW_MAX;
+   for(rep = 1; rep <= 2; rep++) {
+      rval = rgrphgen(graph, n, density, dseed);
+      MWIScheck_rval(rval,"Failed in rgrphgen");
+
+      rval = initialize_max_wstable(graph, info);
+      MWIScheck_rval(rval,"Failed in initialize_max_wstable");
+      
+      rval = call_max_wstable(graph, data, parms, info,goal);
+      MWIScheck_rval(rval,"Failed in call_max_wstable");
+
+      free_max_wstable(graph,data,info);
    }
    //printf("%10.3f %10.3f\n", info->clique_cover_cpu, info->cpu);
+
+ CLEANUP:
+   free_max_wstable(graph,data,info);
+   return rval;
 }
 
 //_________________________________________________________________________________________________
@@ -1739,17 +1962,60 @@ int randomi(int n, double *dseed)
 
 //_________________________________________________________________________________________________
 
+void free_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, wstable_infopnt info)
+{
+   free_graph(graph);
+
+   free_data(data);
+
+   free_wstable_info(info);   
+}
+
+//_________________________________________________________________________________________________
+
+void free_wstable_info(wstable_infopnt info)
+{
+   MWIS_IFFREE(info->n_sub_depth,int);
+}
+
+//_________________________________________________________________________________________________
+
 void free_graph(MWSSgraphpnt graph)
 {
    int i;
+
    for(i = 1; i <= graph->n_nodes; i++) {
       //new_memory((void**) &node_list[i].adj_last, n_nodes+1, sizeof(nodepnt *));
-      free(graph->node_list[i].adj_last);
+      MWIS_IFFREE(graph->node_list[i].adj_last,tnode**);
+   }
+      
+   for(i = 0; graph->adj && i <= graph->n_nodes; i++) {
+      MWIS_IFFREE(graph->adj[i],char);
    }
 
-   free(graph->edge_list);
-   free(graph->adj_last);
+   MWIS_IFFREE(graph->edge_list,nodepnt);
+   MWIS_IFFREE(graph->node_list,tnode);
+   MWIS_IFFREE(graph->weight,MWISNW);
+   MWIS_IFFREE(graph->adj_last,nodepnt*);
+   MWIS_IFFREE(graph->adj,char*);
+}
 
+//_________________________________________________________________________________________________
+
+void free_data(MWSSdatapnt data)
+{
+   int i;
+
+   MWIS_IFFREE(data->cur_sol, nodepnt);
+
+   for (i = 0; data->act && i <= data->n_nodes; ++i) {
+      MWIS_IFFREE(data->act[i], nodepnt);
+   }
+   MWIS_IFFREE(data->act, nodepnt*);
+
+   MWIS_IFFREE(data->n_act, int);
+
+   MWIS_IFFREE(data->best_sol, nodepnt);
 }
 //_________________________________________________________________________________________________
 
@@ -1757,12 +2023,10 @@ void free_reinitialize_graph(MWSSgraphpnt graph, MWSSdatapnt data)
 {
    int      i, j;
    free_graph(graph);
-   for(i = 1; i <= MAX_NODES; i++) {
+   for(i = 1; i <= graph->n_nodes; i++) {
       graph->node_list[i].active = 0;
       graph->node_list[i].adj = NULL;
       graph->node_list[i].adj2 = NULL;
-      if(i <= graph->n_nodes) free(graph->node_list[i].adj_last);
-      graph->node_list[i].adj_last = NULL;
       graph->node_list[i].adjacent = NULL;
       graph->node_list[i].adjv = 0;
       graph->node_list[i].degree = 0;
@@ -1781,8 +2045,8 @@ void free_reinitialize_graph(MWSSgraphpnt graph, MWSSdatapnt data)
       data->n_best = 0;
    }
 
-   for(i = 1; i <= MAX_NODES; i++) {
-      for(j = 1; j <= MAX_NODES; j++) {
+   for(i = 1; i <= graph->n_nodes; i++) {
+      for(j = 1; j <= graph->n_nodes; j++) {
          data->act[i][j] = NULL;
       }
    }
@@ -1790,138 +2054,145 @@ void free_reinitialize_graph(MWSSgraphpnt graph, MWSSdatapnt data)
 
 //_________________________________________________________________________________________________
 
-int read_dimacs (MWSSgraphpnt graph, char *f, double *weight)
+int read_dimacs (MWSSgraphpnt graph, char *f)
 /*
    1. Based on COLORread_dimacs, which was copied from Bill Cook on 12/22/09.
 */
 {
-      int icount = 0, haveprob = 0;
-      int i, j, len, m, n, v, w;
-      char buf[256], *p;
-      FILE *in = (FILE *) NULL;
-      nodepnt  *pn;
+   int rval = 0;
+   int icount = 0, haveprob = 0;
+   int i, j, len, m, n, v, w;
+   char buf[256], *p;
+   FILE *in = (FILE *) NULL;
+   nodepnt  *pn;
 
-      in = fopen (f, "r");
-      if (!in) {
-         fprintf (stderr, "Unable to open %s for input\n", f);
-         goto CLEANUP;
-      }
+   in = fopen (f, "r");
+   if (!in) {
+      fprintf (stderr, "Unable to open %s for input\n", f);
+      goto CLEANUP;
+   }
 
-      while (fgets (buf, 254, in) != (char *) NULL) {
-         p = buf;
-         if (p[0] == 'c') {
-            printf ("Comment: %s", p+1);
-         } else if (p[0] == 'p') {
-            const char* delim = " \t\n";
-            char* data = (char *) NULL;
-            if (haveprob) {
-               fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
-               goto CLEANUP;
-            }
-            haveprob = 1;
-            data = strtok(p,delim); /* get 'p' */
-
-            data = strtok(NULL,delim); /* get type */
-            if ( strcmp(data,"edge") && strcmp(data,"edges") && strcmp(data,"col") && strcmp(data,"graph") ) {
-               fprintf (stderr, "ERROR in Dimacs file -- not an edge file\n");
-               goto CLEANUP;
-            }
-            data = strtok(NULL,delim);
-            sscanf (data, "%d", &n);
-            graph->n_nodes = n;
-            data = strtok(NULL,delim);
-            sscanf (data, "%d", &m);
-            graph->n_edges = m;
-
-            printf ("Number of Nodes: %d\n", graph->n_nodes);
-            printf ("Number of Edges: %d\n", graph->n_edges);
-            MALLOC(graph->edge_list, (2*graph->n_edges)+graph->n_nodes, nodepnt);
-            MALLOC(graph->adj_last, graph->n_nodes+1, nodepnt*);
-            graph->node_list[0].adjacent = NULL;
-            for(i = 1; i <= graph->n_nodes; i++) {
-               graph->node_list[i].adjacent = graph->adj[i];
-            }
-
-            for(i = 0; i <= graph->n_nodes; i++) {
-               graph->node_list[i].name = i;
-               graph->node_list[i].degree = 0;
-               graph->node_list[i].adjv = 0;
-               graph->node_list[i].adj2 = NULL;
-            }
-            graph->node_list[0].name = -1;
-
-            for(i = 0; i <= graph->n_nodes; i++) {
-                for(j = 0; j <= graph->n_nodes; j++) {
-                  graph->adj[i][j] = 0;
-               }
-            }
-
-            for(i = 0, pn = graph->edge_list; i < ((2*graph->n_edges)+graph->n_nodes); i++,pn++) {
-               *pn = NULL;
-            }
-
-            //MALLOC(weight, n_nodes+1, double);
-            for (i = 0; i <= graph->n_nodes; i++) weight[i] = 0;
-         } else if (p[0] == 'e') {
-            if (!haveprob) {
-               fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
-               goto CLEANUP;
-            }
-            if (icount >= graph->n_edges) {
-               fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
-               goto CLEANUP;
-            }
-            p++;
-            sscanf (p, "%d %d", &v, &w);
-            graph->node_list[v].degree++;
-            graph->node_list[w].degree++;
-            graph->adj[v][w] = 1;
-            graph->adj[w][v] = 1;
-            icount++;
-         } else if (p[0] == 'n') {
-            if (!haveprob) {
-               fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
-               goto CLEANUP;
-            }
-            p++;
-            sscanf (p, "%d %d", &v, &len);
-            weight[v] = len;
+   while (fgets (buf, 254, in) != (char *) NULL) {
+      p = buf;
+      if (p[0] == 'c') {
+         printf ("Comment: %s", p+1);
+      } else if (p[0] == 'p') {
+         const char* delim = " \t\n";
+         char* data = (char *) NULL;
+         if (haveprob) {
+            fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
+            goto CLEANUP;
          }
-      }
+         haveprob = 1;
+         data = strtok(p,delim); /* get 'p' */
 
-      pn = graph->edge_list;
-      for(i = 1; i <= graph->n_nodes; i++) {
-         graph->node_list[i].adj = pn;
-         pn += (graph->node_list[i].degree + 1);
-      }
+         data = strtok(NULL,delim); /* get type */
+         if ( strcmp(data,"edge") && strcmp(data,"edges") && strcmp(data,"col") && strcmp(data,"graph") ) {
+            fprintf (stderr, "ERROR in Dimacs file -- not an edge file\n");
+            goto CLEANUP;
+         }
+         data = strtok(NULL,delim);
+         sscanf (data, "%d", &n);
+         graph->n_nodes = n;
+         data = strtok(NULL,delim);
+         sscanf (data, "%d", &m);
+         graph->n_edges = m;
 
-      for(i = 1; i < graph->n_nodes; i++) {
-         for(j = i+1; j <= graph->n_nodes; j++) {
-            if(graph->adj[i][j] == 1) {
-               *(graph->node_list[i].adj) = &(graph->node_list[j]);
-               if(graph->node_list[i].adj >= pn) {
-                  fprintf(stderr, "out of bounds\n");
-               }
-               graph->node_list[i].adj++;
-               *(graph->node_list[j].adj) = &(graph->node_list[i]);
-               if(graph->node_list[j].adj >= pn) {
-                  fprintf(stderr, "out of bounds\n");
-               }
-               graph->node_list[j].adj++;
+         printf ("Number of Nodes: %d\n", graph->n_nodes);
+         printf ("Number of Edges: %d\n", graph->n_edges);
+
+         rval = allocate_graph (graph, graph->n_nodes);
+         MWIScheck_rval(rval,"Failed in allocate_graph");
+
+         MWIS_MALLOC(graph->edge_list, (2*graph->n_edges)+graph->n_nodes, nodepnt);
+         MWIScheck_NULL(graph->edge_list,"Failed to allocate graph->edge_list");
+         MWIS_MALLOC(graph->adj_last, graph->n_nodes+1, nodepnt*);
+         MWIScheck_NULL(graph->adj_last,"Failed to allocate graph->adj_last");
+         graph->node_list[0].adjacent = NULL;
+         for(i = 1; i <= graph->n_nodes; i++) {
+            graph->node_list[i].adjacent = graph->adj[i];
+         }
+
+         for(i = 0; i <= graph->n_nodes; i++) {
+            graph->node_list[i].name = i;
+            graph->node_list[i].degree = 0;
+            graph->node_list[i].adjv = 0;
+            graph->node_list[i].adj2 = NULL;
+         }
+         graph->node_list[0].name = -1;
+
+         for(i = 0; i <= graph->n_nodes; i++) {
+            for(j = 0; j <= graph->n_nodes; j++) {
+               graph->adj[i][j] = 0;
             }
          }
+
+         for(i = 0, pn = graph->edge_list; i < ((2*graph->n_edges)+graph->n_nodes); i++,pn++) {
+            *pn = NULL;
+         }
+
+         //MALLOC(weight, n_nodes+1, MWISNW);
+         for (i = 0; i <= graph->n_nodes; i++) graph->weight[i] = 0;
+      } else if (p[0] == 'e') {
+         if (!haveprob) {
+            fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
+            goto CLEANUP;
+         }
+         if (icount >= graph->n_edges) {
+            fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
+            goto CLEANUP;
+         }
+         p++;
+         sscanf (p, "%d %d", &v, &w);
+         graph->node_list[v].degree++;
+         graph->node_list[w].degree++;
+         graph->adj[v][w] = 1;
+         graph->adj[w][v] = 1;
+         icount++;
+      } else if (p[0] == 'n') {
+         if (!haveprob) {
+            fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
+            goto CLEANUP;
+         }
+         p++;
+         sscanf (p, "%d %d", &v, &len);
+         graph->weight[v] = len;
       }
+   }
 
-      pn = graph->edge_list;
-      for(i = 1; i <= graph->n_nodes; i++) {
-         graph->node_list[i].adj = pn;
-         graph->adj_last[i] = pn + graph->node_list[i].degree - 1;
-         pn += (graph->node_list[i].degree + 1);
+   pn = graph->edge_list;
+   for(i = 1; i <= graph->n_nodes; i++) {
+      graph->node_list[i].adj = pn;
+      pn += (graph->node_list[i].degree + 1);
+   }
+
+   for(i = 1; i < graph->n_nodes; i++) {
+      for(j = i+1; j <= graph->n_nodes; j++) {
+         if(graph->adj[i][j] == 1) {
+            *(graph->node_list[i].adj) = &(graph->node_list[j]);
+            if(graph->node_list[i].adj >= pn) {
+               fprintf(stderr, "out of bounds\n");
+            }
+            graph->node_list[i].adj++;
+            *(graph->node_list[j].adj) = &(graph->node_list[i]);
+            if(graph->node_list[j].adj >= pn) {
+               fprintf(stderr, "out of bounds\n");
+            }
+            graph->node_list[j].adj++;
+         }
       }
+   }
 
-CLEANUP:
+   pn = graph->edge_list;
+   for(i = 1; i <= graph->n_nodes; i++) {
+      graph->node_list[i].adj = pn;
+      graph->adj_last[i] = pn + graph->node_list[i].degree - 1;
+      pn += (graph->node_list[i].degree + 1);
+   }
 
-      if (in) fclose (in);
-      return(graph->n_nodes);
- }
+ CLEANUP:
+
+   if (in) fclose (in);
+   return rval;
+}
 

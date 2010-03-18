@@ -35,12 +35,16 @@ int      test = 0;         // -t option: randomly generate and solve a set of te
 
 int main(int ac, char **av)
 {
+   int            rval = 0;
    int            d;
    MWSSgraph      graph;
    MWSSdata       data;
    wstable_info   info;
    wstable_parameters parms;
    double         goal = DBL_MAX;     
+
+   reset_pointers(&graph, &data, &info);
+
    default_parameters(&parms);
 
    parseargs (ac, av, &parms);
@@ -49,23 +53,31 @@ int main(int ac, char **av)
       for(n = 10; n <= 100; n = n + 10) {
          for(d = 1; d <= 9; d = d + 2) {
             seed = 3.1567;
-            testprobs(&graph, &data, &parms, n, d / 10.0, &seed, &info);
+            rval = testprobs(&graph, &data, &parms, n, d / 10.0, &seed, &info);
+            MWIScheck_rval(rval,"Failed in testprobs");
          }
       }
    } else {
       if (gen) {
-         rgrphgen(&graph, n, density, &seed);
+         rval = rgrphgen(&graph, n, density, &seed);
+         MWIScheck_rval(rval,"Failed in rgrphgen");
       } else {
-         read_dimacs(&graph, prob_file, graph.weight);
+         read_dimacs(&graph, prob_file);
       }
       if(parms.prn_info > 0) prn_graph(&graph);
 
-      initialize_max_wstable(&graph, &info);
+      rval = initialize_max_wstable(&graph, &info);
+      MWIScheck_rval(rval,"Failed in initialize_max_wstable");
       
-      call_max_wstable(&graph, &data, &parms, &info,goal);
-      free_graph(&graph);
+      rval = call_max_wstable(&graph, &data, &parms, &info,goal);
+      MWIScheck_rval(rval,"Failed in call_max_wstable");
+
    }
-   return EXIT_SUCCESS;
+
+ CLEANUP:
+   free_max_wstable(&graph,&data, &info);
+
+   return rval;
 }
 
 //_________________________________________________________________________________________________

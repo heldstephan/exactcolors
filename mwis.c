@@ -142,19 +142,6 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
          if (COLORdbg_lvl() > 0) {printf("\n");}
 
          COLORcheck_set((*newsets),ncount,ecount,elist);
-
-/*          /\* Reverse order *\/ */
-/*          for (i = 0; i < n/2 ;++i) { */
-/*             int t; */
-/*             COLOR_SWAP((*newsets)->members[i],(*newsets)->members[n-i-1],t); */
-/*          } */
-/*          printf("SWAPPED SET "); */
-/*          for (i = 0; i < (*newsets)->count;++i) { */
-/*             printf(" %d",(*newsets)->members[i]); */
-/*          } */
-/*          printf("\n"); */
-
-
       }
    } else {
       if (COLORdbg_lvl() > 0) {
@@ -257,6 +244,8 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 
    (*env)->ngreedy_fails = 0;
 
+   assert(sizeof(COLORNWT) == sizeof(NWT));
+
  CLEANUP:
    return rval;
 }
@@ -269,6 +258,9 @@ int COLORstable_wrapper(MWISenv** env,
    int rval = 0;
    double rtime;
    double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
+   COLORNWT sewell_objval;
+   COLORNWT oster_objval;
+
 
    ++it;
    if (!*env) {
@@ -333,8 +325,7 @@ int COLORstable_wrapper(MWISenv** env,
       }
 
       if ( ncount <= SEWELL_node_limit() && density < high_density_threshold) {
-         COLORNWT sewell_objval;
-
+         
          rtime = COLORcpu_time();
          rval = COLORstable_sewell(newsets, nnewsets,
                                    ncount, ecount, elist,
@@ -344,7 +335,6 @@ int COLORstable_wrapper(MWISenv** env,
          if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 
       } else {
-         COLORNWT oster_objval;
 
          rtime = COLORcpu_time();
          rval = COLORstable_clique_enum(newsets, nnewsets,
@@ -353,6 +343,14 @@ int COLORstable_wrapper(MWISenv** env,
          COLORcheck_rval(rval,"COLORstable_LS failed");
          rtime = COLORcpu_time() - rtime;
          if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
+
+         /*          if ( (sewell_objval <= cutoff ||  oster_objval <= cutoff) && */
+         /*               ( sewell_objval != oster_objval))  */
+         /*          { */
+         /*             printf("ERROR: sewell_objval != oster_objval!\n"); */
+         /*          } else { */
+         /*             printf("SUCCESS: sewell_objval == oster_objval!\n"); */
+         /*          } */
       }
    }
 

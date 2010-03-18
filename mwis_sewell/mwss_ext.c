@@ -18,6 +18,8 @@
 #include "mwss.h"
 #include "mwss_ext.h"
 
+static const int MAX_NODES=10000;
+
 
 static int check_ncount(int ncount)
 {
@@ -39,6 +41,10 @@ static int SEWELL_init_graph(MWSSgraphpnt graph,
 
    // Initialize the node names and degrees.
    graph->n_nodes = ncount;
+
+   rval = allocate_graph(graph, ncount);
+   MWIScheck_rval(rval,"Failed in allocate_graph");
+
    //MALLOC(node_list, n_nodes+1, tnode);
    for(i = 0; i <= graph->n_nodes; i++) {
       graph->node_list[i].name = i;
@@ -61,8 +67,11 @@ static int SEWELL_init_graph(MWSSgraphpnt graph,
       graph->adj[col][row] = 1;
    }
 
-   build_graph(graph);
+   rval = build_graph(graph);
+   MWIScheck_rval(rval,"Failed in build_graph");
 
+
+ CLEANUP:   
    return rval;
 }
 
@@ -81,6 +90,8 @@ int SEWELL_optimize(int ** newset,
    wstable_parameters parms;
    double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
 
+   reset_pointers(&graph, &data, &info);
+
    if(check_ncount(ncount)) {goto CLEANUP;}
 
    default_parameters(&parms);
@@ -94,7 +105,8 @@ int SEWELL_optimize(int ** newset,
    }
 
 
-   initialize_max_wstable(&graph,&info);
+   rval = initialize_max_wstable(&graph,&info);
+   MWIScheck_rval(rval, "Failed in initialize_max_wstable");
    call_max_wstable(&graph,&data,&parms,&info, (double) goal);
 
    if (*newset) {free(*newset);}
@@ -111,7 +123,7 @@ int SEWELL_optimize(int ** newset,
    }
 
  CLEANUP:
-   free_graph(&graph);
+   free_max_wstable(&graph,&data, &info);
    return rval;
 }
 

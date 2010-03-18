@@ -37,7 +37,7 @@ void COLORparms_init(COLORparms* parms)
    parms->edgefile                  = (char*) NULL;    
    parms->outfile                   = (char*) NULL;    
    parms->cclasses_infile           = (char*) NULL;    
-   parms->cclasses_outfile           = (char*) NULL;    
+   parms->cclasses_outfile          = (char*) NULL;    
    parms->color_infile              = (char*) NULL;    
    parms->backupdir                 = (char*) NULL;       
 }
