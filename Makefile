@@ -48,7 +48,7 @@ GUROBI_FLAG=
 endif
 
 CC=gcc
-CFLAGS= -g
+#CFLAGS= -g
 CFLAGS+= -O3
 
 #
@@ -113,7 +113,7 @@ test_tell: test_tell.o $(BOSSFILES)
 tags:
 	etags *.[hc]
 clean:
-	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
+	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log*
 	cd $(SEWELL_DIR) && $(MAKE) clean
 
 

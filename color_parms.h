@@ -30,6 +30,8 @@ typedef struct COLORparms {
    int      branch_with_same_sequence;
    int      branching_strategy;
 
+   double   branching_cpu_limit;
+
    char *edgefile;
    char *outfile;
    char *cclasses_infile;
@@ -55,6 +57,7 @@ int COLORparms_set_backupdir(COLORparms* parms,       const char* filename);
 int COLORparms_set_initial_upper_bound(COLORparms* parms,int bound);
 int COLORparms_set_write_mwis(COLORparms* parms,int write_mwis);
 int COLORparms_set_parallel(COLORparms* parms,int parallel);
+int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_limit);
 
 
 #endif
