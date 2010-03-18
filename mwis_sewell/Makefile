@@ -16,7 +16,7 @@
 
 
 # NOTE: CFLAGS are passed here from Makefile in parent directory
-# CFLAGS=  -g -O3
+# CFLAGS=  -g
 # CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings
 
 all: libsewell.a sewell
