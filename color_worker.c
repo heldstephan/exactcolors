@@ -44,11 +44,10 @@ static int open_connection(COLOR_SFILE** s,const char* bosshost)
       *s = COLORsafe_snet_open (bosshost, COLOR_BOSS_PORT);
       if (! (*s)) {
          fprintf (stderr, "COLORsafe_snet_open failed\n");
-/*          sleep (100); */
-         sleep (5);
+         sleep (10);
       }
       k++;
-   } while (! (*s) && k < 2 /* 5 */);
+   } while (! (*s) && k < 10000);
         
    if (! (*s)) {
       fprintf (stderr, "Could not connect in %d trys.\n", k);

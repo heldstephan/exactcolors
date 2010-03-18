@@ -1951,7 +1951,7 @@ static int collect_diff_children(colordata* cd)
 
 static int print_graph_operations(const colordata* cd)
 {
-   if (cd->parent) {
+   if (cd->parent && COLORdbg_lvl() > 1) {
       print_graph_operations(cd->parent);
       if (cd->ncount < cd->parent->ncount)
          printf("SAME ");
@@ -2273,15 +2273,19 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    return rval;
 }
 
-static int sequential_branching(COLORproblem* problem)
+static int sequential_branching(COLORproblem* problem,
+                                double*        cputime)
 {
    int rval = 0;
    colordata*    cd;
    COLORNWTHeap* br_heap = problem->br_heap;
-   
-   printf("ENTERED SEQUENTIAL BRANCHING.\n");
 
-   while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) ) {
+   printf("ENTERED SEQUENTIAL BRANCHING.\n");
+   double start_cputime = COLORcpu_time();
+   *cputime = 0;
+
+   while ( (cd = (colordata*) COLORNWTheap_min(br_heap) ) && 
+           *cputime < problem->parms.branching_cpu_limit) {
       int i;
       cd->upper_bound = problem->global_upper_bound;
       if (cd->lower_bound >= cd->upper_bound) {
@@ -2332,6 +2336,7 @@ static int sequential_branching(COLORproblem* problem)
             remove_finished_subtree(cd);
          }
       }
+      *cputime = COLORcpu_time() - start_cputime;
    }
  CLEANUP:
    return rval;
@@ -2542,7 +2547,7 @@ static int parallel_branching(COLORproblem* problem,
       }
    }
 
-   while (npending || cd);
+   while ( (npending || cd) && (*child_cputimes < problem->parms.branching_cpu_limit));
 
  CLEANUP:
    COLORsafe_snet_unlisten (lport);
@@ -2622,6 +2627,7 @@ int compute_coloring(COLORproblem* problem)
 
    double colheur_rtime   = .0;
    double branching_rtime = .0;
+   double branching_cputime = .0;
    double init_lb_rtime   = .0;
 
    init_lb_rtime = - COLORcpu_time();
@@ -2660,22 +2666,24 @@ int compute_coloring(COLORproblem* problem)
       }
    }
    branching_rtime = -COLORcpu_time();
-
+   
    if (problem->parms.parallel_branching) {
-      double child_cputimes;
-      rval = parallel_branching(problem,&child_cputimes);
+      rval = parallel_branching(problem,&branching_cputime);
       COLORcheck_rval(rval,"Failed in parallel_branching");
-      branching_rtime += child_cputimes;
    } else {
-      rval = sequential_branching(problem);
+      rval = sequential_branching(problem,&branching_cputime);
       COLORcheck_rval(rval,"Failed in sequential_branching");
    }
    branching_rtime += COLORcpu_time();
 
+   printf("Compute_coloring finished with LB %d and UB  %d\n",
+          root_cd->lower_bound, root_cd->upper_bound);
+
+
    printf("Compute_coloring took %f seconds (initial lower bound:%f, heur. "
-          "upper bound: %f, branching: %f.\n",
+          "upper bound: %f, branching real: %f, branching cpu: %f.\n",
           init_lb_rtime + colheur_rtime + branching_rtime,
-          init_lb_rtime,colheur_rtime,branching_rtime);
+          init_lb_rtime,colheur_rtime,branching_rtime,branching_cputime);
  CLEANUP:
    COLORNWTheap_free(br_heap); br_heap = (COLORNWTHeap*) NULL;
 

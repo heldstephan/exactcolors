@@ -39,6 +39,8 @@ static void usage (char *f)
     fprintf (stderr, "   -c f  read initial coloring from file f\n");
     fprintf (stderr, "   -p    start boss of parallel coloring\n");
     fprintf (stderr, "   -u int  initial upper bound f\n");
+    fprintf (stderr, "   -l double  cpu time limit for branching. f\n");
+
 }
 
 
@@ -48,7 +50,7 @@ static int parseargs (int ac, char **av, COLORparms* parms)
     int rval = 0;
     int debug = COLORdbg_lvl();
 
-    while ((c = getopt (ac, av, "dmpo:r:w:c:u:b:")) != EOF) {
+    while ((c = getopt (ac, av, "dmpo:r:w:c:u:b:l:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
@@ -87,6 +89,10 @@ static int parseargs (int ac, char **av, COLORparms* parms)
 	case 'b':
            rval = COLORparms_set_backupdir(parms,optarg);
            COLORcheck_rval(rval,"Failed in COLORparms_set_backupdir");
+	   break;
+	case 'l':
+           rval = COLORparms_set_branching_cpu_limit(parms,atof(optarg));
+           COLORcheck_rval(rval,"Failed in COLORparms_set_branching_cpu_limit");
 	   break;
         default:
            usage (av[0]);

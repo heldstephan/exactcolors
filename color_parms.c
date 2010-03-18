@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <limits.h>
+#include <float.h>
 #include <string.h>
 
 #include "color_defs.h"
@@ -33,6 +34,7 @@ void COLORparms_init(COLORparms* parms)
    parms->branching_strategy        = COLOR_min_lb_strategy;
    /* parms->branching_strategy        = COLOR_dfs_strategy; */
 
+   parms->branching_cpu_limit       = DBL_MAX;
 
    parms->edgefile                  = (char*) NULL;    
    parms->outfile                   = (char*) NULL;    
@@ -113,3 +115,8 @@ int COLORparms_set_parallel(COLORparms* parms,int parallel)
 }
 
 
+int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_limit)
+{
+   parms->branching_cpu_limit = branching_cpu_limit;
+   return 0;
+}
