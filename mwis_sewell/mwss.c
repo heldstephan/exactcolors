@@ -41,8 +41,8 @@ int main(int ac, char **av)
    MWSSdata       data;
    wstable_info   info;
    wstable_parameters parms;
-   double         goal = DBL_MAX;     
-
+   MWISNW         goal = MWISNW_MAX;     
+   
    reset_pointers(&graph, &data, &info);
 
    default_parameters(&parms);
@@ -69,7 +69,7 @@ int main(int ac, char **av)
       rval = initialize_max_wstable(&graph, &info);
       MWIScheck_rval(rval,"Failed in initialize_max_wstable");
       
-      rval = call_max_wstable(&graph, &data, &parms, &info,goal);
+      rval = call_max_wstable(&graph, &data, &parms, &info, goal, lower_bound);
       MWIScheck_rval(rval,"Failed in call_max_wstable");
 
    }

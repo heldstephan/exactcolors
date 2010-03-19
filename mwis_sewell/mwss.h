@@ -22,7 +22,8 @@
 #include  <time.h>
 #include  <assert.h>
 #include  <math.h>
-#include <string.h>
+#include  <string.h>
+#include  <limits.h>
 
 #define  MWIS_MALLOC(x,n,type) do {                                      \
       x = (type *) malloc( (n) * sizeof(type));                          \
@@ -156,7 +157,7 @@ void free_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, wstable_infopnt info
 int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
                      wstable_parameterspnt parameters,
                      wstable_infopnt info,
-                     MWISNW goal);
+                     MWISNW goal,MWISNW lower_bound);
 int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int *n_best_stable, MWISNW *z_best, wstable_infopnt info,
                 wstable_parameterspnt parameters, nodepnt *list, int n_list, MWISNW lower_bound,
                 MWISNW goal, int* status);
