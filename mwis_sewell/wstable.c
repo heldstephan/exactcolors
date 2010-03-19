@@ -101,7 +101,8 @@ void default_parameters(wstable_parameterspnt parms)
 int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
                      wstable_parameterspnt parameters,
                      wstable_infopnt info,
-                     MWISNW goal)
+                     MWISNW goal,
+                     MWISNW lower_bound)
 /*
    1. This routine sets up the data and calls max_wstable.
    2. Written 12/23/09.
@@ -113,7 +114,7 @@ int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
 {
    int                  rval = 0;
    int                  i, n_best_stable, status;
-   MWISNW               lower_bound, z_best;
+   MWISNW               z_best;
    nodepnt*             best_stable = (nodepnt*) NULL;
    nodepnt*             list        = (nodepnt*) NULL;
 
@@ -127,8 +128,7 @@ int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
    MWIScheck_rval(rval,"Failed in allocate_data");
 
    for(i = 1; i <= graph->n_nodes; i++) list[i] = graph->node_list + i;
-   lower_bound = 0;
-   //lower_bound = 8750000;
+
    rval = max_wstable(graph, data, best_stable, &n_best_stable, &z_best, info,
                       parameters, list, graph->n_nodes, lower_bound, goal, &status);
    MWIScheck_rval(rval,"Failed in max_wstable");
@@ -1917,7 +1917,9 @@ int testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
 {
    int      rval = 0;
    int      rep;
-   MWISNW   goal = MWISNW_MAX;
+   MWISNW   goal        = MWISNW_MAX;
+   MWISNW   lower_bound = 0;
+
    for(rep = 1; rep <= 2; rep++) {
       rval = rgrphgen(graph, n, density, dseed);
       MWIScheck_rval(rval,"Failed in rgrphgen");
@@ -1925,7 +1927,7 @@ int testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
       rval = initialize_max_wstable(graph, info);
       MWIScheck_rval(rval,"Failed in initialize_max_wstable");
       
-      rval = call_max_wstable(graph, data, parms, info,goal);
+      rval = call_max_wstable(graph, data, parms, info, goal, lower_bound);
       MWIScheck_rval(rval,"Failed in call_max_wstable");
 
       free_max_wstable(graph,data,info);

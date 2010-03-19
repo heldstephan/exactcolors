@@ -89,7 +89,7 @@ int SEWELL_optimize(int ** newset,
    MWSSdata       data;
    wstable_parameters parms;
    double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
-
+   NWT    lower_bound = goal - 1;
    reset_pointers(&graph, &data, &info);
 
    if(check_ncount(ncount)) {goto CLEANUP;}
@@ -107,7 +107,9 @@ int SEWELL_optimize(int ** newset,
 
    rval = initialize_max_wstable(&graph,&info);
    MWIScheck_rval(rval, "Failed in initialize_max_wstable");
-   call_max_wstable(&graph,&data,&parms,&info, (double) goal);
+   
+   rval = call_max_wstable(&graph,&data,&parms,&info, goal,lower_bound);
+   MWIScheck_rval(rval, "Failed in call_max_wstable");
 
    if (*newset) {free(*newset);}
 

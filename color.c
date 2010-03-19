@@ -2338,6 +2338,9 @@ static int sequential_branching(COLORproblem* problem,
       }
       *cputime = COLORcpu_time() - start_cputime;
    }
+   if (cd) {
+      printf("Branching timeout of %f second reached!.\n", *cputime);
+   }
  CLEANUP:
    return rval;
 }
@@ -2450,7 +2453,7 @@ static int parallel_branching(COLORproblem* problem,
             branching_msg(cd,problem);
          
             if(COLORdbg_lvl()) 
-               printf("branching cputime %f).\n",*child_cputimes);
+               printf("branching cputime %f.\n",*child_cputimes);
 
             /* Create children. If the current LP-solution turns out to be intergal,
                cd->upper_bound might decrease!
@@ -2548,7 +2551,10 @@ static int parallel_branching(COLORproblem* problem,
    }
 
    while ( (npending || cd) && (*child_cputimes < problem->parms.branching_cpu_limit));
-
+   
+   if (npending || cd) {
+      printf("Branching timeout of %f second reached!.\n", *child_cputimes);
+   }
  CLEANUP:
    COLORsafe_snet_unlisten (lport);
 
@@ -2677,7 +2683,7 @@ int compute_coloring(COLORproblem* problem)
    branching_rtime += COLORcpu_time();
 
    printf("Compute_coloring finished with LB %d and UB  %d\n",
-          root_cd->lower_bound, root_cd->upper_bound);
+          root_cd->lower_bound, problem->global_upper_bound);
 
 
    printf("Compute_coloring took %f seconds (initial lower bound:%f, heur. "
