@@ -129,7 +129,7 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
          while ( ! nweights[orig_i] ) {orig_i ++;}
 
          if (COLORdbg_lvl() > 0) {printf("NEW SET ");}
-         
+
          for (i = 0; i < (*newsets)->count;++i) {
             while (oster_i < (*newsets)->members[i]) {
                oster_i++;
@@ -166,7 +166,7 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    return rval;
 }
 
-static 
+static
 int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
                        int ecount, const int elist[], COLORNWT nweights[],
                        COLORNWT cutoff,COLORNWT * objval)
@@ -182,7 +182,7 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
    (*newsets)->members = (int*) NULL;
    (*newsets)->count   = 0;
 
-   
+
    rval = SEWELL_optimize( &((*newsets)->members),&((*newsets)->count),
                            ncount, ecount,elist,nweights,sewell_cutoff);
    COLORcheck_rval(rval,"Failed in SEWELL_optimize");
@@ -207,7 +207,7 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
                printf(" %d",(*newsets)->members[i]);
             }
             printf("\n");
-            
+
             COLORcheck_set((*newsets),ncount,ecount,elist);
          }
       }
@@ -223,7 +223,7 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
    }
 
  CLEANUP:
-          
+
    return rval;
 }
 
@@ -253,7 +253,8 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets, int ncount,
                         int ecount, const int elist[], COLORNWT nweights[],
-                        COLORNWT cutoff)
+                        COLORNWT cutoff,
+                        int      greedy_only)
 {
    int rval = 0;
    double rtime;
@@ -274,6 +275,10 @@ int COLORstable_wrapper(MWISenv** env,
              ( *env)->ngreedy_fails);
    }
 
+   if (density >= high_density_threshold) {
+      greedy_only = 0;
+   }
+
    if ( (density < high_density_threshold) &&
          (( *env)->ngreedy_fails < max_ngreedy_switchoff_fails) ) {
       rtime = COLORcpu_time();
@@ -287,7 +292,8 @@ int COLORstable_wrapper(MWISenv** env,
 
    if (*nnewsets) {
       ( *env)->ngreedy_fails = 0;
-   } else {
+   } else if (! greedy_only) {
+
 
       ++(( *env)->ngreedy_fails);
 
@@ -325,7 +331,7 @@ int COLORstable_wrapper(MWISenv** env,
       }
 
       if ( ncount <= SEWELL_node_limit() && density < high_density_threshold) {
-         
+
          rtime = COLORcpu_time();
          rval = COLORstable_sewell(newsets, nnewsets,
                                    ncount, ecount, elist,
@@ -532,7 +538,7 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
                           int            ncount)
 {
    int    i;
- 
+
    double div_multiplier = (double) divider;
    div_multiplier = nextafter(div_multiplier,-DBL_MAX);
    div_multiplier = 1 / div_multiplier;

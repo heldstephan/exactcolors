@@ -34,20 +34,21 @@ void COLORparms_init(COLORparms* parms)
    parms->branching_strategy        = COLOR_min_lb_strategy;
    /* parms->branching_strategy        = COLOR_dfs_strategy; */
 
+   parms->upper_bounds_only         = 0;
    parms->branching_cpu_limit       = DBL_MAX;
 
-   parms->edgefile                  = (char*) NULL;    
-   parms->outfile                   = (char*) NULL;    
-   parms->cclasses_infile           = (char*) NULL;    
-   parms->cclasses_outfile          = (char*) NULL;    
-   parms->color_infile              = (char*) NULL;    
-   parms->backupdir                 = (char*) NULL;       
+   parms->edgefile                  = (char*) NULL;
+   parms->outfile                   = (char*) NULL;
+   parms->cclasses_infile           = (char*) NULL;
+   parms->cclasses_outfile          = (char*) NULL;
+   parms->color_infile              = (char*) NULL;
+   parms->backupdir                 = (char*) NULL;
 }
 
 void COLORparms_free(COLORparms* parms)
 {
    COLOR_IFFREE(parms->edgefile,char);
-   COLOR_IFFREE(parms->outfile,char);   
+   COLOR_IFFREE(parms->outfile,char);
    COLOR_IFFREE(parms->cclasses_infile,char);
    COLOR_IFFREE(parms->cclasses_outfile,char);
    COLOR_IFFREE(parms->color_infile,char);

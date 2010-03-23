@@ -34,11 +34,11 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets,
                         int ncount, int ecount, const int elist[], COLORNWT nweights[],
-                        COLORNWT cutoff);
+                        COLORNWT cutoff, int greedy_only);
 
 int COLORstable_LS(MWISls_env** env,
                    COLORset** newsets, int* nnewsets, int ncount,
-                   int ecount, const int elist[], 
+                   int ecount, const int elist[],
                    const COLORNWT nweights[],COLORNWT cutoff);
 
 int COLORstable_init_LS(MWISls_env** env,
@@ -52,7 +52,7 @@ int COLORstable_gurobi(MWISgrb_env** env,
                        COLORNWT cutoff);
 
 int COLORstable_write_mps(const char*  filename,
-                          int ncount, int ecount, const int elist[], 
+                          int ncount, int ecount, const int elist[],
                           const COLORNWT nweights[],
                           COLORNWT cutoff);
 
@@ -95,7 +95,7 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
     cutoff in the comment.
 */
 int COLORstable_write_dimacs(const char*  filename,
-                             int ncount, int ecount, const int elist[], 
+                             int ncount, int ecount, const int elist[],
                              const COLORNWT nweights[],
                              COLORNWT cutoff);
 
@@ -104,7 +104,7 @@ int COLORstable_write_dimacs(const char*  filename,
     graph in dimacs format, adding the value of cutoff in the comment.
 */
 int COLORstable_write_dimacs_clique(const char*  filename,
-                                    int ncount, int ecount, const int elist[], 
+                                    int ncount, int ecount, const int elist[],
                                     const COLORNWT nweights[],
                                     COLORNWT cutoff);
 
