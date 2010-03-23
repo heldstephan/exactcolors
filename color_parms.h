@@ -30,6 +30,8 @@ typedef struct COLORparms {
    int      branch_with_same_sequence;
    int      branching_strategy;
 
+   int      upper_bounds_only;
+
    double   branching_cpu_limit;
 
    char *edgefile;
@@ -38,8 +40,8 @@ typedef struct COLORparms {
    char *cclasses_outfile;
    char *color_infile;
    char *backupdir;
-   
-   
+
+
 
 } COLORparms;
 
