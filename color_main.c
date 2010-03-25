@@ -30,17 +30,17 @@ static int get_problem_name(char* pname,const char* efname);
 static void usage (char *f)
 {
     fprintf (stderr, "Usage %s: [-see below-] edge_file\n", f);
-    fprintf (stderr, "   -d    turn on debugging\n");
-    fprintf (stderr, "   -b d  write intermediate solutions to directory d\n");
-    fprintf (stderr, "   -o f  write coloring to file f\n");
-    fprintf (stderr, "   -m    write final stable set and clique instances\n");
-    fprintf (stderr, "   -r f  read initial stable sets from file f\n");
-    fprintf (stderr, "   -w f  write stable sets to file f\n");
-    fprintf (stderr, "   -c f  read initial coloring from file f\n");
-    fprintf (stderr, "   -p    start boss of parallel coloring\n");
-    fprintf (stderr, "   -u int  initial upper bound f\n");
-    fprintf (stderr, "   -a    write B&B as coloring heuristic for upper bouns. f\n");
-    fprintf (stderr, "   -l double  cpu time limit for branching. f\n");
+    fprintf (stderr, "   -d     turn on debugging\n");
+    fprintf (stderr, "   -b d   write intermediate solutions to directory d\n");
+    fprintf (stderr, "   -o f   write coloring to file f\n");
+    fprintf (stderr, "   -m     write final stable set and clique instances\n");
+    fprintf (stderr, "   -r f   read initial stable sets from file f\n");
+    fprintf (stderr, "   -w f   write stable sets to file f\n");
+    fprintf (stderr, "   -c f   read initial coloring from file f\n");
+    fprintf (stderr, "   -p     start boss of parallel coloring\n");
+    fprintf (stderr, "   -u int initial upper bound f\n");
+    fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns. f\n");
+    fprintf (stderr, "   -l dbl cpu time limit for branching. f\n");
 
 }
 
@@ -144,6 +144,22 @@ return  (rval);
 }
 
 
+static int print_hostinfo(void) {
+    int   rval     = 0;
+
+    char my_hostname[MAX_PNAME_LEN];
+    pid_t my_pid   = getpid();
+
+    rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
+    COLORcheck_rval (rval, "gethostname failed");
+
+    printf("Running color_worker on host %s with pid %lld.\n",
+           my_hostname, (long long) my_pid);
+ CLEANUP:
+    return rval;
+}
+
+
 int main (int ac, char **av)
 {
     int rval = 0;
@@ -160,6 +176,7 @@ int main (int ac, char **av)
     COLORset*  debugcolors = (COLORset*) NULL;
     int        ndebugcolors = 0;
 
+    print_hostinfo();
 
     COLORproblem_init(&colorproblem);
     cd->id = 0;
