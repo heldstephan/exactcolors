@@ -40,6 +40,8 @@ static void usage (char *f)
     fprintf (stderr, "   -p     start boss of parallel coloring\n");
     fprintf (stderr, "   -u int initial upper bound f\n");
     fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns. f\n");
+    fprintf (stderr, "   -s int Branching strategy: 0 = none, 1 = minimum lower bound (default),"
+             " 2 = DFS, 3 = hybrid (2 followed by 1). f\n");
     fprintf (stderr, "   -l dbl cpu time limit for branching. f\n");
 
 }
@@ -51,7 +53,7 @@ static int parseargs (int ac, char **av, COLORparms* parms)
     int rval = 0;
     int debug = COLORdbg_lvl();
 
-    while ((c = getopt (ac, av, "admpo:r:w:c:u:b:l:")) != EOF) {
+    while ((c = getopt (ac, av, "admpo:r:w:c:u:b:l:s:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
@@ -96,6 +98,10 @@ static int parseargs (int ac, char **av, COLORparms* parms)
 	case 'l':
            rval = COLORparms_set_branching_cpu_limit(parms,atof(optarg));
            COLORcheck_rval(rval,"Failed in COLORparms_set_branching_cpu_limit");
+	   break;
+	case 's':
+           rval = COLORparms_set_branching_strategy(parms,atoi(optarg));
+           COLORcheck_rval(rval,"Failed in COLORparms_set_branching_strategy");
 	   break;
         default:
            usage (av[0]);

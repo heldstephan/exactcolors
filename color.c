@@ -2677,12 +2677,14 @@ int compute_coloring(COLORproblem* problem)
    }
    branching_rtime = -COLORcpu_time();
 
-   if (problem->parms.parallel_branching) {
-      rval = parallel_branching(problem,&branching_cputime);
-      COLORcheck_rval(rval,"Failed in parallel_branching");
-   } else {
-      rval = sequential_branching(problem,&branching_cputime);
-      COLORcheck_rval(rval,"Failed in sequential_branching");
+   if (problem->parms.branching_strategy != COLOR_no_branching) {
+      if (problem->parms.parallel_branching) {
+         rval = parallel_branching(problem,&branching_cputime);
+         COLORcheck_rval(rval,"Failed in parallel_branching");
+      } else {
+         rval = sequential_branching(problem,&branching_cputime);
+         COLORcheck_rval(rval,"Failed in sequential_branching");
+      }
    }
    branching_rtime += COLORcpu_time();
 
