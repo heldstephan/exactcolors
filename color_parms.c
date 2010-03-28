@@ -121,3 +121,14 @@ int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_l
    parms->branching_cpu_limit = branching_cpu_limit;
    return 0;
 }
+
+int COLORparms_set_branching_strategy(COLORparms* parms, int strategy)
+{
+   if (COLOR_min_strategy <= strategy && strategy < COLOR_max_strategy) {
+      parms->branching_strategy = strategy;
+      return 0;
+   } else {
+      printf("ERROR: Unknown branching strategy %d.\n", strategy);
+      return 1;
+   }
+}
