@@ -39,7 +39,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
 
     *ncolors = 0;
     *colorclasses = (COLORset *) NULL;
-    
+
     rval = COLORadjgraph_build (&G, ncount, ecount, elist);
     if (rval) {
         fprintf (stderr, "build_graph failed\n");
@@ -66,7 +66,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
 
     for (i = 0; i < ncount; i++) {
         color_node (&G, perm[i]);
-    } 
+    }
 
     k = 0;
     for (i = 0; i < ncount; i++) {
@@ -122,7 +122,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
                  COLORset **colorclasses)
 {
    int rval = 0;
-   int *degree = (int *) NULL;
+   int *freedegree = (int *) NULL;
    int *satdegree = (int *) NULL; /* saturation degree.*/
 
    int *tmpcolors = (int *) NULL;
@@ -136,16 +136,16 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
 
    *ncolors = 0;
    *colorclasses = (COLORset *) NULL;
-    
+
    rval = COLORadjgraph_build (&G, ncount, ecount, elist);
    if (rval) {
       fprintf (stderr, "build_graph failed\n");
       goto CLEANUP;
    }
 
-   degree = (int *) malloc (ncount * sizeof (int));
-   if (!degree) {
-      fprintf (stderr, "out of memory for degree\n");
+   freedegree = (int *) malloc (ncount * sizeof (int));
+   if (!freedegree) {
+      fprintf (stderr, "out of memory for freedegree\n");
       rval = 1;  goto CLEANUP;
    }
 
@@ -162,33 +162,35 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
    }
 
    for (i = 0; i < ncount; i++) {
-      degree[i] = G.nodelist[i].degree;
+      freedegree[i] = G.nodelist[i].degree;
       satdegree[i] = 0;
       G.nodelist[i].color = -1;
    }
 
    for (i = 0; i < ncount; i++) {
-      int maxsatdegree       = -1;
-      int maxsatdegreedegree = -1;
-      int maxsatdegree_node  = -1;
+      int maxsatdegree      = -1;
+      int maxfreedegree     = -1;
+      int maxsatdegree_node = -1;
       int j;
 /*       printf("%d nodes colored\n",i); */
 
       for (j = 0; j < ncount; j++) {
-         
+
          if (G.nodelist[j].color == -1) {
-            if ( (satdegree[j] > maxsatdegree) || 
-                 (G.nodelist[j].degree > maxsatdegreedegree) ) 
+            if ( (satdegree[j] > maxsatdegree) ||
+                 ( (satdegree[j] ==  maxsatdegree) &&
+                   (freedegree[j] > maxfreedegree) ) )
             {
                maxsatdegree       = satdegree[j];
-               maxsatdegreedegree = G.nodelist[j].degree;
+               maxfreedegree      = freedegree[j];
                maxsatdegree_node  = j;
             }
-         } 
+         }
       }
       color_node (&G, maxsatdegree_node);
       for (j = 0;j < G.nodelist[maxsatdegree_node].degree; ++j) {
          int v = G.nodelist[maxsatdegree_node].adj[j];
+         freedegree[v]--;
          satdegree[v] = 0;
          for (k = 0; k < ncount;++k) {
             tmpcolors[k] = 0;
@@ -202,8 +204,8 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
             }
          }
       }
-   } 
-   
+   }
+
    k = 0;
    for (i = 0; i < ncount; i++) {
       if (G.nodelist[i].color > k) {
@@ -248,7 +250,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
          free (csets);
       }
    }
-   COLOR_IFFREE(degree,int);
+   COLOR_IFFREE(freedegree,int);
    COLOR_IFFREE(satdegree,int);
    COLOR_IFFREE(tmpcolors,int);
 
