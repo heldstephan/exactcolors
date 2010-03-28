@@ -2601,9 +2601,9 @@ int prefill_heap(colordata* cd,
    }
    if (insert_into_heap) {
       if (!cd->ccount) {
-         rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
+         rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
                              &(cd->ccount), &(cd->cclasses));
-         COLORcheck_rval (rval, "COLORgreedycd failed");
+         COLORcheck_rval (rval, "COLORdsatur failed");
       }
       if (!cd->lp) {
          rval = build_lp(cd);
