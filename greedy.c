@@ -120,14 +120,18 @@ CLEANUP:
 
 static void color_node (COLORadjgraph *G, int n)
 {
-    int i, color = -1;
+    int i, color = 0;
     COLORadjnode *p = &G->nodelist[n];
-
-    for (i = 0; i < p->degree; i++) {
-        if (G->nodelist[p->adj[i]].color > color) {
-            color = G->nodelist[p->adj[i]].color;
-        }
-    }
-    p->color = color+1;
+    int failed;
+    do {
+     failed = 0;
+       for (i = 0; !failed && i < p->degree; i++) {
+          if (G->nodelist[p->adj[i]].color == color) {
+             ++color;
+             failed = 1;
+          }
+       }
+    } while (failed);
+    p->color = color;
 }
 
