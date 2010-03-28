@@ -42,7 +42,10 @@ void COLORproblem_init(COLORproblem* problem);
 void COLORproblem_free(COLORproblem* problem);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
-        COLORset **colorclasses);
+                 COLORset **colorclasses);
+int COLORdsatur(int ncount, int ecount, int *elist, int *ncolors,
+                COLORset **colorclasses);
+
 int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
         int ecount, int *elist, int *weights, int cutoff, int *pval);
 int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
