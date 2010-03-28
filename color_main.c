@@ -217,10 +217,15 @@ int main (int ac, char **av)
                                               cd->ncount,parms->cclasses_infile,cd->pname);
           COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
        } else {
-          rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
-                              &(cd->ccount), &(cd->cclasses));
-          COLORcheck_rval (rval, "COLORgreedycd failed");
-
+          if (0) {
+             rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
+                                 &(cd->ccount), &(cd->cclasses));
+             COLORcheck_rval (rval, "COLORgreedy failed");
+          } else {
+             rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
+                                 &(cd->ccount), &(cd->cclasses));
+             COLORcheck_rval (rval, "COLORdsatur failed");
+          }
           /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
           printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
           print_colors(cd->cclasses,cd->ccount);
