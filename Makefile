@@ -25,7 +25,7 @@ ifneq ($(QSPATH),)
 LPINCLUDE=$(QSPATH)
 LPLIB=$(QSPATH)/qsopt.a
 LPSOURCE=lpqsopt.o
-endif 
+endif
 
 ifneq ($(GUPATH),)
 LPINCLUDE=$(GUPATH)/include
@@ -55,7 +55,7 @@ CFLAGS+= -O3
 # Valgrind does not support fegetround & fesetround. With following compile option
 # their use is circumvented. We also recommend to use QSopt as the LP-solver while
 # debugging with valgrind, as the commercial solvers impose valgrind errors internally.
-# 
+#
 # CFLAGS+= -DCOMPILE_FOR_VALGRIND
 
 
@@ -65,9 +65,6 @@ CFLAGS+= -O3
 # Below this comment changes should be unnecessary.#
 ####################################################
 
-SEWELL_DIR=mwis_sewell
-SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
-SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
 
 CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
 export CFLAGS
@@ -83,20 +80,17 @@ PARTFILES=partition.o  $(OBJFILES)
 
 all: color color_worker stable queen test_boss test_worker test_tell partition
 
-color: $(CBOSSFILES) $(SEWELL_LIB) color_worker
-	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+color: $(CBOSSFILES)  color_worker
+	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread
 
 color_worker: $(CWORKERFILES)
-	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
-
-$(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
-	cd $(SEWELL_DIR) && $(MAKE)
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
 
 partition: $(PARTFILES)
-	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
+	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
@@ -114,7 +108,6 @@ tags:
 	etags *.[hc]
 clean:
 	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
-	cd $(SEWELL_DIR) && $(MAKE) clean
 
 
 color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h

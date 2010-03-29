@@ -27,7 +27,6 @@
 
 #include "color.h"
 
-#include "mwis_sewell/mwss_ext.h"
 #include "mwis.h"
 
 static int it = 0;
@@ -129,7 +128,7 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
          while ( ! nweights[orig_i] ) {orig_i ++;}
 
          if (COLORdbg_lvl() > 0) {printf("NEW SET ");}
-         
+
          for (i = 0; i < (*newsets)->count;++i) {
             while (oster_i < (*newsets)->members[i]) {
                oster_i++;
@@ -166,66 +165,6 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    return rval;
 }
 
-static 
-int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
-                       int ecount, const int elist[], COLORNWT nweights[],
-                       COLORNWT cutoff,COLORNWT * objval)
-{
-   int            rval = 0;
-   int            i;
-   int            sewell_cutoff = cutoff < COLOR_MAXINT ? cutoff + 1 : cutoff;
-
-   *objval   = .0;
-   *newsets  = COLOR_SAFE_MALLOC(1,COLORset);
-   *nnewsets = 1;
-
-   (*newsets)->members = (int*) NULL;
-   (*newsets)->count   = 0;
-
-   
-   rval = SEWELL_optimize( &((*newsets)->members),&((*newsets)->count),
-                           ncount, ecount,elist,nweights,sewell_cutoff);
-   COLORcheck_rval(rval,"Failed in SEWELL_optimize");
-
-   qsort((*newsets)->members,(*newsets)->count,sizeof(int),
-         COLORnode_comparator);
-
-   for (i = 0; i < (*newsets)->count; ++i) {
-      *objval += nweights[(*newsets)->members[i]];
-   }
-
-   if (COLORdbg_lvl() > 0) {
-      printf("Best sewell:   %13.10e ( %lld / %lld ).\n",
-             COLORsafe_lower_dbl(*objval,cutoff),(long long ) *objval,(long long ) cutoff);
-   }
-
-   if (*objval > cutoff) {
-      if (*nnewsets) {
-         if (COLORdbg_lvl() > 0) {
-            printf("NEW SET ");
-            for (i = 0; i < (*newsets)->count;++i) {
-               printf(" %d",(*newsets)->members[i]);
-            }
-            printf("\n");
-            
-            COLORcheck_set((*newsets),ncount,ecount,elist);
-         }
-      }
-   } else {
-      if (COLORdbg_lvl() > 0) {
-         printf("BEST SET ");
-         for (i = 0; i < (*newsets)->count;++i) {
-            printf(" %d",(*newsets)->members[i]);
-         }
-         printf("\n");
-      }
-      COLORfree_sets(newsets,nnewsets);
-   }
-
- CLEANUP:
-          
-   return rval;
-}
 
 int COLORstable_initenv(MWISenv** env, const char* pname,
                         int write_mwis)
@@ -244,7 +183,6 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 
    (*env)->ngreedy_fails = 0;
 
-   assert(sizeof(COLORNWT) == sizeof(NWT));
 
  CLEANUP:
    return rval;
@@ -258,7 +196,6 @@ int COLORstable_wrapper(MWISenv** env,
    int rval = 0;
    double rtime;
    double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
-   COLORNWT sewell_objval;
    COLORNWT oster_objval;
 
 
@@ -324,35 +261,17 @@ int COLORstable_wrapper(MWISenv** env,
 #endif
       }
 
-      if ( ncount <= SEWELL_node_limit() && density < high_density_threshold) {
-         
-         rtime = COLORcpu_time();
-         rval = COLORstable_sewell(newsets, nnewsets,
-                                   ncount, ecount, elist,
-                                   nweights,cutoff,&sewell_objval);
-         COLORcheck_rval(rval,"COLORstable_LS failed");
-         rtime = COLORcpu_time() - rtime;
-         if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 
-      } else {
+      rtime = COLORcpu_time();
+      rval = COLORstable_clique_enum(newsets, nnewsets,
+                                     ncount, ecount, elist,
+                                     nweights,cutoff, &oster_objval);
+      COLORcheck_rval(rval,"COLORstable_LS failed");
+      rtime = COLORcpu_time() - rtime;
+      if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 
-         rtime = COLORcpu_time();
-         rval = COLORstable_clique_enum(newsets, nnewsets,
-                                        ncount, ecount, elist,
-                                        nweights,cutoff, &oster_objval);
-         COLORcheck_rval(rval,"COLORstable_LS failed");
-         rtime = COLORcpu_time() - rtime;
-         if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
-
-         /*          if ( (sewell_objval <= cutoff ||  oster_objval <= cutoff) && */
-         /*               ( sewell_objval != oster_objval))  */
-         /*          { */
-         /*             printf("ERROR: sewell_objval != oster_objval!\n"); */
-         /*          } else { */
-         /*             printf("SUCCESS: sewell_objval == oster_objval!\n"); */
-         /*          } */
-      }
    }
+
 
  CLEANUP:
    if (rval) {
@@ -532,7 +451,7 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
                           int            ncount)
 {
    int    i;
- 
+
    double div_multiplier = (double) divider;
    div_multiplier = nextafter(div_multiplier,-DBL_MAX);
    div_multiplier = 1 / div_multiplier;
