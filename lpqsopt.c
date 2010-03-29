@@ -129,20 +129,20 @@ CLEANUP:
    return rval;
 }
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
-       char sense, double rhs, char *name) 
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
+       char sense, double rhs, char *name)
 {
     int rval = 0;
     char isense;
 
     switch (sense) {
-    case COLORlp_EQUAL: 
+    case COLORlp_EQUAL:
         isense = 'E'; break;
-    case COLORlp_LESS_EQUAL:    
+    case COLORlp_LESS_EQUAL:
         isense = 'L'; break;
-    case COLORlp_GREATER_EQUAL:    
+    case COLORlp_GREATER_EQUAL:
         isense = 'G'; break;
-    default: 
+    default:
         fprintf (stderr, "unknown variable sense: %c\n", sense);
         rval = 1;  goto CLEANUP;
     }
@@ -154,8 +154,8 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval, 
-       double obj, double lb, double ub, char sense, char *name) 
+int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
+       double obj, double lb, double ub, char sense, char *name)
 {
     int rval = 0;
 
