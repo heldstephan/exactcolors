@@ -1760,8 +1760,13 @@ int create_branches(colordata* cd,COLORproblem* problem)
    COLORcheck_NULL(mf_col,"Failed ot allocate nodepair_bucket");
    for (i = 0; i < cd->ncount; ++i) {mf_col[i] = -1;}
 
+   if (!cd->ccount) {
+      compute_lower_bound (cd,problem);
+   }
+
    x = (double*) COLOR_SAFE_MALLOC(cd->ccount,double);
    COLORcheck_NULL(x,"Failed ot allocate x");
+
 
    rval = COLORlp_optimize(cd->lp);
    COLORcheck_rval (rval, "COLORlp_optimize failed");
@@ -1824,6 +1829,9 @@ int create_branches(colordata* cd,COLORproblem* problem)
 
       rval = compute_lower_bound (cd->diff_children,problem);
       COLORcheck_rval(rval, "Failed in compute_lower_bound");
+
+      /* free_lbcolordata (cd->same_children); */
+      /* free_lbcolordata (cd->diff_children); */
    }
 
    if (cd->same_children && cd->ndebugcolors) {
@@ -1984,11 +1992,20 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
    lb_rtime = COLORcpu_time();
    last_snapshot_time = lb_rtime;
 
-   reset_ages(cd->cclasses,cd->ccount) ;
+   if (!cd->ccount) {
+      rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
+                          &(cd->ccount), &(cd->cclasses));
+      COLORcheck_rval (rval, "COLORdsatur failed");
+   } else {
+      reset_ages(cd->cclasses,cd->ccount) ;
+   }
+
    cd->gallocated = cd->ccount;
 
-   rval = build_lp(cd);
-   COLORcheck_rval (rval, "build_lp failed");
+   if (! cd->lp) {
+      rval = build_lp(cd);
+      COLORcheck_rval (rval, "build_lp failed");
+   }
 
    rval = COLORstable_initenv (&(cd->mwis_env),cd->pname,problem->parms.write_mwis);
    COLORcheck_rval (rval, "COLORgreedy failed");
@@ -2600,15 +2617,6 @@ int prefill_heap(colordata* cd,
       }
    }
    if (insert_into_heap) {
-      if (!cd->ccount) {
-         rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
-                             &(cd->ccount), &(cd->cclasses));
-         COLORcheck_rval (rval, "COLORdsatur failed");
-      }
-      if (!cd->lp) {
-         rval = build_lp(cd);
-         COLORcheck_rval(rval, "Failed in build_lp");
-      }
       rval = insert_into_branching_heap(cd,problem);
       COLORcheck_rval(rval,"Failed in insert_into_branching_heap");
 
