@@ -484,6 +484,10 @@ static int greedy_improvement_2(soldata* sol, int s)
    memcpy(sol->sort_work,sol->nperm + sol->solcount,
           sol->freecount * sizeof(int));
 
+   for (i = sol->solcount; i < sol->solcount + sol->freecount;++i) {
+      int x = sol->nperm[i];
+      sol->grdy_nweights[x] *= -1;
+   }
    perm_nwt_rquicksort(sol->sort_work,
                        sol->grdy_nweights,
                        sol->freecount);

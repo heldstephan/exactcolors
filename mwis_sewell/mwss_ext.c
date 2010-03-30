@@ -80,6 +80,7 @@ int SEWELL_optimize(int ** newset,
                     int   *nnewset,
                     int ncount, int ecount, const int elist[],
                     NWT nweights[],
+                    NWT lower_bound,
                     NWT goal)
 {
    int rval = 0;
@@ -89,7 +90,6 @@ int SEWELL_optimize(int ** newset,
    MWSSdata       data;
    wstable_parameters parms;
    double density =  ((double) ecount) / ((double) (ncount * ( ncount - 1))) * 2.0;
-   NWT    lower_bound = goal - 1;
    reset_pointers(&graph, &data, &info);
 
    if(check_ncount(ncount)) {goto CLEANUP;}

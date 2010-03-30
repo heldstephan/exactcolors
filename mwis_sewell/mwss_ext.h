@@ -23,6 +23,7 @@ extern
 int SEWELL_optimize(int** newset,
                     int*  nnewset,
                     int   ncount, int ecount, const int elist[], NWT nweights[],
+                    NWT   lower_bound,
                     NWT   goal);
 
 extern
