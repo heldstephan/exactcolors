@@ -173,7 +173,8 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
 {
    int            rval = 0;
    int            i;
-   int            sewell_cutoff = cutoff < COLOR_MAXINT ? cutoff + 1 : cutoff;
+   NWT            sewell_cutoff      = cutoff + 1;
+   NWT            sewell_lower_bound = cutoff;
 
    *objval   = .0;
    *newsets  = COLOR_SAFE_MALLOC(1,COLORset);
@@ -184,7 +185,8 @@ int COLORstable_sewell(COLORset** newsets, int* nnewsets, int ncount,
 
 
    rval = SEWELL_optimize( &((*newsets)->members),&((*newsets)->count),
-                           ncount, ecount,elist,nweights,sewell_cutoff);
+                           ncount, ecount,elist,nweights,sewell_lower_bound,
+                           sewell_cutoff);
    COLORcheck_rval(rval,"Failed in SEWELL_optimize");
 
    qsort((*newsets)->members,(*newsets)->count,sizeof(int),
@@ -250,6 +252,60 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
    return rval;
 }
 
+/** COLORstable_round_down_weights_uniformly is used only to compare
+    with our rounding in COLORstable_round_down_weights. By default its
+    not used.
+*/
+COLOR_MAYBE_UNUSED static
+int COLORstable_round_down_weights_uniformly(COLORNWT nweights[],
+                                             int      ncount,
+                                             COLORNWT cutoff)
+{
+   int rval = 0;
+   COLORNWT wsum = 0;
+   COLORNWT remain;
+   int i;
+   int weighted_nodes = 0;
+
+   for (i = 0; i < ncount; ++i) {
+      if (nweights[i]) {
+         weighted_nodes++;
+         wsum += nweights[i];
+      }
+   }
+
+   remain = wsum % cutoff;
+   if (remain) remain--;
+   while (weighted_nodes && remain > weighted_nodes) {
+      COLORNWT subtractor = remain / weighted_nodes;
+      for (i = 0; i < ncount; ++i) {
+         if (nweights[i]) {
+            COLORNWT nsub = subtractor;
+            if (nweights[i] <= subtractor) {
+               nsub = nweights[i];
+               nweights[i] = 0;
+               weighted_nodes--;
+            } else {
+               nweights[i] -= nsub;
+            }
+            remain -= nsub;
+         }
+      }
+   }
+    assert(remain >=0);
+   for (i = 0; remain; ++i) {
+      int j = i % ncount;
+      if (nweights[j]) {
+         nweights[j]--;
+         remain--;
+      }
+   }
+    assert(!remain);
+
+   return rval;
+}
+
+
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets, int ncount,
                         int ecount, const int elist[], COLORNWT nweights[],
@@ -305,8 +361,10 @@ int COLORstable_wrapper(MWISenv** env,
 	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
       }
 
+/*       rval = COLORstable_round_down_weights_uniformly(nweights,ncount,cutoff); */
       rval = COLORstable_round_down_weights((*env)->ls_env,
                                             nweights,cutoff);
+      COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights");
 
       if( (*env)->write_mwis) {
          char filename [256];
