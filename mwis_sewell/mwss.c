@@ -69,6 +69,7 @@ int main(int ac, char **av)
       rval = initialize_max_wstable(&graph, &info);
       MWIScheck_rval(rval,"Failed in initialize_max_wstable");
       
+/*       lower_bound = 6927366; */
       rval = call_max_wstable(&graph, &data, &parms, &info, goal, lower_bound);
       MWIScheck_rval(rval,"Failed in call_max_wstable");
 
