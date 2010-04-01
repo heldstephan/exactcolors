@@ -998,46 +998,62 @@ static int mark_neighborhood(int* neighbor_marker,
    return rval;
 }
 
+static int contract_elist(int *elist[],
+                          int ncount, int* ecount,
+                          int v1, int v2)
+{
+   int rval = 0;
+   int i;
+   COLORadjgraph G;
+
+   for(i = 0; i < *ecount; ++i) {
+      (*elist)[2*i]   = new_eindex((*elist)[2*i],v1,v2);
+      (*elist)[2*i+1] = new_eindex((*elist)[2*i+1],v1,v2);
+   }
+
+   COLORadjgraph_init(&G);
+   rval = COLORadjgraph_build(&G, ncount,*ecount, *elist);
+   COLORcheck_rval(rval,"COLORadjgraph_build");
+
+   rval =  COLORadjgraph_simplify(&G);
+   COLORcheck_rval(rval,"COLORadjgraph_simplify");
+
+   rval = COLORadjgraph_extract_edgelist(ecount, elist,&G);
+
+ CLEANUP:
+   COLORadjgraph_free(&G);
+
+   return rval;
+}
+
 static int create_contracted_graph(colordata* cd,
                                    int ncount, int ecount, int elist[],
                                    int v1, int v2)
 {
    int rval = 0;
    int i;
-   COLORadjgraph G;
-
-
 
 
    /* Create contracted graph */
    cd->ncount = ncount - 1;
    cd->ecount = ecount;
+
    cd->elist  = (int*) COLOR_SAFE_MALLOC(2 * cd->ecount,int);
    COLORcheck_NULL(cd->elist,"Failed to allocate cd->elist");
-   memcpy(cd->elist,elist, 2 * ecount * sizeof(int));
-   for(i = 0; i < cd->ecount; ++i) {
-      cd->elist[2*i] = new_eindex(cd->elist[2*i],v1,v2);
-      cd->elist[2*i+1] = new_eindex(cd->elist[2*i+1],v1,v2);
-   }
-
-   COLORadjgraph_init(&G);
-   rval = COLORadjgraph_build(&G,cd->ncount,cd->ecount, cd->elist);
-   COLORcheck_rval(rval,"COLORadjgraph_build");
-
-   rval =  COLORadjgraph_simplify(&G);
-   COLORcheck_rval(rval,"COLORadjgraph_simplify");
-
-   rval = COLORadjgraph_extract_edgelist(&(cd->ecount), &(cd->elist),&G);
 
    cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
    COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
+
+   memcpy(cd->elist,elist, 2 * ecount * sizeof(int));
+   
+   rval = contract_elist(&cd->elist,cd->ncount,&cd->ecount,v1,v2);
+
    for (i = 0; i < cd->ncount; ++i) {
       int j = (i < v2 ) ?  i : i + 1;
       cd->orig_node_ids[i] = cd->parent->orig_node_ids[j];
    }
 
  CLEANUP:
-   COLORadjgraph_free(&G);
 
    return rval;
 }
@@ -1851,6 +1867,9 @@ int create_branches(colordata* cd,COLORproblem* problem)
 
  CLEANUP:
    free_lbcolordata(cd);
+   if (cd->parent) {
+      COLOR_IFFREE(cd->elist,int);
+   }
 
    if (cand_heap) {
       COLORNWTheap_free(cand_heap);
@@ -1917,8 +1936,10 @@ static int collect_same_children(colordata* cd)
          }
 /*          print_colors(cd->bestcolors,cd->nbestcolors); */
          fflush(stdout);
-         rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
-                                    cd->ncount, cd->ecount, cd->elist);
+         if (cd->elist) {
+            rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
+                                       cd->ncount, cd->ecount, cd->elist);
+         }
          COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
       }
 

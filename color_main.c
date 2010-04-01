@@ -231,8 +231,10 @@ int main (int ac, char **av)
           print_colors(cd->cclasses,cd->ccount);
           COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
                          cd->cclasses,cd->ccount);
+          COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
+                              cd->ncount, cd->ccount, cd->elist);
+
           cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
-          colorproblem.global_upper_bound = cd->upper_bound;
        }
 
        if (parms->color_infile != (char*) NULL) {
@@ -246,6 +248,9 @@ int main (int ac, char **av)
           cd->ndebugcolors = ndebugcolors;
           cd->opt_track = 1;
        }
+       
+       colorproblem.global_upper_bound = cd->upper_bound;
+
     }
 
     rval = compute_coloring(&colorproblem);
