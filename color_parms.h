@@ -33,6 +33,8 @@ typedef struct COLORparms {
    int      parallel_branching;
    int      branch_with_same_sequence;
    int      branching_strategy;
+   
+   int      delete_elists;
 
    int      upper_bounds_only;
 
