@@ -204,7 +204,7 @@ int main (int ac, char **av)
                              &(cd->elist), (int **) NULL);
     COLORcheck_rval (rval, "COLORread_diamcs failed");
 
-    if (COLORget_backupdir()) {
+    if (colorproblem.parms.backupdir) {
        rval = recover_colordata(cd,&colorproblem);
     }
     if (cd->status == initialized) {

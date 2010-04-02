@@ -136,7 +136,7 @@ const char* COLORget_backupdir(void );
 
 int recover_colordata(colordata* cd,COLORproblem* problem);
 
-int backup_colordata(colordata* cd);
+int backup_colordata(colordata* cd, COLORproblem* problem);
 
 int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp);
 

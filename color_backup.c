@@ -20,19 +20,6 @@
 
 #include "color_private.h"
 
-static char* backupdir = 0;
-
-
-void COLORset_backupdir(char* dir)
-{
-   backupdir = dir;
-}
-
-const char* COLORget_backupdir(void )
-{
-   return backupdir;
-}
-
 
 COLOR_MAYBE_UNUSED
 static int write_colordata_to_file(colordata* cd, 
@@ -70,7 +57,7 @@ static int write_colordata_to_file(colordata* cd,
    COLORcheck_fileio(prval,"Failed in fprintf");
 
 
-   for (i = 0; i < cd->ecount; ++ i) {
+   for (i = 0; cd->elist && i < cd->ecount; ++ i) {
       prval = fprintf(file,"e %d %d\n",cd->elist[2*i], cd->elist[2*i+1]);
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
@@ -172,14 +159,14 @@ static int write_colordata_to_file(colordata* cd,
    return rval;
 }
 
-int backup_colordata(colordata* cd) {
+int backup_colordata(colordata* cd, COLORproblem* problem) {
    
    char bkp_filename[256] = "";
 
    int   prval = 0;
    int   rval  = 0;
    FILE* file  = (FILE*) NULL;
-   
+   const char* backupdir = problem->parms.backupdir;
    if (backupdir) {
       char filename[256];
       
@@ -428,6 +415,13 @@ static int read_colordata_from_file(colordata* cd,
          }
       }
    }
+   if (!ecount_test) {/** Edges were temporarily deleted.*/
+      COLOR_IFFREE(cd->elist,int);
+   } else if (ecount_test != cd->ecount) {
+      printf("ERROR read_colordata_from_file found wrong number of edges!\n");
+      rval = 1; goto CLEANUP;
+   }
+
  CLEANUP:
    return rval;
 }
@@ -436,6 +430,7 @@ int recover_colordata(colordata* cd,COLORproblem* problem) {
    int rval  = 0;
    int prval = 0;
    FILE* file = (FILE*) NULL;
+   const char* backupdir = problem->parms.backupdir;
    if (backupdir) {
       char filename[256];
       prval = sprintf(filename,"%s/%s.%d",
