@@ -17,6 +17,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include "graph.h"
 
 #include "color.h"
@@ -240,7 +241,9 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
       csets[c].members[csets[c].count] = i;
       csets[c].count++;
    }
+
    *colorclasses = csets;
+
 
  CLEANUP:
 
@@ -275,3 +278,58 @@ static void color_node (COLORadjgraph *G, int n)
     p->color = color;
 }
 
+int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors,
+                                 COLORset *cclasses)
+{
+   int rval = 0;
+   int *color_incidence= (int *) NULL;
+   COLORadjgraph G;
+   int i,c;
+   
+
+   rval = COLORadjgraph_build (&G, ncount, ecount, elist);
+   COLORcheck_rval(rval, "Failed in COLORadjgraph_build.");
+ 
+   color_incidence = COLOR_SAFE_MALLOC(ncount,int);
+   COLORcheck_NULL(color_incidence,"Failed to allocate color_incidence.");
+
+   for (c = 0; c < ncolors; ++c) {
+      int new_count = cclasses[c].count;
+      for (i = 0; i < ncount; ++i) color_incidence[i] = 0;
+      for (i = 0; i < cclasses[c].count; ++i) {
+         color_incidence[cclasses[c].members[i]] = 1;
+      }
+
+      for (i = 0; i < ncount; ++i) {
+         int j;
+         int free_node = 1;
+         if (color_incidence[i]) continue;
+         for (j = 0 ; j < G.nodelist[i].degree;++j) {
+            if (color_incidence[G.nodelist[i].adj[j]]) {
+               free_node = 0;
+               j = G.nodelist[i].degree;
+            }
+         }
+         if (free_node) {
+            color_incidence[i] = 1;
+            new_count++;
+         }
+      }
+      
+      if (new_count > cclasses[c].count) {
+         COLOR_FREE(cclasses[c].members,int);
+         cclasses[c].members = COLOR_SAFE_MALLOC(new_count,int);
+         COLORcheck_NULL(cclasses[c].members, "Failed to allocate cclasses[c].members");
+         cclasses[c].count = new_count;
+         new_count = 0;
+         for (i = 0; i < ncount; ++i) {
+            if (color_incidence[i]) {
+               cclasses[c].members[new_count++] = i;
+            }
+         }
+         assert(new_count = cclasses[c].count);
+      }
+   }
+ CLEANUP:
+   return rval;
+}
