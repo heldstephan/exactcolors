@@ -2047,6 +2047,7 @@ static int collect_diff_children(colordata* cd)
 {
    int rval = 0;
    int c;
+   int delete_elist = 0;
 
    for (c = 0; c < cd->ndiff; ++c) {
       if ( cd->diff_children[c].nbestcolors &&
@@ -2061,9 +2062,20 @@ static int collect_diff_children(colordata* cd)
             cd->bestcolors = cd->diff_children[c].bestcolors;
             cd->diff_children[c].bestcolors = (COLORset*) NULL;
 
+            if (!cd->elist) {
+               delete_elist = 1;
+               rval = recover_elist(cd);
+               COLORcheck_rval(rval,"Failed in recover_elist");
+            }
+
             rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
                                        cd->ncount, cd->ecount, cd->elist);
             COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
+
+            if (delete_elist) {
+               COLOR_IFFREE(cd->elist,int);
+            }
+
          }
    }
 

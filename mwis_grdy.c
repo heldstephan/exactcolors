@@ -1202,7 +1202,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
    int start_vertex;
    int nsoldatas = 0;
    int last_improving_start = 0;
-   int last_valid_start = -1;
+   int first_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
       reinit_soldatas(sol);
@@ -1241,16 +1241,16 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
       if (sol->cclasses.cnt > nsoldatas) {
          nsoldatas = sol->cclasses.cnt;
          last_improving_start = start_vertex;
-         if (last_valid_start == -1)
-            last_valid_start = start_vertex;
-/*          num_starts /=2; */
-         num_starts = sol->ncount / nsoldatas;
+         if (first_valid_start == -1)
+            first_valid_start = start_vertex;
+         /* If a solution was found, put less effort in finding better ones.*/
+         num_starts = sol->ncount / (nsoldatas + 1);
       }
    }
    if (COLORdbg_lvl()> 0) {
       printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
              COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
-             sol->cclasses.cnt, last_valid_start,last_improving_start);
+             sol->cclasses.cnt, first_valid_start,last_improving_start);
       fflush(stdout);
    }
  CLEANUP:

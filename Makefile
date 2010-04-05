@@ -80,13 +80,14 @@ BOSSFILES=graph.o bbsafe.o util.o
 CBOSSFILES=color_main.o $(OBJFILES)
 CWORKERFILES=color_worker.o $(OBJFILES)
 PARTFILES=partition.o  $(OBJFILES)
+COMPFILES=complement.o  $(OBJFILES)
 
-all: color color_worker stable queen test_boss test_worker test_tell partition
+all: color color_worker stable queen test_boss test_worker test_tell partition complement
 
-color: $(CBOSSFILES) $(SEWELL_LIB) color_worker
+color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
 	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
-color_worker: $(CWORKERFILES)
+color_worker: $(SEWELL_LIB) $(CWORKERFILES)
 	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
 $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
@@ -95,8 +96,12 @@ $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
 
-partition: $(PARTFILES)
+partition: $(SEWELL_LIB) $(PARTFILES)
 	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
+
+complement: $(SEWELL_LIB) $(COMPFILES)
+	$(CC) $(CFLAGS) -o complement $(COMPFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
+
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
@@ -122,6 +127,7 @@ color_worker.o: color_worker.c color_private.h color_defs.h bbsafe.h
 color_backup.o: color_backup.c color_private.h color_defs.h
 color_parms.o: color_parms.c color_parms.h color_defs.h
 partition.o: partition.c  color.h graph.h color_defs.h
+complement.c:  color.h graph.h color_defs.h
 heap.o:      heap.c heap.h color_defs.h
 graph.o:     graph.c graph.h color_defs.h
 greedy.o:    greedy.c  color.h graph.h color_defs.h

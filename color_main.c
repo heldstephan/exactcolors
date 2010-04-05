@@ -234,6 +234,10 @@ int main (int ac, char **av)
           COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
                               cd->ncount, cd->ccount, cd->elist);
 
+/*           rval = COLORtransform_into_maximal (cd->ncount, cd->ecount, cd->elist,  cd->ccount, */
+/*                                               cd->cclasses); */
+/*           COLORcheck_rval (rval, "Failed in COLORtransform_into_maximal"); */
+
           cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
        }
 

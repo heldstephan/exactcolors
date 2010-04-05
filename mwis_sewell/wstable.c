@@ -2134,7 +2134,8 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
          }
 
          //MALLOC(weight, n_nodes+1, MWISNW);
-         for (i = 0; i <= graph->n_nodes; i++) graph->weight[i] = 0;
+         graph->weight[0] = 0;
+         for (i = 0; i <= graph->n_nodes; i++) graph->weight[i] = 1;
       } else if (p[0] == 'e') {
          if (!haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- e before p\n");

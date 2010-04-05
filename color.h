@@ -45,6 +45,8 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
                  COLORset **colorclasses);
 int COLORdsatur(int ncount, int ecount, int *elist, int *ncolors,
                 COLORset **colorclasses);
+int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors,
+                                 COLORset *cclasses);
 
 int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
         int ecount, int *elist, int *weights, int cutoff, int *pval);
