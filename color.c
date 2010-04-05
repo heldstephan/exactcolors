@@ -676,32 +676,39 @@ static int delete_old_colorclasses(colordata* cd)
    int rval   = 0;
    int i;
    int numdel = 0;
+   int min_numdel = cd->ncount / 2; /* We wan't to delete at least n/2 columns .*/
+
 
    for (i = 0; i < cd->ccount; ++i) {
       if (cd->cclasses[i].age > cd->retirementage) {
-         /* swap current class with last (if i isn't last) and delete it. */
-         --(cd->ccount);
-         COLORfree_set(&(cd->cclasses[i]));
-         if (i < cd->ccount) {
-            memcpy(&(cd->cclasses[i]),&(cd->cclasses[cd->ccount]),sizeof(COLORset));
-            /* Ensure that the formerly last class is considered:*/
-            --i;
-         }
-         COLORinit_set(&(cd->cclasses[cd->ccount]));
          numdel++;
       }
    }
 
-   if (numdel) {
-
+   if (numdel > min_numdel) {
+      for (i = 0; i < cd->ccount; ++i) {
+         if (cd->cclasses[i].age > cd->retirementage) {
+            /* swap current class with last (if i isn't last) and delete it. */
+            --(cd->ccount);
+            COLORfree_set(&(cd->cclasses[i]));
+            if (i < cd->ccount) {
+               memcpy(&(cd->cclasses[i]),&(cd->cclasses[cd->ccount]),sizeof(COLORset));
+               /* Ensure that the formerly last class is considered:*/
+               --i;
+            }
+            COLORinit_set(&(cd->cclasses[cd->ccount]));
+         }
+      }
+      
       if (COLORdbg_lvl() > 0) {
          printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
                 numdel, numdel + cd->ccount, cd->retirementage);
       }
       COLORlp_free (&(cd->lp));
-
+      
       rval = build_lp(cd);
       COLORcheck_rval(rval, "Failed in build_lp");
+
    }
 
 
@@ -2140,7 +2147,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
    cd->mwis_pi = (COLORNWT *) COLOR_SAFE_MALLOC (cd->ncount,COLORNWT);
    COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
 
-   cd->retirementage = cd->ncount / 4 + 1;
+   cd->retirementage = 25;
    do {
       ++iterations;
 
@@ -2157,11 +2164,13 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
             last_snapshot_time = cur_time;
          }
       }
+
       rval = COLORlp_optimize(cd->lp);
       COLORcheck_rval (rval, "COLORlp_optimize failed");
-/*       printf("COLORlp_optimize succeeded\n");fflush(stdout); */
+
       rval = grow_ages(cd);
       COLORcheck_rval (rval, "grow_ages failed");
+
 
       if (COLORdbg_lvl() > 1) {print_ages(cd);}
 
@@ -2174,6 +2183,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
                             cd->pi,cd->ncount);
 
       compute_objective(cd);
+
       cd->dbl_est_lower_bound = cd->dbl_safe_lower_bound;
 
       if (iterations < cd->maxiterations) {
@@ -2195,7 +2205,6 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
                                    COLORlp_CONTINUOUS, NULL);
          }
          break_while_loop = (cd->nnewsets == 0);
-
          concat_newsets(cd);
       }
 
