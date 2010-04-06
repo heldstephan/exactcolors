@@ -44,7 +44,10 @@
 static int debug = 0;
 /* 'double integral_incumbent_tolerance' is used only in an assertion,
    but not in actually performing code.*/
+
 static const double integral_incumbent_tolerance = 10e-10;
+static const double col2row_ratio                       = 3.0;
+
 
 typedef struct branching_joblist branching_joblist;
 struct branching_joblist {
@@ -686,29 +689,35 @@ static int delete_old_colorclasses(colordata* cd)
    }
 
    if (numdel > min_numdel) {
+      int       new_ccount = 0;
+      COLORset *new_cclasses = (COLORset*) NULL;
+      
+      assert(cd->gallocated >=cd->ccount);
+      new_cclasses = COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
+      COLORcheck_NULL(new_cclasses,"Failed to allocate new_cclasses");
+
+      for (i = 0; i < cd->gallocated; ++i) {
+         COLORinit_set(new_cclasses + i);
+      }
+
+
       for (i = 0; i < cd->ccount; ++i) {
-         if (cd->cclasses[i].age > cd->retirementage) {
-            /* swap current class with last (if i isn't last) and delete it. */
-            --(cd->ccount);
-            COLORfree_set(&(cd->cclasses[i]));
-            if (i < cd->ccount) {
-               memcpy(&(cd->cclasses[i]),&(cd->cclasses[cd->ccount]),sizeof(COLORset));
-               /* Ensure that the formerly last class is considered:*/
-               --i;
-            }
-            COLORinit_set(&(cd->cclasses[cd->ccount]));
+         if (cd->cclasses[i].age <= cd->retirementage) {
+            memcpy(new_cclasses + new_ccount,cd->cclasses + i,sizeof(COLORset));
+            new_ccount++;
+         } else {
+            COLORfree_set(cd->cclasses + i);
+            COLORlp_deletecol(cd->lp,new_ccount);
          }
       }
+      COLOR_IFFREE(cd->cclasses,COLORset);
+      cd->cclasses = new_cclasses;
+      cd->ccount   = new_ccount;
       
       if (COLORdbg_lvl() > 0) {
          printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
                 numdel, numdel + cd->ccount, cd->retirementage);
       }
-      COLORlp_free (&(cd->lp));
-      
-      rval = build_lp(cd);
-      COLORcheck_rval(rval, "Failed in build_lp");
-
    }
 
 
@@ -2147,11 +2156,11 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
    cd->mwis_pi = (COLORNWT *) COLOR_SAFE_MALLOC (cd->ncount,COLORNWT);
    COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
 
-   cd->retirementage = 25;
+   cd->retirementage = sqrt((double) cd->ncount) * 2;
    do {
       ++iterations;
 
-      if (iterations > cd->retirementage && cd->ccount > 3 * cd->ncount) {
+      if (iterations > cd->retirementage && cd->ccount > col2row_ratio * cd->ncount) {
          rval = delete_old_colorclasses(cd);
          COLORcheck_rval (rval, "delete_old_colorclasses failed");
       }
