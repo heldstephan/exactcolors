@@ -473,7 +473,7 @@ static int greedy_improvement_1(soldata* sol, int s)
 }
 
 COLOR_MAYBE_UNUSED
-static int greedy_improvement_2(soldata* sol, int s)
+static int greedy_improvement_2 (soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -1320,16 +1320,16 @@ int COLORstable_LS(MWISls_env** env,
    if (COLORdbg_lvl() > 1)
       printf("Starting new round of repeated_greedy_followed_by_ls...\n");
 
-   sol->greedy_improvement = greedy_improvement_2;
+   sol->greedy_improvement = greedy_improvement_1;
    repeated_greedy_followed_by_ls(sol);
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_improvement_1;
+      sol->greedy_improvement = greedy_improvement_dyn;
       repeated_greedy_followed_by_ls(sol);
    }
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_improvement_dyn;
+      sol->greedy_improvement = greedy_improvement_2;
       repeated_greedy_followed_by_ls(sol);
    }
 
