@@ -196,7 +196,6 @@ int main (int ac, char **av)
 
 
     if (COLORdbg_lvl() > 1) printf ("Debugging turned on\n");
-/*     if (parms->outfile)      printf ("Output File: %s\n", parms->outfile); */
     fflush (stdout);
 
 
@@ -226,7 +225,7 @@ int main (int ac, char **av)
                                  &(cd->ccount), &(cd->cclasses));
              COLORcheck_rval (rval, "COLORdsatur failed");
           }
-          /*     rval = COLORplot_graphviz(ncount,ecount,elist,0); */
+
           printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
           print_colors(cd->cclasses,cd->ccount);
           COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
@@ -240,7 +239,7 @@ int main (int ac, char **av)
 
           cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
        }
-
+       
        if (parms->color_infile != (char*) NULL) {
           rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
                                               cd->ncount,parms->color_infile,cd->pname);
@@ -254,7 +253,7 @@ int main (int ac, char **av)
        }
        
        colorproblem.global_upper_bound = cd->upper_bound;
-
+       cd->gallocated = cd->ccount;
     }
 
     rval = compute_coloring(&colorproblem);
