@@ -259,6 +259,8 @@ int COLORlp_x (COLORlp *p, double *x)
     }
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMVARS, &ncols);
+    COLORcheck_rval(rval,"Failed in GRBgetintattr");
+
     if (ncols == 0) {
         fprintf (stderr, "No columns in LP\n");
         rval = 1;  goto CLEANUP;
@@ -270,6 +272,40 @@ int COLORlp_x (COLORlp *p, double *x)
 
 CLEANUP:
     return rval;
+}
+
+int COLORlp_basis_cols (COLORlp *p, int *cstat)
+{
+   int rval = 0;
+   int ncols,i;
+
+   rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMVARS, &ncols);
+   COLORcheck_rval(rval,"Failed in GRBgetintattr");
+
+   rval = GRBgetintattrarray(p->model, GRB_INT_ATTR_VBASIS,0,ncols,cstat);
+   COLORcheck_rval(rval,"Failed in GRBgetintattrarray");
+   
+   for (i = 0; i < ncols; ++i) {
+      switch (cstat[i]) {
+      case 0:
+         cstat[i] = COLORlp_BASIC;
+         break;
+      case -1:
+         cstat[i] = COLORlp_LOWER;
+         break;
+      case -2:
+         cstat[i] = COLORlp_UPPER;
+         break;
+      case -3:
+         cstat[i] = COLORlp_FREE;
+         break;
+      default:
+         rval = 1;
+         COLORcheck_rval(rval,"ERROR: Received unknown cstat");
+      }
+   }
+ CLEANUP:
+   return rval;
 }
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)

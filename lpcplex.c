@@ -263,6 +263,18 @@ CLEANUP:
     return rval;
 }
 
+int COLORlp_basis_cols (COLORlp *p, int *cstat)
+{
+   int rval = 0;
+   int* rstat = (int*) NULL;
+
+   rval =  CPXgetbase(p->cplex_env, p->cplex_lp, cstat, rstat);
+   COLORcheck_rval (rval, "CPXgetbase failed");
+
+ CLEANUP:
+   return rval;
+}
+
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
 {
    int rval = 0;
