@@ -16,6 +16,7 @@
 */
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include <math.h>
 #include <float.h>
 #include <getopt.h>
@@ -153,15 +154,19 @@ return  (rval);
 
 static int print_hostinfo(void) {
     int   rval     = 0;
-
+    time_t starttime;
     char my_hostname[MAX_PNAME_LEN];
     pid_t my_pid   = getpid();
 
     rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
     COLORcheck_rval (rval, "gethostname failed");
 
-    printf("Running color_worker on host %s with pid %lld.\n",
+    printf("Running color_worker on host %s with pid %lld, ",
            my_hostname, (long long) my_pid);
+
+    (void) time(&starttime);
+
+    printf("starting on %s.\n", ctime(&starttime));
  CLEANUP:
     return rval;
 }
