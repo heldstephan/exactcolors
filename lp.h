@@ -38,6 +38,11 @@ void COLORlp_free (COLORlp **p);
 #define COLORlp_LESS_EQUAL    'L'
 #define COLORlp_GREATER_EQUAL 'G'
 
+#define COLORlp_LOWER      0
+#define COLORlp_BASIC      1
+#define COLORlp_UPPER      2
+#define COLORlp_FREE       3
+
 #define COLORlp_MIN  1
 #define COLORlp_MAX -1
 
@@ -45,6 +50,8 @@ int COLORlp_optimize (COLORlp *p);
 int COLORlp_objval (COLORlp *p, double *obj);
 int COLORlp_pi (COLORlp *p, double *pi);
 int COLORlp_x (COLORlp *p, double *x);
+
+int COLORlp_basis_cols (COLORlp *p, int *cstat);
 
 int COLORlp_change_objective(COLORlp *p, int start, int len, double* values);
 
