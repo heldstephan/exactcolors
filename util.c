@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
 #include <sys/resource.h>
 #include <sys/stat.h>
 
@@ -249,3 +251,20 @@ int COLORcopy_sets (COLORset **s,int *nsets,
    return rval;
 }
 
+
+double COLORwall_time (void)
+{
+    return (double) time (0);
+}
+
+double COLORcpu_time (void)
+{
+    struct rusage ru;
+    double t;
+
+    getrusage (RUSAGE_SELF, &ru);
+
+    t = ((double) ru.ru_utime.tv_sec) +
+        ((double) ru.ru_utime.tv_usec) / 1000000.0;
+    return t;
+}
