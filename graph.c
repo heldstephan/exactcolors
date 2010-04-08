@@ -376,6 +376,7 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
     int i, end0, end1, n, len;
     int *elist = (int *) NULL;
     int *nweights = (int *) NULL;
+    int nnweights = 0;
     char buf[256], *p;
     FILE *in = (FILE *) NULL;
     COLORadjgraph G; /* used to simplify graph.*/
@@ -449,9 +450,15 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
             p++;
             sscanf (p, "%d %d", &n, &len);
             nweights[n-1] = len;
+            nnweights = 1;
         }
     }
-
+    
+    if (!nnweights) {/* Initialize to default weights:*/
+       for (i = 0; i < ncount; ++i) {
+          nweights[i] = 1;
+       }
+    }
     rval = COLORadjgraph_build(&G, ncount,icount,elist);
     COLORcheck_rval(rval,"COLORadjgraph_build failed");                                     
     rval = COLORadjgraph_simplify(&G);
