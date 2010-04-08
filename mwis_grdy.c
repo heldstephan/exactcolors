@@ -446,7 +446,7 @@ static void init_greedy_neighbour_weigths(soldata* sol)
 }
 
 COLOR_MAYBE_UNUSED
-static int greedy_improvement_1(soldata* sol, int s)
+static int greedy_alg_max_nweight(soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -473,7 +473,7 @@ static int greedy_improvement_1(soldata* sol, int s)
 }
 
 COLOR_MAYBE_UNUSED
-static int greedy_improvement_2 (soldata* sol, int s)
+static int greedy_alg_max_surplus (soldata* sol, int s)
 {
    int i;
    int changes = 0;
@@ -521,7 +521,7 @@ static void adjust_neighbors(soldata* sol, int x)
 }
 
 COLOR_MAYBE_UNUSED
-static int greedy_improvement_dyn(soldata* sol, int s)
+static int greedy_alg_dyn_max_surplus(soldata* sol, int s)
 {
    int  i;
    int  changes = 0;
@@ -559,9 +559,6 @@ static int greedy_improvement_dyn(soldata* sol, int s)
       }
       minv_ptr = (int*) COLORNWTheap_min(sol->heap);
    }
-/*    printf("Retrieved last key\n"); */
-
-   changes += greedy_improvement_2(sol,0);
    return changes;
 }
 
@@ -732,21 +729,9 @@ static int init_mwis_grdy(soldata*  sol,
 
 
    sol->cclasses.cnt = 0;
-   sol->greedy_improvement = greedy_improvement_2;
+   sol->greedy_improvement = greedy_alg_max_nweight;
 
    reinit_soldatas(sol);
-
-/*    greedy_improvement(sol); */
-
-/*    if (COLORdbg_lvl()) { */
-/*       print_soldata(sol); */
-/*       if (greedy_improvement(sol)) { */
-/*          if (COLORdbg_lvl()) printf("ERROR greedy could improve incrementally!\n"); */
-/*          print_soldata(sol); */
-/*       } */
-/*    } */
-
-
 
  CLEANUP:
    if (rval) {
@@ -1201,7 +1186,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
    int changes;
    int start_vertex;
    int nsoldatas = 0;
-   int last_improving_start = 0;
+   int last_improving_start = -1;
    int first_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
@@ -1232,12 +1217,13 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
          }
       }
 
-      if (1) {
+      if (COLORdbg_lvl() > 1) {
          int zero_added = add_zero_weigthed(sol);
-         if (COLORdbg_lvl() > 1 && zero_added) {
+         if (zero_added) {
             printf("Added %d zero weighted vertices.\n",zero_added);
          }
       }
+
       if (sol->cclasses.cnt > nsoldatas) {
          nsoldatas = sol->cclasses.cnt;
          last_improving_start = start_vertex;
@@ -1320,16 +1306,16 @@ int COLORstable_LS(MWISls_env** env,
    if (COLORdbg_lvl() > 1)
       printf("Starting new round of repeated_greedy_followed_by_ls...\n");
 
-   sol->greedy_improvement = greedy_improvement_1;
+   sol->greedy_improvement = greedy_alg_max_nweight;
    repeated_greedy_followed_by_ls(sol);
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_improvement_dyn;
+      sol->greedy_improvement = greedy_alg_dyn_max_surplus;
       repeated_greedy_followed_by_ls(sol);
    }
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_improvement_2;
+      sol->greedy_improvement = greedy_alg_max_surplus;
       repeated_greedy_followed_by_ls(sol);
    }
 
