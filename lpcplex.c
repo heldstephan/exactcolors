@@ -28,6 +28,7 @@
 struct COLORlp {
     CPXENVptr cplex_env;
     CPXLPptr  cplex_lp;
+    int       noptcalls;
 };
 
 const double int_tolerance = 0.00001;
@@ -36,12 +37,13 @@ int COLORlp_init (COLORlp **p, const char *name)
 {
     int rval = 0;
 
+
     (*p) = COLOR_SAFE_MALLOC (1, COLORlp);
     if ((*p) == (COLORlp *) NULL) {
         fprintf (stderr, "Out of memory in COLORlp_init\n");
         rval = 1; goto CLEANUP;
     }
-
+    (*p)->noptcalls = 0;
     (*p)->cplex_env = (CPXENVptr) NULL;
     (*p)->cplex_lp = (CPXLPptr) NULL;
 
@@ -50,6 +52,11 @@ int COLORlp_init (COLORlp **p, const char *name)
         fprintf (stderr, "CPXopenCPLEX failed, return code %d\n", rval);
         goto CLEANUP;
     }
+
+    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_SCRIND, 
+                           (COLORdbg_lvl() > 1) ? CPX_ON : CPX_OFF);
+    COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_SCRIND failed");
+
 
     rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_ADVIND, 1);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_ADVIND failed");
@@ -101,9 +108,27 @@ int COLORlp_optimize (COLORlp *p)
 {
     int rval = 0;
     int solstat;
+    
+    /** When restarting coloring with a set of stable sets (-r <filename>).  
+        The Simplex Method has a very long running time for solving the first LP.
+        On C4000.5 the dual simplex would take several hours.
+        In such situations we presolve the first LP with the Barrier Method.
 
+        The steepest edge norms are not initialized properly but only
+        to 1. Therefore, Barrier should not be used when there are
+        only a few rows.
+     */
+    if (p->noptcalls == 0) {
+       int ncols = CPXgetnumcols (p->cplex_env, p->cplex_lp);
+       int nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
+       if (ncols > 2 * nrows) {
+          rval = CPXbaropt (p->cplex_env, p->cplex_lp);
+          COLORcheck_rval (rval, "CPXbaropt failed");
+       } 
+    }
     rval = CPXdualopt (p->cplex_env, p->cplex_lp);
     COLORcheck_rval (rval, "CPXdualopt failed");
+    
 
     solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
     if (solstat == CPX_STAT_INFEASIBLE) {
@@ -123,6 +148,7 @@ int COLORlp_optimize (COLORlp *p)
         }
         rval  = 1;  goto CLEANUP;
     }
+    (p->noptcalls)++;
 
 CLEANUP:
     return rval;

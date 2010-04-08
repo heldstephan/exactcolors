@@ -1187,6 +1187,9 @@ static int transfer_same_cclasses(colordata* cd,
    for (i = 0; i < parent_ccount; ++i) {
       int j;
       int add_v1 = 1;
+
+      COLORinit_set(cd->cclasses + i);
+
       cd->cclasses[i].members = (int*) COLOR_SAFE_MALLOC(parent_cclasses[i].count,int);
       cd->cclasses[i].count = 0;
       for (j = 0; j < parent_cclasses[i].count; ++j) {
@@ -1370,9 +1373,14 @@ static int create_differ(colordata* parent_cd,
    cd->gallocated = cd->ccount   =  parent_cd->ccount + 1;
    cd->cclasses = (COLORset*) COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
 
+   COLORinit_set(cd->cclasses + parent_cd->ccount);
+
    for (i = 0; i < parent_cd->ccount; ++i) {
       int j;
       int v1_found = 0;
+
+      COLORinit_set(cd->cclasses + i);
+
       cd->cclasses[i].members = (int*) COLOR_SAFE_MALLOC(parent_cd->cclasses[i].count,int);
       COLORcheck_NULL(cd->cclasses[i].members,"Failed to allocate cd->cclasses[i].members");
       cd->cclasses[i].count = 0;
@@ -2210,7 +2218,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
                           &(cd->ccount), &(cd->cclasses));
       COLORcheck_rval (rval, "COLORdsatur failed");
    } else {
-      reset_ages(cd->cclasses,cd->ccount) ;
+/*       reset_ages(cd->cclasses,cd->ccount) ; */
    }
 
    assert(cd->gallocated >= cd->ccount);
