@@ -47,6 +47,7 @@ static int debug = 0;
 
 static const double integral_incumbent_tolerance = 10e-10;
 static const double col2row_ratio                       = 3.0;
+static const double min_ndelrow_ratio                   = 0.25;
 
 
 typedef struct branching_joblist branching_joblist;
@@ -122,6 +123,7 @@ void init_colordata(colordata*  cd)
 
    cd->ccount = 0;
    cd->cclasses = (COLORset *) NULL;
+   cd->dzcount  = 0;
    cd->gallocated = 0;
 
    cd->bestcolors = (COLORset *) NULL;
@@ -148,11 +150,17 @@ int set_id_and_name(colordata*  cd,
                     const char* name)
 {
    int rval = 0;
-
+   int srval = 0;
    cd->id = id;
-   rval = sprintf(cd->pname,"%s",name);
 
-   return rval >= 0;
+   srval = snprintf(cd->pname,MAX_PNAME_LEN,"%s",name);
+   if (srval < 0 || MAX_PNAME_LEN <= srval) {
+      rval = 1;
+      COLORcheck_rval(rval,"Failed to write pname");
+   }
+
+ CLEANUP:
+   return rval;
 }
 
 
@@ -563,8 +571,9 @@ int print_colors(COLORset* cclasses, int ccount)
    return 0;
 }
 
-static void compute_objective(colordata* cd)
+static int compute_objective(colordata* cd)
 {
+   int rval = 0;
    int i;
 
    cd->lower_scaled_bound = .0;
@@ -574,13 +583,20 @@ static void compute_objective(colordata* cd)
 
    cd->dbl_safe_lower_bound = COLORsafe_lower_dbl(cd->lower_scaled_bound,cd->mwis_pi_scalef);
    if (COLORdbg_lvl() > 0) {
-      printf("Current primal LP objective: %f (%lld / %lld).\n",
+      double lpsolver_objval;
+      
+      rval = COLORlp_objval (cd->lp, &lpsolver_objval);
+      COLORcheck_rval (rval, "COLORlp_objval failed");
+      
+      printf("Current primal LP objective: %19.16f (%lld / %lld) (LP-solver %19.16f.\n",
              cd->dbl_safe_lower_bound,
              (long long) cd->lower_scaled_bound,
-             (long long) cd->mwis_pi_scalef );
+             (long long) cd->mwis_pi_scalef, lpsolver_objval);
    }
    cd->lower_bound = ceil(cd->dbl_safe_lower_bound);
 
+ CLEANUP:
+   return rval;
 }
 
 #ifndef COMPILE_FOR_VALGRIND
@@ -653,24 +669,32 @@ static int grow_ages(colordata* cd)
 {
    int rval = 0;
    int i;
-   double* x = (double*) NULL;
+   int*    cstat = (int*)    NULL;
 
-   x = (double*) COLOR_SAFE_MALLOC(cd->ccount, double);
-   COLORcheck_NULL(x,"Failed to allocate x");
+   cstat = (int*) COLOR_SAFE_MALLOC(cd->ccount, int);
+   COLORcheck_NULL(cstat,"Failed to allocate cstat");
 
-   rval = COLORlp_x(cd->lp,x);
-   COLORcheck_rval(rval,"Failed in COLORlp_x");
+   rval = COLORlp_basis_cols(cd->lp,cstat);
+   COLORcheck_rval(rval,"Failed in COLORlp_basis_cols");
+
+   cd->dzcount = 0;
 
    for (i = 0; i < cd->ccount; ++i) {
-      if (x[i] < DBL_EPSILON) {
+      if (cstat[i] == COLORlp_LOWER || cstat[i] == COLORlp_FREE) {
+
          ++(cd->cclasses[i].age);
+         if (cd->cclasses[i].age > cd->retirementage) {
+            cd->dzcount++;
+         }
+
       } else {
          cd->cclasses[i].age = 0;
       }
    }
-
+/*    printf("%d out of %d are older than %d.\n", cd->dzcount, cd->ccount,  */
+/*           cd->retirementage); */
  CLEANUP:
-   if (x) free(x);
+   COLOR_IFFREE(cstat,int);
    return rval;
 }
 
@@ -678,17 +702,16 @@ static int delete_old_colorclasses(colordata* cd)
 {
    int rval   = 0;
    int i;
-   int numdel = 0;
-   int min_numdel = cd->ncount / 2; /* We wan't to delete at least n/2 columns .*/
+   int min_numdel = cd->ncount * min_ndelrow_ratio;
 
-
+   cd->dzcount = 0;
    for (i = 0; i < cd->ccount; ++i) {
       if (cd->cclasses[i].age > cd->retirementage) {
-         numdel++;
+            cd->dzcount++;
       }
    }
 
-   if (numdel > min_numdel) {
+   if (cd->dzcount > min_numdel) {
       int       new_ccount = 0;
       COLORset *new_cclasses = (COLORset*) NULL;
       
@@ -715,9 +738,10 @@ static int delete_old_colorclasses(colordata* cd)
       cd->ccount   = new_ccount;
       
       if (COLORdbg_lvl() > 0) {
-         printf("Deleted %d out of %d columns with age > %d. Rebuilding LP from scratch.\n",
-                numdel, numdel + cd->ccount, cd->retirementage);
+         printf("Deleted %d out of %d columns with age > %d.\n",
+                cd->dzcount, cd->dzcount + cd->ccount, cd->retirementage);
       }
+      cd->dzcount = 0;
    }
 
 
@@ -726,25 +750,60 @@ static int delete_old_colorclasses(colordata* cd)
    return rval;
 }
 
+static int write_final_root_lp(colordata* cd) {
+   int rval = 0;
+   int srval;
+   char fname[BUFSIZ];
+
+   srval = snprintf(fname,BUFSIZ,"%s.final_root.lp",cd->pname);
+   if (srval  < 0 || BUFSIZ < srval) {
+      rval = 1;
+      COLORcheck_rval(rval,"Failed to *.final_root.lp filename");
+   }
+   rval = COLORlp_write (cd->lp, fname);
+   COLORcheck_rval (rval, "COLORlp_write failed");
+
+ CLEANUP:
+   return rval;
+}
+
 static int write_mwis_instances(colordata* cd, int write_mwis)
 {
    int rval = 0;
+   int srval = 0;
+
    if ( (cd->id == 0) && write_mwis) {
-      char   mps_fname[256];
+      char   mps_fname[BUFSIZ];
 
 #ifdef USE_GUROBI
-      sprintf(mps_fname,"%s.mwis.lp",cd->pname);
+      
+      srval = snprintf(mps_fname,BUFSIZ,"%s.mwis.lp",cd->pname);
+      if (srval  < 0 || BUFSIZ < srval) {
+         rval = 1;
+         COLORcheck_rval(rval,"Failed to write *.mwis.lp filename");
+      }
       rval = COLORstable_write_mps(mps_fname,cd->ncount,cd->ecount,cd->elist,
                                    cd->mwis_pi,cd->mwis_pi_scalef);
       COLORcheck_rval(rval,"Failed in COLORstable_write_mps");
 #endif
 
-      sprintf(mps_fname,"%s.mwis.dimacs",cd->pname);
+
+      srval = snprintf(mps_fname, BUFSIZ, "%s.mwis.dimacs",cd->pname);
+      if (srval  < 0 || BUFSIZ < srval) {
+         rval = 1;
+         COLORcheck_rval(rval,"Failed to write *.mwis.dimacs filename");
+      }
+
       rval = COLORstable_write_dimacs(mps_fname,cd->ncount,cd->ecount,cd->elist,
                                       cd->mwis_pi,cd->mwis_pi_scalef);
       COLORcheck_rval(rval,"Failed in COLORstable_write_dimacs");
 
-      sprintf(mps_fname,"%s.mwclq.dimacs",cd->pname);
+      srval = snprintf(mps_fname,BUFSIZ, "%s.mwclq.dimacs",cd->pname);
+      if (srval  < 0 || BUFSIZ < srval) {
+         rval = 1;
+         COLORcheck_rval(rval,"Failed to write *.mwclq.dimacs filename");
+      }
+
       rval = COLORstable_write_dimacs_clique(mps_fname,
                                              cd->ncount,cd->ecount,cd->elist,
                                              cd->mwis_pi,cd->mwis_pi_scalef);
@@ -784,19 +843,19 @@ static int concat_newsets(colordata* cd)
 
    if (cd->ccount + cd->nnewsets > cd->gallocated) {
       /* Double size */
-      tmpsets = COLOR_SAFE_MALLOC(2 * cd->gallocated,COLORset);
+      cd->gallocated *= 2;
+      
+      tmpsets = COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
       COLORcheck_NULL (tmpsets, "out of memory for tmpsets");
       memcpy(tmpsets,cd->cclasses, cd->ccount * sizeof(COLORset));
       free(cd->cclasses);
-      cd->gallocated *= 2;
       cd->cclasses = tmpsets;
       tmpsets = NULL;
    }
    memcpy(cd->cclasses + cd->ccount, cd->newsets, cd->nnewsets * sizeof(COLORset));
    cd->ccount += cd->nnewsets;
    for (i = cd->ccount; i < cd->gallocated; ++i) {
-      cd->cclasses[i].count = 0;
-      cd->cclasses[i].members = (int*) NULL;
+      COLORinit_set(cd->cclasses + i);
    }
  CLEANUP:
    if (rval) {
@@ -847,6 +906,11 @@ int build_lp(colordata* cd)
        if (cd->pi) free(cd->pi);
     }
     return rval;
+}
+
+COLOR_MAYBE_UNUSED
+static void debug_breakpoint(void) {
+   printf("Breakpoint reached!\n");
 }
 
 COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
@@ -1174,6 +1238,7 @@ static int transfer_same_cclasses(colordata* cd,
    }
    rval = prune_duplicated_sets(cd);
    COLORcheck_rval(rval,"Failed in prune_duplicated_sets");
+
    /* END Transfer independent sets: */
 
  CLEANUP:
@@ -1254,7 +1319,6 @@ static int create_differ(colordata* parent_cd,
    int           v2_covered = 0;
    colordata*    cd = (colordata*) COLOR_SAFE_MALLOC(1,colordata);
    COLORcheck_NULL(cd,"Failed to allocate cd");
-
 
    init_colordata(cd);
 
@@ -1648,24 +1712,23 @@ static int grab_integral_solution(colordata* cd,
                                   double tolerance)
 {
    int rval = 0;
-   double incumbent;
+   double test_incumbent = .0;
    int* colored = (int*) NULL;
    int i;
 
-   rval = COLORlp_objval (cd->lp, &incumbent);
-   COLORcheck_rval (rval, "COLORlp_objval failed");
-
+   
    colored = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
    COLORcheck_NULL(colored,"Failed to allocate colored");
    for (i = 0; i < cd->ncount; ++i) {colored[i] = 0;}
 
    COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
    cd->bestcolors = (COLORset*) realloc(cd->bestcolors,
-                                        (int)incumbent * sizeof(COLORset));
+                                        (int)cd->lower_bound * sizeof(COLORset));
    COLORcheck_NULL(cd->bestcolors,"Failed to realloc cd->bestcolors");
 
    cd->nbestcolors = 0;
    for (i = 0; i < cd->ccount; ++i) {
+      test_incumbent += x[i];
       if (x[i] >= 1.0  - tolerance) {
          int j = cd->nbestcolors;
          int k;
@@ -1682,6 +1745,10 @@ static int grab_integral_solution(colordata* cd,
             }
          }
          cd->nbestcolors++;
+         if (cd->nbestcolors > cd->lower_bound) {
+            printf("ERROR: \"Integral\" solution turned out to be not integral!\n");
+            fflush(stdout); rval = 1; goto CLEANUP;
+         }
       }
    }
    rval = COLORcheck_coloring(cd->bestcolors, cd->nbestcolors,
@@ -1690,7 +1757,7 @@ static int grab_integral_solution(colordata* cd,
 
    printf("Intermediate coloring:\n");
    print_colors(cd->bestcolors,cd->nbestcolors);
-   assert(fabs ((double)cd->nbestcolors -  incumbent) <=
+   assert(fabs ((double)cd->nbestcolors -  test_incumbent) <=
           integral_incumbent_tolerance );
 
    if (cd->nbestcolors < cd->upper_bound) {
@@ -1699,6 +1766,7 @@ static int grab_integral_solution(colordata* cd,
    cd->status = finished;
  CLEANUP:
    if (colored) free(colored);
+
    return rval;
 }
 
@@ -1899,8 +1967,12 @@ int create_branches(colordata* cd,COLORproblem* problem)
    COLORcheck_rval(rval, "Failed in insert_fractional_paris_into_heap");
 
    if (COLORNWTheap_size(cand_heap) == 0) {
+      double integrality_tolerance = 0.0; /* Here, we aren't tolerant!*/
       printf("LP returned integral solution.\n");
-      grab_integral_solution(cd,x,0.0);
+      rval = grab_integral_solution(cd,x,integrality_tolerance);
+      COLORcheck_rval(rval, "Failed in grab_integral_solution");
+      assert(cd->status = finished);
+
       if (problem->parms.branching_strategy == COLOR_hybrid_strategy) {
          if (cd->upper_bound - problem->root_cd.lower_bound <= 1) {
             printf("Switching to minimum LB branching strategy.\n");
@@ -2142,7 +2214,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
       reset_ages(cd->cclasses,cd->ccount) ;
    }
 
-   cd->gallocated = cd->ccount;
+   assert(cd->gallocated >= cd->ccount);
 
    if (! cd->lp) {
       rval = build_lp(cd);
@@ -2156,11 +2228,11 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
    cd->mwis_pi = (COLORNWT *) COLOR_SAFE_MALLOC (cd->ncount,COLORNWT);
    COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
 
-   cd->retirementage = sqrt((double) cd->ncount) * 2;
+   cd->retirementage = sqrt((double) cd->ncount) + 50;
    do {
       ++iterations;
 
-      if (iterations > cd->retirementage && cd->ccount > col2row_ratio * cd->ncount) {
+      if ( (cd->dzcount > cd->ncount * min_ndelrow_ratio) ) {
          rval = delete_old_colorclasses(cd);
          COLORcheck_rval (rval, "delete_old_colorclasses failed");
       }
@@ -2174,9 +2246,14 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
          }
       }
 
+      cur_time = - COLORcpu_time();
       rval = COLORlp_optimize(cd->lp);
       COLORcheck_rval (rval, "COLORlp_optimize failed");
-
+      cur_time += COLORcpu_time();
+      if (COLORdbg_lvl()) {
+         printf("Simplex took %f seconds.\n", cur_time); fflush(stdout);
+      }
+      
       rval = grow_ages(cd);
       COLORcheck_rval (rval, "grow_ages failed");
 
@@ -2191,7 +2268,8 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
       COLOR_double2COLORNWT(cd->mwis_pi,&(cd->mwis_pi_scalef),
                             cd->pi,cd->ncount);
 
-      compute_objective(cd);
+      rval = compute_objective(cd);
+      COLORcheck_rval(rval,"Failed in compute_objective");
 
       cd->dbl_est_lower_bound = cd->dbl_safe_lower_bound;
 
@@ -2212,6 +2290,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
                                    cd->newsets[set_i].members,
                                    cd->coef, 1.0, 0.0, 1.0,
                                    COLORlp_CONTINUOUS, NULL);
+            COLORcheck_rval (rval, "COLORlp_addcol failed");
          }
          break_while_loop = (cd->nnewsets == 0);
          concat_newsets(cd);
@@ -2223,7 +2302,8 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
       /** As the node weigths can have been scaled down further since
           the last computation of the objective, we need to recompute
           it here.*/
-      compute_objective(cd);
+      rval = compute_objective(cd);
+      COLORcheck_rval(rval,"Failed in compute_objective");
 
       if (COLORdbg_lvl() > 1) {
          printf ("Found bound of %lld (%20.16g), upper_bound %d (id = %d, iterations = %d, opt_track = %d).\n",
@@ -2333,13 +2413,6 @@ static int remove_finished_subtree(colordata* child,COLORproblem* problem)
          cd->ndiff = 0;
       }
 
-/*       if (cd->diff_children && cd->diff_children->status == finished) { */
-/*          rval = collect_diff_children(cd); */
-/*          COLORcheck_rval(rval,"Failed in collect_diff_children"); */
-/*          free_colordata(cd->diff_children); */
-/*          free(cd->diff_children); */
-/*          cd->diff_children = (colordata*) NULL; */
-/*       } */
       if (!cd->same_children && !cd->diff_children) {
          cd->status = finished;
 
@@ -2816,11 +2889,19 @@ int compute_coloring(COLORproblem* problem)
       rval = compute_lower_bound(root_cd,problem);
       COLORcheck_rval(rval,"Failed in compute_lower_bound");
 
+
+      if (COLORdbg_lvl()) {
+         rval = write_final_root_lp(root_cd);
+         COLORcheck_rval(rval,"Failed in write_final_root_lp");
+      }
+
+      rval = write_mwis_instances(root_cd,problem->parms.write_mwis);
+      COLORcheck_rval(rval,"Failed in write_mwis_instances");
+
+
       rval = insert_into_branching_heap(root_cd,problem);
       COLORcheck_rval(rval,"Failed in insert_into_branching_heap");
 
-      rval = write_mwis_instances(root_cd,problem->parms.write_mwis);
-      COLORcheck_rval(rval,"Failed ing write_mwis_instances");
 
       if (problem->parms.cclasses_outfile) {
          int add_timestamp = 0;

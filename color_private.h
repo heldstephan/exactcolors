@@ -66,6 +66,8 @@ struct colordata {
    MWISenv*  mwis_env;
    int       ccount;
    COLORset *cclasses;
+   int       dzcount; /* counting the number of cclasses older than retirementage.*/
+
    int       gallocated;
    COLORset *newsets;
    int       nnewsets;

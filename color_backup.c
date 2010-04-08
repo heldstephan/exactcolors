@@ -455,13 +455,8 @@ int recover_colordata(colordata* cd,COLORproblem* problem) {
 int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp)
 {
    int rval = 0;
-   if (parms->cclasses_outfile != (char*) NULL) {
+   if ( (!cd->parent) && parms->cclasses_outfile != (char*) NULL) {
       char   fname[256];
-      const colordata* root_cd = cd;
-
-      while (root_cd->parent) {
-         root_cd = root_cd->parent;
-      }
 
       if (add_timestamp) {
          char   timestr[256];
@@ -474,7 +469,7 @@ int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp)
          sprintf(fname,"%s",parms->cclasses_outfile);
       }
       rval = COLORstable_write_stable_sets(cd->cclasses,cd->ccount,cd->ncount,
-                                           fname,root_cd->pname);
+                                           fname,cd->pname);
       COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
    }
  CLEANUP:
