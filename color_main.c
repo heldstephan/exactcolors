@@ -22,6 +22,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "color_defs.h"
 #include "color_parms.h"
 #include "color_private.h"
 
@@ -165,6 +166,45 @@ static int print_hostinfo(void) {
     return rval;
 }
 
+COLOR_MAYBE_UNUSED
+static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
+                             int ecount, int *elist, int cutoff, int *pval) {
+   int    rval = 0;
+   int*   all_one_nweights = (int*) NULL;
+   int    i;
+   int    nrbranches = ncount/10 + 1;
+   COLORset* cliques  = (COLORset*) NULL;
+   int       ncliques;
+   all_one_nweights = COLOR_SAFE_MALLOC(ncount, int);
+   COLORcheck_NULL(all_one_nweights, "Failed to allocate all_one_nweights");
+
+   for (i = 0; i < ncount; ++i) {all_one_nweights[i] = 1;}
+   
+   rval = COLORclique_ostergard(&cliques, &ncliques,
+                                ncount, ecount, elist,
+                                all_one_nweights,cutoff,pval,
+                                nrbranches);
+   COLORcheck_rval(rval,"Failed in COLORclique_ostergard.");
+
+
+   /** From the found clique we initialize a coloring for the
+       nodes in the cliques.
+   */
+   *nnewsets = cliques[ncliques-1].count;
+   *newsets = COLOR_SAFE_MALLOC(*nnewsets,COLORset);
+   COLORcheck_NULL(*newsets,"Failed to allocate *newsets");
+
+   for (i = 0; i < cliques[ncliques-1].count; ++i) {
+      (*newsets)[i].count = 1;
+      (*newsets)[i].members = COLOR_SAFE_MALLOC(1,int);
+      (*newsets)[i].members[0] = cliques[ncliques-1].members[i];
+   }
+ CLEANUP:
+   COLORfree_sets(&cliques,&ncliques);
+   COLOR_IFFREE(all_one_nweights,int);
+   return rval;
+}
+
 
 int main (int ac, char **av)
 {
@@ -177,7 +217,6 @@ int main (int ac, char **av)
     COLORproblem colorproblem;
     COLORparms* parms = &(colorproblem.parms);
     colordata*  cd = &(colorproblem.root_cd);
-
 
     COLORset*  debugcolors = (COLORset*) NULL;
     int        ndebugcolors = 0;
@@ -203,14 +242,33 @@ int main (int ac, char **av)
                              &(cd->elist), (int **) NULL);
     COLORcheck_rval (rval, "COLORread_diamcs failed");
 
+    if (cd->upper_bound > cd->ncount) {cd->upper_bound = cd->ncount;}
+
     if (colorproblem.parms.backupdir) {
        rval = recover_colordata(cd,&colorproblem);
     }
     if (cd->status == initialized) {
+
+       /** Using a restricted CLIQUER to obtain an initial lower bound
+           for the chromatic number and a good starting solution for
+           DSATUR didn't pay off.
+           
+           Though many maximum clique problems are solved within a
+           second, I could not find a deterministic bound for the
+           running time.  I don't want to impose a cpu time limit, as
+           this would be non-deterministic.
+           
+           @author S. Held
+        */
+/*        rval = quick_lower_bound(&(cd->cclasses),&(cd->ccount), cd->ncount, */
+/*                                 cd->ecount, cd->elist, cd->upper_bound, &(cd->lower_bound)); */
+/*        COLORcheck_rval(rval, "Failed in quick_lower_bound"); */
+
        cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
        COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
-       for (i = 0; i < cd->ncount; ++i) {cd->orig_node_ids[i] = i;}
+       for (i = 0; i < cd->ncount; ++i) { cd->orig_node_ids[i] = i; }
 
+       
        if (parms->cclasses_infile != (char*) NULL) {
           rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
                                               cd->ncount,parms->cclasses_infile,cd->pname);
@@ -277,7 +335,7 @@ int main (int ac, char **av)
 CLEANUP:
     COLORproblem_free(&colorproblem);
 
-    if (debugcolors) free (debugcolors);
+    COLOR_IFFREE(debugcolors,COLORset);
 
     return rval;
 }

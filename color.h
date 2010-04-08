@@ -50,8 +50,31 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
 
 int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
         int ecount, int *elist, int *weights, int cutoff, int *pval);
+
+/**
+   Run Ostergards cliquer algorithms to find a stable set of size >= cutoff
+   withing timelimit cpu seconds.
+   Parameters:
+   
+   newsets:  array of found stable sets (usually one)
+   nnewsets: # of stable sets in newsets
+   ncount:   #vertices
+   ecount:   #edges
+   elist:    array of edges (array of size 2*edges)), 
+   weights:  node weights
+   cutoff:   the algorithm may stop once a stable set of this weight was found
+   pval:     weight of the best found solution
+
+   nrbranches: maximum number of root branches. Ostergard's algorithm
+               creates ncount toplevel branches, one for every
+               node. This number can be restricted to use the
+               algorirthm as a heuristic. This implementation
+               will branch with the first min(ncount, nrbranches)
+               branches.
+*/
 int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
-        int ecount, int *elist, int *weights, int cutoff, int *pval);
+                           int ecount, int *elist, int *weights, int cutoff, int *pval,
+                           int nbranches);
 
 void COLORinit_set (COLORset *s);
 void COLORfree_set (COLORset *s);
