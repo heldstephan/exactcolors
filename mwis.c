@@ -692,6 +692,8 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
          }
          (*newsets)[*nnewsets].count = setsize;
          (*newsets)[*nnewsets].members = (int*) COLOR_SAFE_MALLOC(setsize,int);
+         (*newsets)[*nnewsets].age = ncount;
+
          COLORcheck_NULL((*newsets)[*nnewsets].members,
                          "Failed to allocate (*newsets)[*nnewsets].members");
          memcpy((*newsets)[*nnewsets].members, setbuffer,setsize * sizeof(int));
