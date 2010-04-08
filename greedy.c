@@ -24,6 +24,9 @@
 
 
 static void color_node (COLORadjgraph *G, int n);
+static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node, 
+                                            int freedegree[], int satdegree[], int tmp_colors[]);
+
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORset **colorclasses)
@@ -135,9 +138,6 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
    printf ("COLORgreedy(%d,%d) ...\n", ncount, ecount);
    fflush (stdout);
 
-   *ncolors = 0;
-   *colorclasses = (COLORset *) NULL;
-
    rval = COLORadjgraph_build (&G, ncount, ecount, elist);
    if (rval) {
       fprintf (stderr, "build_graph failed\n");
@@ -168,12 +168,23 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
       G.nodelist[i].color = -1;
    }
 
-   for (i = 0; i < ncount; i++) {
+   for (i = 0; i < *ncolors; ++i) {
+      int j;
+      for (j = 0; j < (*colorclasses)[i].count; ++j) {
+         int v = (*colorclasses)[i].members[j];
+         color_node (&G, v);
+         update_satdegree_for_neighbors (&G, v, 
+                                         freedegree, satdegree, tmpcolors);
+      }
+   }
+
+   COLORfree_sets(colorclasses,ncolors);
+
+   for (i = 0; i < ncount - *ncolors; i++) {
       int maxsatdegree      = -1;
       int maxfreedegree     = -1;
       int maxsatdegree_node = -1;
       int j;
-/*       printf("%d nodes colored\n",i); */
 
       for (j = 0; j < ncount; j++) {
 
@@ -188,22 +199,10 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
             }
          }
       }
-      color_node (&G, maxsatdegree_node);
-      for (j = 0;j < G.nodelist[maxsatdegree_node].degree; ++j) {
-         int v = G.nodelist[maxsatdegree_node].adj[j];
-         freedegree[v]--;
-         satdegree[v] = 0;
-         for (k = 0; k < ncount;++k) {
-            tmpcolors[k] = 0;
-         }
-         for (k = 0; k < G.nodelist[v].degree;++k) {
-            int w = G.nodelist[v].adj[k];
-            int wcolor = G.nodelist[w].color;
-            if (wcolor>-1 && tmpcolors[wcolor] == 0) {
-               tmpcolors[wcolor] = 1;
-               satdegree[v]++;
-            }
-         }
+      if (maxsatdegree_node > -1) {
+         color_node (&G, maxsatdegree_node);
+         update_satdegree_for_neighbors (&G, maxsatdegree_node, 
+                                         freedegree, satdegree, tmpcolors);
       }
    }
 
@@ -260,6 +259,30 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
    COLORadjgraph_free (&G);
    return rval;
 }
+
+static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node, 
+                                            int freedegree[], int satdegree[], int tmpcolors[])
+{
+   int j;
+   for (j = 0;j < G->nodelist[colored_node].degree; ++j) {
+      int v = G->nodelist[colored_node].adj[j];
+      int k;
+      freedegree[v]--;
+      satdegree[v] = 0;
+      for (k = 0; k < G->ncount;++k) {
+         tmpcolors[k] = 0;
+      }
+      for (k = 0; k < G->nodelist[v].degree;++k) {
+         int w = G->nodelist[v].adj[k];
+         int wcolor = G->nodelist[w].color;
+         if (wcolor>-1 && tmpcolors[wcolor] == 0) {
+            tmpcolors[wcolor] = 1;
+            satdegree[v]++;
+         }
+      }
+   }
+ }
+
 
 static void color_node (COLORadjgraph *G, int n)
 {
