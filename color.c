@@ -587,7 +587,7 @@ static int compute_objective(colordata* cd)
       rval = COLORlp_objval (cd->lp, &lpsolver_objval);
       COLORcheck_rval (rval, "COLORlp_objval failed");
       
-      printf("Current primal LP objective: %19.16f (%lld / %lld) (LP-solver %19.16f.\n",
+      printf("Current primal LP objective: %19.16f (%lld / %lld) (LP-solver %19.16f).\n",
              cd->dbl_safe_lower_bound,
              (long long) cd->lower_scaled_bound,
              (long long) cd->mwis_pi_scalef, lpsolver_objval);

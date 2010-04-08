@@ -107,11 +107,14 @@ int COLORstable_clique_enum(COLORset** newsets, int* nnewsets, int ncount,
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build_complement.");
 
    if (Gc.ecount) {
+      int    nrbranches = ncount; /* We want to branch with every node
+                                     to guarante optimality.*/
       COLORadjgraph_extract_edgelist(&ecountc,&elistc,&Gc);
 
       rval = COLORclique_ostergard(newsets,nnewsets,G.ncount,
-                                   ecountc,elistc,oster_nweights,oster_cutoff,objval);
-      COLORcheck_rval(rval,"Failed in COLORclique_enum.");
+                                   ecountc,elistc,oster_nweights,oster_cutoff,objval,
+                                   nrbranches);
+      COLORcheck_rval(rval,"Failed in COLORclique_ostergard.");
    } else {
       rval = COLORstable_max_weighted_node(newsets,nnewsets,G.ncount,
                                            oster_nweights,objval);

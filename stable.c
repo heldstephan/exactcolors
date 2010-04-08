@@ -135,7 +135,7 @@ int main (int ac, char **av)
     COLORset *cliques = (COLORset *) NULL;
     int ncliques = 0;
     double szeit;
-
+    int    nrbranches = INT_MAX;
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
@@ -152,14 +152,15 @@ int main (int ac, char **av)
     } else {
         if (useostergard) {
             rval = COLORclique_ostergard (&cliques, &ncliques, ncount, ecount,
-                                     elist, wlen, COLOR_MAXINT, &val);
+                                          elist, wlen, COLOR_MAXINT, &val,
+                                          nrbranches);
             COLORcheck_rval (rval, "COLORcliq_ostergard failed");
         } else {
             rval = COLORclique_enum (&cliques, &ncliques, ncount, ecount, elist,
                                      wlen, COLOR_MAXINT, &val);
             COLORcheck_rval (rval, "COLORcliq_enum failed");
         }
-
+        
         printf ("Optimal Weight Clique: %d\n", val);
         fflush (stdout);
 

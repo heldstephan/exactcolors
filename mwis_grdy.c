@@ -113,7 +113,7 @@ struct soldata_t {
    int*          heapref;
    COLORNWTHeap* heap;
 
-   int (* greedy_improvement)(soldata*,int);
+   int (* greedy_algorithm)(soldata*,int);
 
    COLORlp *lp;
    double*  dbl_nweights;
@@ -729,7 +729,7 @@ static int init_mwis_grdy(soldata*  sol,
 
 
    sol->cclasses.cnt = 0;
-   sol->greedy_improvement = greedy_alg_max_nweight;
+   sol->greedy_algorithm = greedy_alg_max_nweight;
 
    reinit_soldatas(sol);
 
@@ -863,7 +863,7 @@ static int perform_2_improvements(soldata* sol)
          }
       }
       if (iternswaps) {
-         int changed = sol->greedy_improvement(sol,0);
+         int changed = sol->greedy_algorithm(sol,0);
          totnswaps += iternswaps;
          if (changed) {
             if(COLORdbg_lvl() > 1) print_soldata(sol);
@@ -1192,7 +1192,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
       reinit_soldatas(sol);
       sol->solcount = 0;
-      sol->greedy_improvement(sol,start_vertex);
+      sol->greedy_algorithm(sol,start_vertex);
       if ( !(changes = sol->solcount)) continue;
 
       inspect_soldata(sol,&best_sval,"GREEDY MWIS");
@@ -1211,7 +1211,7 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
             COLORcheck_rval(rval,"perform_1_2_paths");
 
             if (change) {
-               sol->greedy_improvement(sol,0);
+               sol->greedy_algorithm(sol,0);
                inspect_soldata(sol,&best_sval,"GREEDY 1-2-SWAPS");
             }
          }
@@ -1306,16 +1306,16 @@ int COLORstable_LS(MWISls_env** env,
    if (COLORdbg_lvl() > 1)
       printf("Starting new round of repeated_greedy_followed_by_ls...\n");
 
-   sol->greedy_improvement = greedy_alg_max_nweight;
+   sol->greedy_algorithm = greedy_alg_max_nweight;
    repeated_greedy_followed_by_ls(sol);
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_alg_dyn_max_surplus;
+      sol->greedy_algorithm = greedy_alg_dyn_max_surplus;
       repeated_greedy_followed_by_ls(sol);
    }
 
    if(!sol->cclasses.cnt) {
-      sol->greedy_improvement = greedy_alg_max_surplus;
+      sol->greedy_algorithm = greedy_alg_max_surplus;
       repeated_greedy_followed_by_ls(sol);
    }
 
