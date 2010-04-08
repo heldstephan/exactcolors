@@ -21,6 +21,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 
+#include "color_defs.h"
 #include "color.h"
 
 void *COLORutil_allocrus (size_t size)
@@ -202,6 +203,8 @@ void COLORinit_set (COLORset *s)
     if (s) {
         s->members = (int *) NULL;
         s->count = 0;
+        s->age   = 0;
+        s->next  = (COLORset*) NULL;
     }
 }
 
@@ -218,10 +221,11 @@ void COLORfree_sets(COLORset** sets,int* nsets)
 {
    int i;
    if (*sets) {
-      for (i = 0; i < *nsets; i++) COLORfree_set (& (*sets)[i]);
-      free (*sets);
+      for (i = 0; i < *nsets; i++) {
+         COLORfree_set (& (*sets)[i]);
+      }
+      COLOR_FREE (*sets, COLORset);
    }
-   *sets  = (COLORset*) NULL;
    *nsets = 0;
 }
 
