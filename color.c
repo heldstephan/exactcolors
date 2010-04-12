@@ -2242,6 +2242,7 @@ static int compute_lower_bound(colordata* cd,COLORproblem* problem)
       rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
                           &(cd->ccount), &(cd->cclasses));
       COLORcheck_rval (rval, "COLORdsatur failed");
+      cd->gallocated = cd->ccount;
    } else {
 /*       reset_ages(cd->cclasses,cd->ccount) ; */
    }
