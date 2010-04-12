@@ -250,8 +250,7 @@ int main (int ac, char **av)
     if (cd->upper_bound > cd->ncount) {cd->upper_bound = cd->ncount;}
 
     if (colorproblem.parms.backupdir) {
-       rval = recover_colordata(cd,&colorproblem);
-       COLORcheck_rval (rval, "recover_colordata failed");
+       recover_colordata(cd,&colorproblem);       
     }
     if (cd->status == initialized) {
 

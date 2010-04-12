@@ -1979,6 +1979,10 @@ int create_branches(colordata* cd,COLORproblem* problem)
    x = (double*) COLOR_SAFE_MALLOC(cd->ccount,double);
    COLORcheck_NULL(x,"Failed ot allocate x");
 
+   if (! cd->lp) {
+      rval = build_lp(cd);
+      COLORcheck_rval (rval, "build_lp failed");
+   }
 
    rval = COLORlp_optimize(cd->lp);
    COLORcheck_rval (rval, "COLORlp_optimize failed");
