@@ -130,7 +130,11 @@ int main (int ac, char **av)
           
           assert(task == COLOR_BOSS_YES);
           
-          /*        sleep(3); */
+          if (!root_cd->ccount) {
+             rval = compute_lower_bound(root_cd,&colorproblem);
+             COLORcheck_rval(rval, "Failed in compute_lower_bound.");
+          }
+
           cputime = -COLORcpu_time();          
           rval = build_lp(root_cd);
           COLORcheck_rval(rval,"Failed in build_lp");

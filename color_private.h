@@ -128,6 +128,8 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
 
 int compute_coloring(COLORproblem* problem);
 
+int  compute_lower_bound(colordata* cd, COLORproblem* problem);
+
 int print_colors(COLORset* cclasses, int ccount);
 
 void COLORset_cclasses_outfile(char* outfile);
