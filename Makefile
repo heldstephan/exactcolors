@@ -25,7 +25,7 @@ ifneq ($(QSPATH),)
 LPINCLUDE=$(QSPATH)
 LPLIB=$(QSPATH)/qsopt.a
 LPSOURCE=lpqsopt.o
-endif 
+endif
 
 ifneq ($(GUPATH),)
 LPINCLUDE=$(GUPATH)/include
@@ -47,17 +47,21 @@ GRBMWIS=
 GUROBI_FLAG=
 endif
 
-CC=gcc
+
+export CC=gcc
+export LD=gcc
 #CFLAGS= -g
 CFLAGS+= -O3
+
+# For static code analysis with clang we use the clang compiler.
+#export CC=clang 
 
 #
 # Valgrind does not support fegetround & fesetround. With following compile option
 # their use is circumvented. We also recommend to use QSopt as the LP-solver while
 # debugging with valgrind, as the commercial solvers impose valgrind errors internally.
-# 
-# CFLAGS+= -DCOMPILE_FOR_VALGRIND
-
+#
+#CFLAGS+= -DCOMPILE_FOR_VALGRIND
 
 
 
@@ -85,7 +89,7 @@ COMPFILES=complement.o  $(OBJFILES)
 all: color color_worker stable queen test_boss test_worker test_tell partition complement
 
 color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
-	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+	$(LD) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
 color_worker: $(SEWELL_LIB) $(CWORKERFILES)
 	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
