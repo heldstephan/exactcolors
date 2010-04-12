@@ -18,6 +18,7 @@
 
 #include "color_private.h"
 
+static int recover_colordata_recursion(colordata* cd,COLORproblem* problem);
 
 COLOR_MAYBE_UNUSED
 static int write_colordata_to_file(colordata* cd, 
@@ -383,7 +384,7 @@ static int read_colordata_from_file(colordata* cd,
             cd->same_children[i].id = atoi(data);
             strcpy(cd->same_children[i].pname,cd->pname);
             
-            rval = recover_colordata(cd->same_children + i,problem);
+            rval = recover_colordata_recursion(cd->same_children + i,problem);
             if (rval) {
                free_children_data(cd); rval = 0;
                goto CLEANUP;
@@ -413,7 +414,7 @@ static int read_colordata_from_file(colordata* cd,
             cd->diff_children[i].id = atoi(data);
             strcpy(cd->diff_children[i].pname,cd->pname);
 
-            rval = recover_colordata(cd->diff_children + i,problem);
+            rval = recover_colordata_recursion(cd->diff_children + i,problem);
             if (rval) {
                free_children_data(cd); rval = 0;
                goto CLEANUP;
@@ -433,6 +434,35 @@ static int read_colordata_from_file(colordata* cd,
    return rval;
 }
 
+static int recover_colordata_recursion(colordata* cd,COLORproblem* problem) {
+   int rval  = 0;
+   int prval = 0;
+   FILE* file = (FILE*) NULL;
+   const char* backupdir = problem->parms.backupdir;
+   if (backupdir) {
+      char filename[256];
+      prval = sprintf(filename,"%s/%s.%d",
+      		      backupdir, cd->pname, cd->id);
+      COLORcheck_fileio(prval,"Failed in sprintf");
+
+      if (COLORfile_exists(filename)) {
+         file = fopen(filename,"r"); 
+         COLORcheck_NULL(file, "Failed to fopen");
+         
+         init_colordata(cd);
+         
+         rval = read_colordata_from_file(cd, problem, file);
+             COLORcheck_rval(rval,"Failed in read_colordata_from_file");
+      }
+   }
+ CLEANUP:
+   if (file) {
+      fclose(file);
+   }
+   return rval;
+}
+
+
 int recover_colordata(colordata* cd,COLORproblem* problem) {
    int rval  = 0;
    int prval = 0;
@@ -443,13 +473,12 @@ int recover_colordata(colordata* cd,COLORproblem* problem) {
       prval = sprintf(filename,"%s/%s.%d",
       		      backupdir, cd->pname, cd->id);
       COLORcheck_fileio(prval,"Failed in sprintf");
-      file = fopen(filename,"r"); 
-      COLORcheck_NULL(file, "Failed to fopen");
 
-      init_colordata(cd);
-
-      rval = read_colordata_from_file(cd, problem, file);
-      COLORcheck_rval(rval,"Failed in read_colordata_from_file");
+      if (COLORfile_exists(filename)) {
+         printf("Reading data from old run from %s.\n",filename);
+         rval = recover_colordata_recursion(cd,problem);
+         COLORcheck_rval(rval, "Failed in recover_colordata_recursion");
+      }
    }
  CLEANUP:
    if (file) {
