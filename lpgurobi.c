@@ -202,16 +202,27 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
    int rval = 0;
+   int* dellist = (int*) NULL;
+   int numdel  = last_cind - first_cind + 1;
+   int i;
+   
+   dellist = COLOR_SAFE_MALLOC(numdel,int);
+   COLORcheck_NULL(dellist, "Failed to allocate dellist");
+   
+   for (i = 0; i < numdel; ++i) {
+      dellist[i] = first_cind + i;
+   }
 
-   rval = GRBdelvars(p->model,1,&cind);
+   rval = GRBdelvars(p->model,numdel,dellist);
    COLORcheck_rval_grb (rval, "GRBdelvars failed", p->env);
    rval = GRBupdatemodel (p->model);
    COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
  CLEANUP:
-   
+   if(dellist) {free (dellist);}
+
    return rval;
 }
 
@@ -231,6 +242,9 @@ int COLORlp_pi (COLORlp *p, double *pi)
     }
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMCONSTRS, &nrows);
+    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_NUMCONSTRS failed", 
+                         p->env);
+
     if (nrows == 0) {
         fprintf (stderr, "No rows in LP\n");
         rval = 1;  goto CLEANUP;

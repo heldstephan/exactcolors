@@ -50,10 +50,11 @@ endif
 
 export CC=gcc
 export LD=gcc
-#CFLAGS= -g
+#CFLAGS+= -g
 CFLAGS+= -O3
 
 # For static code analysis with clang we use the clang compiler.
+# NOTE: You need to disable optimization otherwise
 #export CC=clang 
 
 #

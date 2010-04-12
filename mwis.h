@@ -34,7 +34,7 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets,
                         int ncount, int ecount, const int elist[], COLORNWT nweights[],
-                        COLORNWT cutoff, int greedy_only);
+                        COLORNWT cutoff, int greedy_only, int force_rounding);
 
 int COLORstable_LS(MWISls_env** env,
                    COLORset** newsets, int* nnewsets, int ncount,

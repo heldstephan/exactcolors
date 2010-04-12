@@ -61,7 +61,7 @@ int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
 int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,   
                     double obj, double lb, double ub, char vartype, char *name);
 
-int COLORlp_deletecol (COLORlp *p, int cind);
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind);
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense);
 

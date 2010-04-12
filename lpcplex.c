@@ -251,11 +251,11 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
     int rval = 0;
 
-    rval = CPXdelcols (p->cplex_env, p->cplex_lp, cind, cind);
+    rval = CPXdelcols (p->cplex_env, p->cplex_lp, first_cind, last_cind);
     COLORcheck_rval (rval, "CPXdelcols failed");
 
 CLEANUP:

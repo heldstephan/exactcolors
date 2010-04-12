@@ -171,14 +171,25 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
    int rval = 0;
+   int* dellist = (int*) NULL;
+   int numdel  = last_cind - first_cind + 1;
+   int i;
 
-   rval = QSdelete_col (p->p, cind);
+   dellist = COLOR_SAFE_MALLOC(numdel,int);
+   COLORcheck_NULL(dellist, "Failed to allocate dellist");
+
+   for (i = 0; i < numdel; ++i) {
+      dellist[i] = first_cind + i;
+   }
+
+   rval = QSdelete_cols (p->p, numdel,dellist);
    COLORcheck_rval (rval, "QSdelete_col failed");
 
 CLEANUP:
+   if (dellist) free(dellist);
    return rval;
 }
 
