@@ -99,8 +99,9 @@ struct soldata_t {
    const COLORadjgraph* G;
    const COLORNWT*      nweights;
    COLORNWT             cutoff;
-   COLORclasses         cclasses;
 
+   COLORclasses         cclasses;
+   COLORNWT             best_sval;
    /* Following arrays are used in diverse subroutines
       and kept in soldata avoid too many mallocs.
    */
@@ -294,6 +295,7 @@ static void set_ptrs_to_zero(soldata* sol)
    sol->heap          = (COLORNWTHeap*) NULL;
 
    COLORclasses_init(&(sol->cclasses));
+   sol->best_sval     = 0;
 
    sol->lp            = (COLORlp *) NULL;
    sol->dbl_nweights  = (double*) NULL;
@@ -461,6 +463,12 @@ static int greedy_alg_max_nweight(soldata* sol, int s)
                        sol->nweights,
                        sol->freecount);
 
+   if (sol->nweights[sol->sort_work[s]] == 0) {
+      /* Onve the start vertex has weight zero,
+         we can stop, because this set was already inspected.
+      */
+      return changes;
+   }
    for (i = 0; i < nnodes + s; ++i) {
       int v = sol->sort_work[(i + s) % nnodes];
       if (sol->nweights[v] > 0) {
@@ -492,6 +500,12 @@ static int greedy_alg_max_surplus (soldata* sol, int s)
                        sol->grdy_nweights,
                        sol->freecount);
 
+   if (sol->nweights[sol->sort_work[s]] == 0) {
+      /* Onve the start vertex has weight zero,
+         we can stop, because this set was already inspected.
+      */
+      return changes;
+   }
 
    for (i = 0; i < nnodes; ++i) {
       int v = sol->sort_work[(i + s) % nnodes];
@@ -559,6 +573,13 @@ static int greedy_alg_dyn_max_surplus(soldata* sol, int s)
       }
       minv_ptr = (int*) COLORNWTheap_min(sol->heap);
    }
+
+   /** As we might already have removed most elements from the heap we
+       continue improvement with greedy_alg_max_surplus.
+   */
+   changes += greedy_alg_max_surplus(sol,0);
+
+
    return changes;
 }
 
@@ -729,6 +750,8 @@ static int init_mwis_grdy(soldata*  sol,
 
 
    sol->cclasses.cnt = 0;
+   sol->best_sval    = 0;
+
    sol->greedy_algorithm = greedy_alg_max_nweight;
 
    reinit_soldatas(sol);
@@ -1105,16 +1128,7 @@ static int add_soldata(soldata* sol)
 
    cclasses->sets[cclasses->cnt].members = newmembers;
    ++(cclasses->cnt);
-   {
-      int i;
-      if (COLORdbg_lvl() > 0) {
-         printf("NEW SET ");
-         for (i = 0; i < sol->solcount;++i) {
-            printf(" %d",newmembers[i]);
-         }
-         printf("\n");
-      }
-   }
+
  CLEANUP:
    if (rval) {
       if (newmembers) {free(newmembers);}
@@ -1129,19 +1143,41 @@ static int transfer_soldata(COLORset** newsets,
 {
    int rval = 0;
    COLORclasses* cclasses = &(sol->cclasses);
-
+   int num_transferred_sets = 5; 
+   int i;
+   int s;
+   
    if (cclasses->cnt == 0) goto CLEANUP;
 
-   if (COLORdbg_lvl() > 1) {
-      printf("Transferring %d greedy soldatas.\n",cclasses->cnt);
+   if (num_transferred_sets > cclasses->cnt) {
+      num_transferred_sets = cclasses->cnt;
    }
 
-   *nnewsets = cclasses->cnt;
+   if (COLORdbg_lvl() > 1) {
+      printf("Transferring %d/%dgreedy soldatas.\n", 
+             num_transferred_sets, cclasses->cnt);
+   }
+
+   *nnewsets = num_transferred_sets;
    *newsets = (COLORset *) COLOR_SAFE_MALLOC(*nnewsets,COLORset);
    COLORcheck_NULL(*newsets,"Could not allocate *newsets");
-
-   memcpy(*newsets,cclasses->sets,*nnewsets * sizeof(COLORset));
+   
+   memcpy(*newsets,cclasses->sets + cclasses->cnt - num_transferred_sets,
+          *nnewsets * sizeof(COLORset));
    COLORcheck_NULL(*newsets,"Could not allocate *newsets");
+
+   {
+      if (COLORdbg_lvl() > 0) {
+         for (s = 0; s < num_transferred_sets; ++s) {
+            printf("NEW SET ");
+            for (i = 0; i < (*newsets)[s].count;++i) {
+               printf(" %d",(*newsets)[s].members[i]);
+            }
+            printf("\n");
+         }
+      }
+   }
+
 
    COLORclasses_reset_without_free(cclasses);
 
@@ -1155,22 +1191,22 @@ CLEANUP:
    return rval;
 }
 
-static int inspect_soldata(soldata* sol, COLORNWT* best_sval,
+static int inspect_soldata(soldata* sol,
                             const char* logstring)
 {
    int    rval = 0;
    COLORNWT sval = soldata_value(sol);
    if (COLORdbg_lvl() > 1) printf("%s: %lld\n",logstring,(long long) sval);
 
-   if(sval > sol->cutoff && sval > *best_sval) {
+   if (sval > sol->cutoff && sval > sol->best_sval) {
       add_zero_weigthed(sol);
+      sol->best_sval = sval;
       rval = add_soldata(sol);
       remove_zero_weigthed(sol);
 
       COLORcheck_rval(rval,"Failed in add_soldata");
-      *best_sval = sval;
-   } else if (sval > *best_sval) {
-      *best_sval = sval;
+   } else if (sval > sol->best_sval) {
+      sol->best_sval = sval;
       print_soldata(sol);
    }
  CLEANUP:
@@ -1182,41 +1218,43 @@ static int inspect_soldata(soldata* sol, COLORNWT* best_sval,
 static int repeated_greedy_followed_by_ls(soldata*  sol)
 {
    int rval = 0;
-   COLORNWT best_sval = 0;
    int changes;
    int start_vertex;
-   int nsoldatas = 0;
+   int nsoldatas = sol->cclasses.cnt;
    int last_improving_start = -1;
    int first_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
+   if (nsoldatas) {
+      num_starts /= 20;
+   }
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
       reinit_soldatas(sol);
       sol->solcount = 0;
       sol->greedy_algorithm(sol,start_vertex);
       if ( !(changes = sol->solcount)) continue;
 
-      inspect_soldata(sol,&best_sval,"GREEDY MWIS");
+      /* inspect_soldata(sol,"GREEDY MWIS"); */
 
       while (changes) {
 
          changes = perform_2_improvements(sol);
          COLORcheck_rval(rval,"perform_2_improvements");
-         if (changes) {
-            inspect_soldata(sol,&best_sval,"GREEDY 2-SWAPS");
-         }
+         /* if (changes) { */
+         /*    inspect_soldata(sol,"GREEDY 2-SWAPS"); */
+         /* } */
 
-         if (best_sval < sol->cutoff) {
+         {
             int change = perform_1_2_paths(sol);
             changes += change;
             COLORcheck_rval(rval,"perform_1_2_paths");
 
             if (change) {
                sol->greedy_algorithm(sol,0);
-               inspect_soldata(sol,&best_sval,"GREEDY 1-2-SWAPS");
+               /* inspect_soldata(sol,"GREEDY 1-2-SWAPS"); */
             }
          }
       }
-
+      inspect_soldata(sol,"GREEDY");
       if (COLORdbg_lvl() > 1) {
          int zero_added = add_zero_weigthed(sol);
          if (zero_added) {
@@ -1230,12 +1268,12 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
          if (first_valid_start == -1)
             first_valid_start = start_vertex;
          /* If a solution was found, put less effort in finding better ones.*/
-         num_starts = sol->ncount / (nsoldatas + 1);
+         num_starts *= 0.66;
       }
    }
    if (COLORdbg_lvl()> 0) {
       printf("Best greedy:   %13.10e ( %lld / %lld ) , number of greedy soldatas: %d, first valid it. %d last improving iteration %d\n",
-             COLORsafe_lower_dbl(best_sval,sol->cutoff),(long long ) best_sval,(long long ) sol->cutoff,
+             COLORsafe_lower_dbl(sol->best_sval,sol->cutoff),(long long ) sol->best_sval,(long long ) sol->cutoff,
              sol->cclasses.cnt, first_valid_start,last_improving_start);
       fflush(stdout);
    }
@@ -1267,6 +1305,8 @@ int COLORstable_init_LS(MWISls_env** env,
       COLORcheck_rval(rval,"COLORbuild_adjgraph failed");
 
       rval = COLORadjgraph_simplify(G);
+      COLORcheck_rval(rval,"Failed in COLORadjgraph_simplify");
+
 
       COLORadjgraph_sort_adjlists_by_id(G);
 
@@ -1309,12 +1349,12 @@ int COLORstable_LS(MWISls_env** env,
    sol->greedy_algorithm = greedy_alg_max_nweight;
    repeated_greedy_followed_by_ls(sol);
 
-   if(!sol->cclasses.cnt) {
+   /* if (!sol->cclasses.cnt) { */
       sol->greedy_algorithm = greedy_alg_dyn_max_surplus;
       repeated_greedy_followed_by_ls(sol);
-   }
+   /* } */
 
-   if(!sol->cclasses.cnt) {
+   if (!sol->cclasses.cnt) {
       sol->greedy_algorithm = greedy_alg_max_surplus;
       repeated_greedy_followed_by_ls(sol);
    }
@@ -1365,7 +1405,7 @@ static int num_weighted_neighbors(soldata* sol, COLORNWT* nweights, int v)
 
 static int decrease_nwn_of_neighbors(soldata* sol, int v)
 {
-   int rval;
+   int rval = 0;
    int k;
 
    COLORadjnode* nodelist = sol->G->nodelist;

@@ -313,7 +313,8 @@ int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets, int ncount,
                         int ecount, const int elist[], COLORNWT nweights[],
                         COLORNWT cutoff,
-                        int      greedy_only)
+                        int      greedy_only,
+                        int      force_rounding)
 {
    int rval = 0;
    double rtime;
@@ -332,6 +333,15 @@ int COLORstable_wrapper(MWISenv** env,
    if (( *env)->ngreedy_fails ==  max_ngreedy_fails && COLORdbg_lvl() > 0) {
       printf("Greedy failed %d times in a row => not using greedy any more.\n",
              ( *env)->ngreedy_fails);
+   }
+
+   if (force_rounding) {
+      if (COLORdbg_lvl()) {
+         printf("Enforced rounding!\n");
+      }
+      rval = COLORstable_round_down_weights((*env)->ls_env,
+                                            nweights,cutoff);
+      COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights");
    }
 
    if (density >= high_density_threshold) {
@@ -665,7 +675,7 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
       if (p[0] == 'c') {
          printf ("Comment: %s", p+1);
       } else if (p[0] == 'p') {
-         token = strtok(p,delim); /* get 'p' */
+         strtok(p,delim); /* get 'p' */
 
          token = strtok((char*) NULL,delim); /* get problem name */
          if(strcmp(token,problem_name)) {
@@ -673,12 +683,11 @@ int COLORstable_read_stable_sets(COLORset** newsets, int* nnewsets,
                     token, problem_name);
             rval = 1; goto CLEANUP;
          }
-         token = strtok(NULL,delim);
 
       } else if( p[0] == 's') {
          int  setsize = 0;
          int  unsorted = 0;
-         token = strtok(p,delim);
+         strtok(p,delim); /* get 's' */
          while( (token = strtok((char*) NULL,delim)) != (char*) NULL) {
             sscanf (token, "%d", &(setbuffer[setsize++]));
             if (setsize > 1 ){
