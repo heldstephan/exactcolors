@@ -372,7 +372,7 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
        int **pnweights)
 {
     int rval = 0;
-    int ncount, ecount, icount = 0, haveprob = 0;
+    int ncount = 0, ecount = 0, icount = 0, haveprob = 0;
     int i, end0, end1, n, len;
     int *elist = (int *) NULL;
     int *nweights = (int *) NULL;
@@ -406,7 +406,7 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
                 rval = 1;  goto CLEANUP;
             }
             haveprob = 1;
-            data = strtok(p,delim); /* get 'p' */
+            strtok(p,delim); /* get 'p' */
             
             data = strtok(NULL,delim); /* get type */
             if ( strcmp(data,"edge") && strcmp(data,"edges") &&

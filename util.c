@@ -69,6 +69,20 @@ int COLORdir_exists(const char* dirname)
 }
 
 
+int COLORdir_create(const char* dirname)
+{
+   int    prval = 0;
+   int    rval  = 0;
+
+   prval = mkdir(dirname,(S_IRUSR | S_IWUSR | S_IXUSR));
+   COLORcheck_fileio(prval,"Failed to mkdir");
+   
+ CLEANUP:
+   
+   return rval;
+}
+
+
 
 /****************************************************************************/
 /*    RNG Based on DIMACS Code.                                             */
@@ -104,8 +118,7 @@ void COLORutil_sprand (int seed, COLORrandstate *r)
     }
     r->a = 0;
     r->b = 24;
-    for (i = 0; i < 165; i++)
-        last = COLORutil_lprand (r);
+    for (i = 0; i < 165; i++) COLORutil_lprand (r);
 }
 
 int COLORutil_lprand (COLORrandstate *r)

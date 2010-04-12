@@ -87,6 +87,9 @@ int COLORclique_enum (COLORset **newsets, int *nnewsets, int ncount,
     int *marks = (int *) NULL, *invmap = (int *) NULL;
     COLORset cliq;
 
+    COLORcheck_NULL(nnewsets, "COLORclique_enum: nnewsets must not be NULL");
+    COLORcheck_NULL(newsets,  "COLORclique_enum: newsets must not be NULL");
+
     if (nnewsets) *nnewsets = 0;
     if (newsets) *newsets = (COLORset *) NULL;
 
@@ -289,6 +292,9 @@ int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
     COLORadjgraph G;
 
     COLORadjgraph_init (&G);
+
+    COLORcheck_NULL(nnewsets, "COLORclique_ostergard: nnewsets must not be NULL");
+    COLORcheck_NULL(newsets,  "COLORclique_ostergard: newsets must not be NULL");
 
     if (nnewsets) *nnewsets = 0;
     if (newsets) *newsets = (COLORset *) NULL;

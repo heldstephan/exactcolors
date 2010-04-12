@@ -43,6 +43,7 @@ void  COLORutil_freerus (void *p);
 
 int COLORfile_exists(const char* filename);
 int COLORdir_exists(const char* dirname);
+int COLORdir_create(const char* dirname);
 
 int COLORdbg_lvl(void);
 void COLORset_dbg_lvl(int dbglvl);

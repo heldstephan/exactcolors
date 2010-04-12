@@ -68,7 +68,7 @@ int main (int ac, char **av)
     COLORproblem  colorproblem;
     colordata* root_cd = &(colorproblem.root_cd);
     COLOR_SFILE *s = (COLOR_SFILE *) NULL;
-    double cputime = COLORcpu_time();
+    double cputime;
     COLORset_dbg_lvl(-1);
     COLORproblem_init(&colorproblem);
 

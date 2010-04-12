@@ -14,8 +14,6 @@
     You should have received a copy of the GNU General Public License
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include <sys/stat.h>
 #include <time.h>
 
 #include "color_private.h"
@@ -173,8 +171,8 @@ int backup_colordata(colordata* cd, COLORproblem* problem) {
       sprintf(bkp_filename,"%s",cd->pname);
 
       if(!COLORdir_exists(backupdir)) {
-	 prval = mkdir(backupdir,(S_IRUSR | S_IWUSR | S_IXUSR));
-	 COLORcheck_fileio(prval,"Failed to mkdir");
+         rval = COLORdir_create(backupdir);
+	 COLORcheck_rval(rval,"Failed in COLORdir_create");
       }
     
       /* prval = sprintf(filename,"gzip >|%s/%s.%d.gz", */
@@ -244,7 +242,7 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"pname")) {
          data = strtok((char*)NULL,delim);
-         prval = sprintf(cd->pname,data);
+         prval = sprintf(cd->pname, "%s",data);
          COLORcheck_fileio(prval,"Failed in sprintf");
       }
       else if (!strcmp(data,"depth")) {
@@ -310,6 +308,8 @@ static int read_colordata_from_file(colordata* cd,
       }
             
       else if (!strcmp(data,"count")) {
+         COLORcheck_NULL(cd->cclasses, 
+                         "members token occured prior to ccount");
          data = strtok((char*)NULL,delim);
          cd->cclasses[cclass_i].count = atoi(data);
          if (cd->cclasses[cclass_i].count) cd->cclasses[cclass_i].members = COLOR_SAFE_MALLOC(cd->cclasses[cclass_i].count, int);
@@ -317,6 +317,8 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"members")) {
          int i;
+         COLORcheck_NULL(cd->cclasses, 
+                         "members token occured prior to ccount");
          for (i = 0; i < cd->cclasses[cclass_i].count; ++i) {
             data = strtok((char*)NULL,delim);
             cd->cclasses[cclass_i].members[i] = atoi(data);
@@ -332,6 +334,8 @@ static int read_colordata_from_file(colordata* cd,
       }
             
       else if (!strcmp(data,"bestcolors_count")) {
+         COLORcheck_NULL(cd->bestcolors,
+                         "bestcolors token occured prior to bestcolors_count");
          data = strtok((char*)NULL,delim);
          cd->bestcolors[bestc_i].count = atoi(data);
          if (cd->bestcolors[bestc_i].count) cd->bestcolors[bestc_i].members = COLOR_SAFE_MALLOC(cd->bestcolors[bestc_i].count, int);
@@ -339,6 +343,9 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"bestcolors_members")) {
          int i;
+         COLORcheck_NULL(cd->bestcolors,
+                         "bestcolors token occured prior to bestcolors_members");
+
          for (i = 0; i < cd->bestcolors[bestc_i].count; ++i) {
             data = strtok((char*)NULL,delim);
             cd->bestcolors[bestc_i].members[i] = atoi(data);

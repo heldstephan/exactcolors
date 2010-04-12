@@ -257,7 +257,7 @@ static int get_problem_name(char* pname,const char* efname)
 
 CLEANUP:
 
-   return 0;
+   return rval;
 }
 
 
