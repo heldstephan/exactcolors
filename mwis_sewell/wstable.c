@@ -2086,7 +2086,7 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
             goto CLEANUP;
          }
          haveprob = 1;
-         data = strtok(p,delim); /* get 'p' */
+         strtok(p,delim); /* get 'p' */
 
          data = strtok(NULL,delim); /* get type */
          if ( strcmp(data,"edge") && strcmp(data,"edges") && strcmp(data,"col") && strcmp(data,"graph") ) {
