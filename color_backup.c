@@ -303,7 +303,7 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"ccount")) {
          data = strtok((char*)NULL,delim);
-         cd->ccount = atoi(data);
+         cd->gallocated = cd->ccount = atoi(data);
          COLOR_IFFREE(cd->cclasses,COLORset);
          if (cd->ccount) cd->cclasses = COLOR_SAFE_MALLOC(cd->ccount, COLORset);
       }
