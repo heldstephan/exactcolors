@@ -56,7 +56,6 @@ struct branching_joblist {
 };
 
 
-static int  compute_lower_bound(colordata* cd, COLORproblem* problem);
 static int  grab_integral_solution(colordata* cd, double* x, double tolerance);
 static int  insert_into_branching_heap(colordata* cd, COLORproblem* problem);
 static int  recover_elist(colordata* cd);
@@ -1689,9 +1688,14 @@ static int recover_elist(colordata* cd)
    assert(!path[0]->parent);
 
    ecount = root_cd->ecount;
+   COLORcheck_NULL(ecount,"recover_elist: ecount==0 at root.");
+   COLORcheck_NULL(root_cd->elist,"recover_elist: elist==NULL root.");
+
+
    elist = COLOR_SAFE_MALLOC(2 * (root_cd->ecount + ndiff), int);
    COLORcheck_NULL(path,"Failed to allocate path.");
-
+   
+   
    memcpy(elist, root_cd->elist,2 * (root_cd->ecount) * sizeof(int));
 
    for (i = 1; i < npath;++i) {
@@ -2216,7 +2220,7 @@ static int print_graph_operations(const colordata* cd)
    return 0;
 }
 
-static int compute_lower_bound(colordata* cd,COLORproblem* problem)
+int compute_lower_bound(colordata* cd,COLORproblem* problem)
 {
    int rval = 0;
    int iterations       = 0;
@@ -2525,7 +2529,7 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    }
 
    if (COLORdbg_lvl()) {
-      printf("Inserting into branching heap with lb %d (%f) and ub %d at depth %d (id = %d):\n",
+      printf("Inserting into branching heap with lb %d (%f) and ub %d at depth %d (id = %d).\n",
              cd->lower_bound,cd->dbl_est_lower_bound,cd->upper_bound,
              cd->depth,
              cd->id );
