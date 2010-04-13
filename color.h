@@ -96,6 +96,9 @@ void COLORutil_perm_quicksort (int *perm, int *len, int n);
 
 void COLORset_quicksort (COLORset *cclasses, int ccount);
 
+int COLORprogram_header(int ac, char **av);
+
+
 
 
 #endif  /* __COLOR_H */

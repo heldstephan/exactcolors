@@ -20,11 +20,16 @@
 #include <string.h>
 #include <time.h>
 
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 
 #include "color_defs.h"
 #include "color.h"
+#include "color_version.h"
+
+extern int gethostname (char *, int);
 
 void *COLORutil_allocrus (size_t size)
 {
@@ -281,3 +286,36 @@ double COLORcpu_time (void)
         ((double) ru.ru_utime.tv_usec) / 1000000.0;
     return t;
 }
+
+
+int COLORprogram_header(int ac, char **av) {
+    int   rval     = 0;
+    time_t starttime;
+    char my_hostname[MAX_PNAME_LEN];
+    pid_t my_pid   = getpid();
+    int   i;
+
+    rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
+    COLORcheck_rval (rval, "gethostname failed");
+
+    printf("##############################################################\n");
+
+    printf("Running  :");
+    for (i = 0; i < ac; ++i) {printf(" %s", av[i]);}
+    printf ("\n");
+    
+    printf("Machine  : %s, pid: %lld\n",
+           my_hostname, (long long) my_pid);
+
+    (void) time(&starttime);
+
+    printf("Date     : %s", ctime(&starttime));
+
+    printf("Changeset: %s\n", color_verion_string);
+    fflush (stdout);
+    printf("##############################################################\n");
+
+ CLEANUP:
+    return rval;
+}
+

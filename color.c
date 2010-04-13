@@ -44,9 +44,8 @@ static int debug = 0;
 /* 'double integral_incumbent_tolerance' is used only in an assertion,
    but not in actually performing code.*/
 
-static const double integral_incumbent_tolerance = 10e-10;
-static const double col2row_ratio                       = 3.0;
-static const double min_ndelrow_ratio                   = 0.33;
+static const double integral_incumbent_tolerance        = 10e-10;
+static const double min_ndelrow_ratio                   = 0.5;
 
 
 typedef struct branching_joblist branching_joblist;
@@ -702,14 +701,15 @@ static int delete_old_colorclasses(colordata* cd)
    int i;
    int min_numdel = cd->ncount * min_ndelrow_ratio;
    int first_del = -1;
+   int ndeleted_check = 0;
    int last_del  = -1;
 
-   cd->dzcount = 0;
-   for (i = 0; i < cd->ccount; ++i) {
-      if (cd->cclasses[i].age > cd->retirementage) {
-            cd->dzcount++;
-      }
-   }
+/*    cd->dzcount = 0; */
+/*    for (i = 0; i < cd->ccount; ++i) { */
+/*       if (cd->cclasses[i].age > cd->retirementage) { */
+/*             cd->dzcount++; */
+/*       } */
+/*    } */
 
    if (cd->dzcount > min_numdel) {
       int       new_ccount = 0;
@@ -734,6 +734,7 @@ static int delete_old_colorclasses(colordata* cd)
             new_ccount++;
          } else {
             COLORfree_set(cd->cclasses + i);
+            ndeleted_check++;
             if (first_del == -1) {
                first_del = new_ccount;
                last_del  = first_del;
@@ -742,6 +743,7 @@ static int delete_old_colorclasses(colordata* cd)
             }
          }
       }
+      assert(cd->dzcount == ndeleted_check);
       COLOR_IFFREE(cd->cclasses,COLORset);
       cd->cclasses = new_cclasses;
       cd->ccount   = new_ccount;
@@ -1729,6 +1731,64 @@ static void free_elist(colordata* cd, COLORparms* parms)
    }
 }
 
+/** greedy_upper_bound is intended to greedily extract an integral
+    from the current solution 'x'. However, the performance is not
+    convincing. Thus it's not used by default.
+ */
+COLOR_MAYBE_UNUSED
+static int greedy_upper_bound(colordata* cd,
+                              double* x)
+{
+   int  rval = 0;
+   int* colors        = (int*) NULL;
+   int  totuncolored  = cd->ncount;
+   int  ncolors       = 0;
+   int c;
+   int i;
+      
+   colors = COLOR_SAFE_MALLOC(cd->ncount, int);
+   COLORcheck_NULL(colors, "Failed to allocate colors");
+
+   for (i = 0; i < cd->ncount; ++i){colors[i] = -1;}
+   
+   while (totuncolored) {
+      double best_frac  = 0;
+      int    best_color = -1;
+
+      ncolors++;
+      for (c = 0; c < cd->ccount; ++c){
+         int nuncolored = 0;
+         double frac;
+         if (x[c] < DBL_EPSILON) {continue;}
+         for (i = 0; i < cd->cclasses[c].count; ++i) {
+            int v = cd->cclasses[c].members[i];
+            if (colors[v] == -1) nuncolored++;
+         }
+         if (nuncolored) {
+            frac = x[c] * (double)nuncolored;
+            if ( frac > best_frac) {
+               best_frac  = frac;
+               best_color = c;
+            }
+         }
+      }
+      c = best_color;
+      for (i = 0; i < cd->cclasses[c].count; ++i) {
+         int v = cd->cclasses[c].members[i];
+         if (colors[v] == -1) {
+            colors[v] = c;
+            totuncolored--;
+         }
+      }
+   }
+   if (ncolors < cd->upper_bound) {
+      printf("Found a %d-coloring.\n",ncolors);
+   }
+ CLEANUP:
+   COLOR_IFFREE(colors,int);
+   return rval;
+}
+
 static int grab_integral_solution(colordata* cd,
                                   double* x,
                                   double tolerance)
@@ -1993,6 +2053,9 @@ int create_branches(colordata* cd,COLORproblem* problem)
 
    rval = COLORlp_x(cd->lp,x);
    COLORcheck_rval(rval,"Failed in COLORlp_x");
+
+/*    rval = greedy_upper_bound(cd,x); */
+/*    COLORcheck_rval(rval,"Failed in greedy_upper_bound"); */
 
    rval = insert_fractional_pairs_into_heap(cd, x,nodepair_refs,
                                             nodepair_weights,npairs,
@@ -2265,7 +2328,7 @@ int compute_lower_bound(colordata* cd,COLORproblem* problem)
    cd->mwis_pi = (COLORNWT *) COLOR_SAFE_MALLOC (cd->ncount,COLORNWT);
    COLORcheck_NULL (cd->mwis_pi, "out of memory for mwis_pi");
 
-   cd->retirementage = sqrt((double) cd->ncount) + 50;
+   cd->retirementage = sqrt((double) cd->ncount) + 30;
    do {
       ++iterations;
 

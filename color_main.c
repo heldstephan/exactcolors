@@ -151,26 +151,6 @@ return  (rval);
    return rval;
 }
 
-
-static int print_hostinfo(void) {
-    int   rval     = 0;
-    time_t starttime;
-    char my_hostname[MAX_PNAME_LEN];
-    pid_t my_pid   = getpid();
-
-    rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
-    COLORcheck_rval (rval, "gethostname failed");
-
-    printf("Running color_worker on host %s with pid %lld, ",
-           my_hostname, (long long) my_pid);
-
-    (void) time(&starttime);
-
-    printf("starting on %s.\n", ctime(&starttime));
- CLEANUP:
-    return rval;
-}
-
 COLOR_MAYBE_UNUSED
 static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
                              int ecount, int *elist, int cutoff, int *pval) {
@@ -184,7 +164,7 @@ static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
    COLORcheck_NULL(all_one_nweights, "Failed to allocate all_one_nweights");
 
    for (i = 0; i < ncount; ++i) {all_one_nweights[i] = 1;}
-   
+
    rval = COLORclique_ostergard(&cliques, &ncliques,
                                 ncount, ecount, elist,
                                 all_one_nweights,cutoff,pval,
@@ -225,8 +205,9 @@ int main (int ac, char **av)
 
     COLORset*  debugcolors = (COLORset*) NULL;
     int        ndebugcolors = 0;
-
-    print_hostinfo();
+    
+    rval = COLORprogram_header (ac,av);
+    COLORcheck_rval(rval, "Failed in COLORprogram_header");
 
     COLORproblem_init(&colorproblem);
     cd->id = 0;
@@ -250,19 +231,19 @@ int main (int ac, char **av)
     if (cd->upper_bound > cd->ncount) {cd->upper_bound = cd->ncount;}
 
     if (colorproblem.parms.backupdir) {
-       recover_colordata(cd,&colorproblem);       
+       recover_colordata(cd,&colorproblem);
     }
     if (cd->status == initialized) {
 
        /** Using a restricted CLIQUER to obtain an initial lower bound
            for the chromatic number and a good starting solution for
            DSATUR didn't pay off.
-           
+
            Though many maximum clique problems are solved within a
            second, I could not find a deterministic bound for the
            running time.  I don't want to impose a cpu time limit, as
            this would be non-deterministic.
-           
+
            @author S. Held
         */
 /*        rval = quick_lower_bound(&(cd->cclasses),&(cd->ccount), cd->ncount, */
@@ -273,7 +254,7 @@ int main (int ac, char **av)
        COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
        for (i = 0; i < cd->ncount; ++i) { cd->orig_node_ids[i] = i; }
 
-       
+
        if (parms->cclasses_infile != (char*) NULL) {
           rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
                                               cd->ncount,parms->cclasses_infile,cd->pname);
@@ -302,7 +283,7 @@ int main (int ac, char **av)
 
           cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
        }
-       
+
        if (parms->color_infile != (char*) NULL) {
           rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
                                               cd->ncount,parms->color_infile,cd->pname);
@@ -314,7 +295,7 @@ int main (int ac, char **av)
           cd->ndebugcolors = ndebugcolors;
           cd->opt_track = 1;
        }
-       
+
        colorproblem.global_upper_bound = cd->upper_bound;
        cd->gallocated = cd->ccount;
     }
