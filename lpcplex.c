@@ -121,7 +121,7 @@ int COLORlp_optimize (COLORlp *p)
     if (p->noptcalls == 0) {
        int ncols = CPXgetnumcols (p->cplex_env, p->cplex_lp);
        int nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
-       if (ncols > 2 * nrows) {
+       if (ncols > 5 * nrows) {
           rval = CPXbaropt (p->cplex_env, p->cplex_lp);
           COLORcheck_rval (rval, "CPXbaropt failed");
        } 

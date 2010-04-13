@@ -701,15 +701,15 @@ static int delete_old_colorclasses(colordata* cd)
    int i;
    int min_numdel = cd->ncount * min_ndelrow_ratio;
    int first_del = -1;
-   int ndeleted_check = 0;
    int last_del  = -1;
 
-/*    cd->dzcount = 0; */
-/*    for (i = 0; i < cd->ccount; ++i) { */
-/*       if (cd->cclasses[i].age > cd->retirementage) { */
-/*             cd->dzcount++; */
-/*       } */
-/*    } */
+   /** cd->dzcount can be deprecated! */
+   cd->dzcount = 0;
+   for (i = 0; i < cd->ccount; ++i) {
+      if (cd->cclasses[i].age > cd->retirementage) {
+            cd->dzcount++;
+      }
+   }
 
    if (cd->dzcount > min_numdel) {
       int       new_ccount = 0;
@@ -718,23 +718,22 @@ static int delete_old_colorclasses(colordata* cd)
       assert(cd->gallocated >=cd->ccount);
       new_cclasses = COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
       COLORcheck_NULL(new_cclasses,"Failed to allocate new_cclasses");
-
+      
       for (i = 0; i < cd->gallocated; ++i) {
          COLORinit_set(new_cclasses + i);
       }
-
-
       for (i = 0; i < cd->ccount; ++i) {
          if (cd->cclasses[i].age <= cd->retirementage) {
             if (first_del != -1) {
-               COLORlp_deletecols(cd->lp,first_del,last_del);
+               /** Delete recently found deletion range.*/
+               rval = COLORlp_deletecols(cd->lp,first_del,last_del);
+               COLORcheck_rval(rval, "Failed in COLORlp_deletecols");
                first_del = last_del = -1;
             }
             memcpy(new_cclasses + new_ccount,cd->cclasses + i,sizeof(COLORset));
             new_ccount++;
          } else {
             COLORfree_set(cd->cclasses + i);
-            ndeleted_check++;
             if (first_del == -1) {
                first_del = new_ccount;
                last_del  = first_del;
@@ -743,7 +742,17 @@ static int delete_old_colorclasses(colordata* cd)
             }
          }
       }
-      assert(cd->dzcount == ndeleted_check);
+
+      if (first_del != -1) {
+         /** Delete the final range. This can occur if the last
+          element is to be deleted, e.g. when no further columns were
+          added in a B&B branch.
+         */
+         COLORlp_deletecols(cd->lp,first_del,last_del);
+         COLORcheck_rval(rval, "Failed in COLORlp_deletecols");
+      }
+
+      assert(cd->dzcount == cd->ccount - new_ccount);
       COLOR_IFFREE(cd->cclasses,COLORset);
       cd->cclasses = new_cclasses;
       cd->ccount   = new_ccount;
@@ -754,7 +763,6 @@ static int delete_old_colorclasses(colordata* cd)
       }
       cd->dzcount = 0;
    }
-
 
  CLEANUP:
 
@@ -2039,6 +2047,7 @@ int create_branches(colordata* cd,COLORproblem* problem)
    if (!cd->ccount) {
       compute_lower_bound (cd,problem);
    }
+   assert(cd->ccount != 0);
 
    x = (double*) COLOR_SAFE_MALLOC(cd->ccount,double);
    COLORcheck_NULL(x,"Failed ot allocate x");
@@ -2419,7 +2428,7 @@ int compute_lower_bound(colordata* cd,COLORproblem* problem)
                  cd->upper_bound,cd->id,iterations, cd->opt_track);
       }
 
-      cd->retirementage = 1;
+      cd->retirementage = 0;
       rval = delete_old_colorclasses(cd);
       COLORcheck_rval (rval, "delete_old_colorclasses failed");
 
@@ -2819,7 +2828,7 @@ static int parallel_branching(COLORproblem* problem,
             cd->status = submitted_for_branching;
             npending++;
             rval = send_colordata(s,cd,include_bestcolors);
-            COLORcheck_rval(rval,"Failed to create_branches");
+            COLORcheck_rval(rval,"Failed in send_colordata");
 
             rval = prepend_to_joblist(&joblist,cd);
             COLORcheck_rval(rval,"Failed to add_to_joblist");
