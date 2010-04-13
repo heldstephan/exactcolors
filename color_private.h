@@ -23,9 +23,9 @@
 
 #include "heap.h"
 #include "color_parms.h"
+#include "color_defs.h"
 
 typedef struct colordata colordata;
-#define MAX_PNAME_LEN 128
 
 struct colordata {
 

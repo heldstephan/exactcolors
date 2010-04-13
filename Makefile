@@ -50,12 +50,12 @@ endif
 
 export CC=gcc
 export LD=gcc
-#CFLAGS+= -g
+# CFLAGS+= -g
 CFLAGS+= -O3
 
 # For static code analysis with clang we use the clang compiler.
 # NOTE: You need to disable optimization otherwise
-#export CC=clang 
+#export CC=clang
 
 #
 # Valgrind does not support fegetround & fesetround. With following compile option
@@ -82,7 +82,7 @@ export CFLAGS
 OBJFILES=color.o color_backup.o color_parms.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
-CBOSSFILES=color_main.o $(OBJFILES)
+CBOSSFILES=color_version.h color_main.o $(OBJFILES)
 CWORKERFILES=color_worker.o $(OBJFILES)
 PARTFILES=partition.o  $(OBJFILES)
 COMPFILES=complement.o  $(OBJFILES)
@@ -123,11 +123,13 @@ test_tell: test_tell.o $(BOSSFILES)
 tags:
 	etags *.[hc]
 clean:
-	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log*
+	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h
 	cd $(SEWELL_DIR) && $(MAKE) clean
 
+color_version.h: *.[hc]
+	./create_version_header > color_version.h
 
-color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h
+color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h color_version.h
 color_worker.o: color_worker.c color_private.h color_defs.h bbsafe.h
 color_backup.o: color_backup.c color_private.h color_defs.h
 color_parms.o: color_parms.c color_parms.h color_defs.h

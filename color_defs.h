@@ -34,6 +34,8 @@
 
 
 #define COLOR_MAXINT (2147483647)
+#define MAX_PNAME_LEN 128
+
 
 double COLORwall_time (void);
 double COLORcpu_time (void);
