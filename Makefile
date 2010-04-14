@@ -84,16 +84,20 @@ STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
 CBOSSFILES=color_version.h color_main.o $(OBJFILES)
 CWORKERFILES=color_worker.o $(OBJFILES)
+CKILLERFILES=color_jobkiller.o $(OBJFILES)
 PARTFILES=partition.o  $(OBJFILES)
 COMPFILES=complement.o  $(OBJFILES)
 
-all: color color_worker stable queen test_boss test_worker test_tell partition complement
+all: color color_worker color_jobkiller stable queen test_boss test_worker test_tell partition complement
 
 color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
 	$(LD) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
 color_worker: $(SEWELL_LIB) $(CWORKERFILES)
 	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+
+color_jobkiller: $(SEWELL_LIB) $(CKILLERFILES)
+	$(CC) $(CFLAGS) -o color_jobkiller $(CKILLERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
 $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
 	cd $(SEWELL_DIR) && $(MAKE)
