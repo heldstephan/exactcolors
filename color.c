@@ -51,6 +51,8 @@ static const double min_ndelrow_ratio                   = 0.5;
 typedef struct branching_joblist branching_joblist;
 struct branching_joblist {
    colordata* cd;
+   char       hostinfo[UCHAR_MAX];
+   int        age;
    branching_joblist* next;
 };
 
@@ -2739,7 +2741,9 @@ static int locate_colordata(colordata** cd,
    return rval;
 }
 
-static int prepend_to_joblist(branching_joblist** joblist,colordata* cd)
+static int prepend_to_joblist(branching_joblist** joblist,
+                              colordata* cd,
+                              const char hostinfo[])
 {
    int rval = 0;
 
@@ -2747,11 +2751,30 @@ static int prepend_to_joblist(branching_joblist** joblist,colordata* cd)
    COLORcheck_NULL(new_job,"Failed to allocate new_job");
 
    new_job->cd   = cd;
+   new_job->age  = 0;
+   strcpy(new_job->hostinfo,hostinfo);
    new_job->next = *joblist;
 
    *joblist = new_job;
 
  CLEANUP:
+   return rval;
+}
+
+static int check_joblist(branching_joblist* joblist, int npending)
+{
+   int rval = 0;
+
+   branching_joblist* job = joblist;
+
+   while (job) {
+      job->age++;
+      if (job->age > (npending + 10)) {
+         printf("Job with id = %d is in joblist for %d iterations (hostinfo: %s).\n", 
+                job->cd->id, job->age, job->hostinfo);
+      }
+      job = job->next;
+   }
    return rval;
 }
 
@@ -2763,12 +2786,12 @@ static int parallel_branching(COLORproblem* problem,
    colordata*   cd    = (colordata*)    NULL;
    COLOR_SPORT* lport = (COLOR_SPORT *) NULL;
    COLOR_SFILE* s;
-   char request, grunt[1024];
+   char request, grunt[UCHAR_MAX];
    int  i;
    int npending = 0;
    branching_joblist* joblist = (branching_joblist*) NULL;
    COLORNWTHeap* br_heap  = problem->br_heap;
-
+   int        nsent = 0;
    *child_cputimes = 0;
 
    printf("ENTERED PARALLEL BRANCHING, waiting for workers.\n");
@@ -2786,7 +2809,7 @@ static int parallel_branching(COLORproblem* problem,
          continue;
       }
 
-      if (COLORsafe_sread_string (s, grunt, 1023)) {
+      if (COLORsafe_sread_string (s, grunt, UCHAR_MAX - 1)) {
          fprintf (stderr, "COLORsafe_sread_char string, abort con\n");
          COLORsafe_sclose (s);
          continue;
@@ -2830,8 +2853,13 @@ static int parallel_branching(COLORproblem* problem,
             rval = send_colordata(s,cd,include_bestcolors);
             COLORcheck_rval(rval,"Failed in send_colordata");
 
-            rval = prepend_to_joblist(&joblist,cd);
+            rval = prepend_to_joblist(&joblist,cd,grunt);
             COLORcheck_rval(rval,"Failed to add_to_joblist");
+
+            nsent++;
+            if (nsent % 100 == 1) {
+               check_joblist(joblist,npending);
+            }
 
             free_elist(cd,&(problem->parms));
 
@@ -2906,6 +2934,28 @@ static int parallel_branching(COLORproblem* problem,
 
                }
                remove_finished_subtree(cd,problem);
+            }
+         }
+         break;
+      case COLOR_BOSS_REMOVE_JOB:
+         {
+            int cd_id = -1;
+            if (COLORsafe_sread_int (s, &cd_id)) {
+               fprintf (stderr, "COLORsafe_sread_int failed, abort cd_id\n");
+               COLORsafe_sclose (s);
+               continue;
+            }
+            COLORsafe_sclose (s);
+
+            rval = locate_colordata(&cd, &joblist,cd_id);
+            if (rval) {
+               printf("Job with id = %d was not found and could not be removed.\n", cd_id);
+            } else {
+               npending--;
+               printf("Removing job id = %d from joblist and "
+                      "re-inserting it to heap.\n", cd_id);
+               rval = insert_into_branching_heap(cd,problem);
+               COLORcheck_rval(rval,"Failed in insert_into_cb_heap");
             }
          }
          break;
