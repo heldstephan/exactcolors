@@ -17,8 +17,8 @@
 # exactcolors requires one of the following 3 LP solvers: Gurobi, Cplex, or QSopt.
 # Please set the environment path and uncomment the lines correspondingly.
 # You might also need to adopt the  LPINCLUDE & LPLIB  paths further below.
-#GUPATH=$(GUROBI_HOME)
-CPLEXPATH=$(CPLEX_HOME)
+GUPATH=$(GUROBI_HOME)
+#CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 ifneq ($(QSPATH),)
