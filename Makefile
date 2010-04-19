@@ -29,7 +29,7 @@ endif
 
 ifneq ($(GUPATH),)
 LPINCLUDE=$(GUPATH)/include
-LPLIB=$(GUPATH)/lib/libgurobi.so.2.0.2
+LPLIB=$(GUPATH)/lib/libgurobi.so.3.0.0
 LPSOURCE=lpgurobi.o
 GRBMWIS=mwis_grb.o
 GUROBI_FLAG=-DUSE_GUROBI
