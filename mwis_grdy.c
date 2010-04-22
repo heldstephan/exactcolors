@@ -1060,8 +1060,8 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
 
    for (i = 0; i < ecount; ++i) {
       if (coloring[elist[2*i]] == 1 && coloring[elist[2*i+1]] ==1) {
-         fflush(stdout);
          fprintf(stderr,"ILLEGAL STABLE SET FOUND!\n");
+         fflush(stdout);
          rval++;
       }
    }
@@ -1143,10 +1143,10 @@ static int transfer_soldata(COLORset** newsets,
 {
    int rval = 0;
    COLORclasses* cclasses = &(sol->cclasses);
-   int num_transferred_sets = 5; 
+   int num_transferred_sets = 5;
    int i;
    int s;
-   
+
    if (cclasses->cnt == 0) goto CLEANUP;
 
    if (num_transferred_sets > cclasses->cnt) {
@@ -1154,14 +1154,14 @@ static int transfer_soldata(COLORset** newsets,
    }
 
    if (COLORdbg_lvl() > 1) {
-      printf("Transferring %d/%dgreedy soldatas.\n", 
+      printf("Transferring %d/%dgreedy soldatas.\n",
              num_transferred_sets, cclasses->cnt);
    }
 
    *nnewsets = num_transferred_sets;
    *newsets = (COLORset *) COLOR_SAFE_MALLOC(*nnewsets,COLORset);
    COLORcheck_NULL(*newsets,"Could not allocate *newsets");
-   
+
    memcpy(*newsets,cclasses->sets + cclasses->cnt - num_transferred_sets,
           *nnewsets * sizeof(COLORset));
    COLORcheck_NULL(*newsets,"Could not allocate *newsets");

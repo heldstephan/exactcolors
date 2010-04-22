@@ -215,19 +215,15 @@ void free_temporary_data(colordata* cd)
 {
    free_children_data(cd);
    free_lbcolordata(cd);
-   if (cd->elist) {
-      free (cd->elist);
-      cd->elist = (int*) NULL;
-   }
-   if (cd->orig_node_ids) {
-      free(cd->orig_node_ids);
-      cd->orig_node_ids = (int*) NULL;
-   }
 }
 
 void free_colordata(colordata* cd)
 {
    free_temporary_data(cd);
+   COLOR_IFFREE (cd->elist, int);
+   COLOR_IFFREE (cd->orig_node_ids, int);
+
+
    COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
 }
 
@@ -247,7 +243,7 @@ static int is_diff_child(colordata* cd)
 int send_colordata(COLOR_SFILE *s, colordata* cd, int include_best) {
    int rval = 0;
    int i;
-
+   int suppress_elist_and_orig_node_ids = (cd->elist == 0);
 
    rval = COLORsafe_swrite_int (s,cd->id);
    COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int (s,cd->id)");
@@ -267,17 +263,23 @@ int send_colordata(COLOR_SFILE *s, colordata* cd, int include_best) {
    rval = COLORsafe_swrite_int(s,cd->ecount);
    COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->ecount)");
 
-   for (i = 0; i < cd->ecount; ++ i) {
-      rval = COLORsafe_swrite_int(s,cd->elist[2*i]);
-      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i])");
+   rval = COLORsafe_swrite_int(s,suppress_elist_and_orig_node_ids);
+   COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,suppress_elist_and_orig_node_ids)");
 
-      rval = COLORsafe_swrite_int(s,cd->elist[2*i + 1]);
-      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i + 1])");
-   }
+   if (! suppress_elist_and_orig_node_ids) {
 
-   for (i = 0; i < cd->ncount; ++ i) {
-      rval = COLORsafe_swrite_int(s,cd->orig_node_ids[i]);
-      COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->orig_node_ids[i])");
+      for (i = 0; i < cd->ecount; ++ i) {
+         rval = COLORsafe_swrite_int(s,cd->elist[2*i]);
+         COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i])");
+
+         rval = COLORsafe_swrite_int(s,cd->elist[2*i + 1]);
+         COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->elist[2*i + 1])");
+      }
+
+      for (i = 0; i < cd->ncount; ++ i) {
+         rval = COLORsafe_swrite_int(s,cd->orig_node_ids[i]);
+         COLORcheck_rval(rval,"Failed in COLORsafe_swrite_int(s,cd->orig_node_ids[i])");
+      }
    }
 
    rval = COLORsafe_swrite_int(s,cd->lower_bound);
@@ -385,6 +387,7 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
    int rval = 0;
    int i;
    int new_id;
+   int suppress_elist_and_orig_node_ids;
 
    rval = COLORsafe_sread_int (s,&new_id);
    COLORcheck_rval(rval,"Failed in COLORsafe_sread_int (s,cd->id)");
@@ -407,23 +410,30 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
    rval = COLORsafe_sread_int(s,&(cd->ecount));
    COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->ecount)");
 
-   cd->elist = (int*) COLOR_SAFE_MALLOC(2 * cd->ecount, int);
-   COLORcheck_NULL(cd->elist, "Failed to allocate cd->elist");
+   rval = COLORsafe_sread_int(s,&suppress_elist_and_orig_node_ids);
+   COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,suppress_elist_and_orig_node_ids)");
 
-   for (i = 0; i < cd->ecount; ++ i) {
-      rval = COLORsafe_sread_int(s,cd->elist + 2*i);
-      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i)");
+   if (! suppress_elist_and_orig_node_ids) {
+      COLOR_IFFREE (cd->elist, int);
+      cd->elist = (int*) COLOR_SAFE_MALLOC(2 * cd->ecount, int);
+      COLORcheck_NULL(cd->elist, "Failed to allocate cd->elist");
 
-      rval = COLORsafe_sread_int(s,cd->elist + 2*i + 1);
-      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i + 1)");
-   }
+      for (i = 0; i < cd->ecount; ++ i) {
+         rval = COLORsafe_sread_int(s,cd->elist + 2*i);
+         COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i)");
 
-   cd->orig_node_ids = COLOR_SAFE_MALLOC(cd->ncount,int);
-   COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
+         rval = COLORsafe_sread_int(s,cd->elist + 2*i + 1);
+         COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->elist + 2*i + 1)");
+      }
 
-   for (i = 0; i < cd->ncount; ++ i) {
-      rval = COLORsafe_sread_int(s,cd->orig_node_ids + i);
-      COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->orig_node_ids + i)");
+      COLOR_IFFREE (cd->orig_node_ids, int);
+      cd->orig_node_ids = COLOR_SAFE_MALLOC(cd->ncount,int);
+      COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
+
+      for (i = 0; i < cd->ncount; ++ i) {
+         rval = COLORsafe_sread_int(s,cd->orig_node_ids + i);
+         COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,cd->orig_node_ids + i)");
+      }
    }
 
    rval = COLORsafe_sread_int(s,&(cd->lower_bound));
@@ -720,7 +730,7 @@ static int delete_old_colorclasses(colordata* cd)
       assert(cd->gallocated >=cd->ccount);
       new_cclasses = COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
       COLORcheck_NULL(new_cclasses,"Failed to allocate new_cclasses");
-      
+
       for (i = 0; i < cd->gallocated; ++i) {
          COLORinit_set(new_cclasses + i);
       }
@@ -953,7 +963,7 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
    rval = COLORlp_set_all_coltypes(cd->lp, COLORlp_BINARY);
    COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
 
-   COLORlp_write (cd->lp, "lpheur.lp");
+   /* COLORlp_write (cd->lp, "lpheur.lp"); */
 
    rval = COLORlp_setnodelimit(cd->lp,1);
    COLORcheck_rval(rval,"COLORlp_setnodelimit failed");
@@ -1370,8 +1380,10 @@ static int create_differ(colordata* parent_cd,
 
    rval = COLORadjgraph_build(&G, cd->ncount,cd->ecount,cd->elist);
    COLORcheck_rval(rval,"COLORadjgraph_build failed");
-   rval = COLORadjgraph_simplify(&G);
-   COLORcheck_rval(rval,"COLORadjgraph_simplify failed");
+
+   /* There shouldn't be anything to simplify */
+   COLORadjgraph_sort_adjlists_by_id(&G);
+
    COLORadjgraph_extract_edgelist(&cd->ecount, &cd->elist,&G);
    COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");
 
@@ -1675,6 +1687,10 @@ static int recover_elist(colordata* cd)
    int            ecount;
    int            ndiff   = 0;
    int            i;
+   int*           new_orig_node_ids = (int*) NULL;
+   COLORadjgraph  G;
+
+   COLORadjgraph_init(&G);
 
    if (cd->elist) goto CLEANUP;
 
@@ -1705,9 +1721,17 @@ static int recover_elist(colordata* cd)
 
 
    elist = COLOR_SAFE_MALLOC(2 * (root_cd->ecount + ndiff), int);
-   COLORcheck_NULL(path,"Failed to allocate path.");
-   
-   
+   COLORcheck_NULL(elist,"Failed to allocate elist.");
+
+   if ( !cd->orig_node_ids) {
+      int v;
+      new_orig_node_ids = COLOR_SAFE_MALLOC(root_cd->ncount,int);
+      COLORcheck_NULL(new_orig_node_ids,"Failed to allocate new_orig_node_ids.");
+      for (v = 0; v < root_cd->ncount; ++v) {
+         new_orig_node_ids [v] = v;
+      }
+   }
+
    memcpy(elist, root_cd->elist,2 * (root_cd->ecount) * sizeof(int));
 
    for (i = 1; i < npath;++i) {
@@ -1717,18 +1741,42 @@ static int recover_elist(colordata* cd)
          elist[2 * ecount + 1] = cur_cd->v2;
          ecount++;
       } else {
+         int v;
          contract_elist(&elist, cur_cd->ncount, &ecount,
                         cur_cd->v1, cur_cd->v2);
          assert(ecount == cur_cd->ecount);
+
+         for (v = 0; new_orig_node_ids && v < cur_cd->ncount; ++v) {
+            int j = (v < cur_cd->v2 ) ?  v : v + 1;
+            new_orig_node_ids[v] = new_orig_node_ids[j];
+         }
          elist  = realloc(elist, 2 * (ecount + ndiff) * sizeof(int));
          COLORcheck_NULL(elist,"Failed to realloc elist");
       }
    }
+
+
+   if ( !cd->orig_node_ids) {
+      cd->orig_node_ids = new_orig_node_ids;
+      new_orig_node_ids = (int*) NULL;
+   }
+
    cd->elist = elist;
    elist     = (int*) NULL;
+
+   rval = COLORadjgraph_build(&G, cd->ncount,cd->ecount,cd->elist);
+   COLORcheck_rval(rval,"COLORadjgraph_build failed");
+
+   COLORadjgraph_sort_adjlists_by_id(&G);
+
+   COLORadjgraph_extract_edgelist(&cd->ecount, &cd->elist,&G);
+   COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");
+
  CLEANUP:
    COLOR_IFFREE(elist,int);
    COLOR_IFFREE(path,colordata*);
+   COLOR_IFFREE(new_orig_node_ids,int);
+   COLORadjgraph_free(&G);
 
    return rval;
 }
@@ -1738,6 +1786,7 @@ static void free_elist(colordata* cd, COLORparms* parms)
 {
    if (cd->parent && parms->delete_elists) {
       COLOR_IFFREE(cd->elist,int);
+      COLOR_IFFREE(cd->orig_node_ids, int);
    }
 }
 
@@ -1755,12 +1804,12 @@ static int greedy_upper_bound(colordata* cd,
    int  ncolors       = 0;
    int c;
    int i;
-      
+
    colors = COLOR_SAFE_MALLOC(cd->ncount, int);
    COLORcheck_NULL(colors, "Failed to allocate colors");
 
    for (i = 0; i < cd->ncount; ++i){colors[i] = -1;}
-   
+
    while (totuncolored) {
       double best_frac  = 0;
       int    best_color = -1;
@@ -1805,7 +1854,7 @@ static int grab_integral_solution(colordata* cd,
 {
    int rval = 0;
    double test_incumbent = .0;
-   double incumbent;   
+   double incumbent;
    int    ncolors;
    int* colored = (int*) NULL;
    int i;
@@ -1819,7 +1868,7 @@ static int grab_integral_solution(colordata* cd,
    COLORcheck_rval (rval, "COLORlp_objval failed");
 
    ncolors = round(incumbent);
-   
+
    COLORfree_sets(&(cd->bestcolors),&(cd->nbestcolors));
    cd->bestcolors = (COLORset*) realloc(cd->bestcolors,
                                         ncolors * sizeof(COLORset));
@@ -2080,12 +2129,6 @@ int create_branches(colordata* cd,COLORproblem* problem)
       COLORcheck_rval(rval, "Failed in grab_integral_solution");
       assert(cd->status = finished);
 
-      if (problem->parms.branching_strategy == COLOR_hybrid_strategy) {
-         if (cd->upper_bound - problem->root_cd.lower_bound <= 1) {
-            printf("Switching to minimum LB branching strategy.\n");
-            problem->parms.branching_strategy = COLOR_min_lb_strategy;
-         }
-      }
       goto CLEANUP;
    }
 
@@ -2129,8 +2172,14 @@ int create_branches(colordata* cd,COLORproblem* problem)
       rval = compute_lower_bound (cd->diff_children,problem);
       COLORcheck_rval(rval, "Failed in compute_lower_bound");
 
-      /* free_lbcolordata (cd->same_children); */
-      /* free_lbcolordata (cd->diff_children); */
+      if (problem->parms.delete_cclasses) {
+         free_lbcolordata (cd->same_children);
+         free_lbcolordata (cd->diff_children);
+      }
+
+      free_elist(cd->same_children,&(problem->parms));
+      free_elist(cd->diff_children,&(problem->parms));
+
    }
 
    if (cd->same_children && cd->ndebugcolors) {
@@ -2229,6 +2278,7 @@ static int collect_same_children(colordata* cd)
          COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
          if (delete_elist) {
             COLOR_IFFREE(cd->elist,int);
+            COLOR_IFFREE(cd->orig_node_ids, int);
          }
       }
 
@@ -2629,6 +2679,19 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    return rval;
 }
 
+static void adapt_global_upper_bound(COLORproblem* problem, COLORNWT new_upper_bound)
+{
+   if (problem->global_upper_bound > new_upper_bound) {
+      problem->global_upper_bound = new_upper_bound;
+      if (problem->parms.branching_strategy == COLOR_hybrid_strategy) {
+         if (problem->global_upper_bound - problem->root_cd.lower_bound <= 1) {
+            printf("Switching to minimum LB branching strategy.\n");
+            problem->parms.branching_strategy = COLOR_min_lb_strategy;
+         }
+      }
+   }
+}
+
 static int sequential_branching(COLORproblem* problem,
                                 double*        cputime)
 {
@@ -2687,9 +2750,7 @@ static int sequential_branching(COLORproblem* problem,
 
          assert (cd->lower_bound <= cd->upper_bound);
 
-         if (problem->global_upper_bound > cd->upper_bound) {
-            problem->global_upper_bound = cd->upper_bound;
-         }
+         adapt_global_upper_bound(problem,cd->upper_bound);
 
          /** cd->upper_bound can be decreased in create_branches if
              the current LP-relaxation is intergal.
@@ -2770,7 +2831,7 @@ static int check_joblist(branching_joblist* joblist, int npending)
    while (job) {
       job->age++;
       if (job->age > (npending + 10)) {
-         printf("Job with id = %d is in joblist for %d iterations (hostinfo: %s).\n", 
+         printf("Job with id = %d is in joblist for %d iterations (hostinfo: %s).\n",
                 job->cd->id, job->age, job->hostinfo);
       }
       job = job->next;
@@ -2902,8 +2963,6 @@ static int parallel_branching(COLORproblem* problem,
             free_temporary_data(cd);
             rval = receive_colordata (s, cd,adopt_id,include_bestcolors,problem);
 
-            free_elist(cd,&(problem->parms));
-
             npending--;
             if (rval) {
                fprintf (stderr, "receive_result failed - abort connection\n");
@@ -2929,10 +2988,10 @@ static int parallel_branching(COLORproblem* problem,
                }
                assert (cd->lower_bound <= cd->upper_bound);
 
-               if (problem->global_upper_bound > cd->upper_bound) {
-                  problem->global_upper_bound = cd->upper_bound;
+               adapt_global_upper_bound(problem,cd->upper_bound);
 
-               }
+               free_elist(cd,&(problem->parms));
+
                remove_finished_subtree(cd,problem);
             }
          }
@@ -3045,7 +3104,7 @@ int compute_coloring(COLORproblem* problem)
    double branching_cputime = .0;
    double init_lb_rtime   = .0;
 
-   init_lb_rtime = - COLORcpu_time();
+   init_lb_rtime = - COLORwall_time();
 
    problem->key_mult           = (double) (COLORNWT_MAX - 1) / root_cd->ncount;
 
@@ -3075,11 +3134,11 @@ int compute_coloring(COLORproblem* problem)
          write_root_LP_snapshot(root_cd,&(problem->parms),add_timestamp);
          COLORcheck_rval(rval,"Failed ing write_snapshot");
       }
-      init_lb_rtime += COLORcpu_time();
+      init_lb_rtime += COLORwall_time();
 
-      colheur_rtime = -COLORcpu_time();
+      colheur_rtime = -COLORwall_time();
       ubhval =  heur_colors_with_stable_sets(root_cd);
-      colheur_rtime += COLORcpu_time();
+      colheur_rtime += COLORwall_time();
       if (!ubhval) {
          printf("Upper bound heuristic on root node took %f seconds.\n",colheur_rtime);
 
@@ -3089,7 +3148,7 @@ int compute_coloring(COLORproblem* problem)
       }
    }
 
-   branching_rtime = -COLORcpu_time();
+   branching_rtime = -COLORwall_time();
 
    if (problem->parms.branching_strategy != COLOR_no_branching) {
       if (problem->parms.parallel_branching) {
@@ -3100,14 +3159,14 @@ int compute_coloring(COLORproblem* problem)
          COLORcheck_rval(rval,"Failed in sequential_branching");
       }
    }
-   branching_rtime += COLORcpu_time();
+   branching_rtime += COLORwall_time();
 
    printf("Compute_coloring finished with LB %d and UB  %d\n",
           root_cd->lower_bound, problem->global_upper_bound);
 
 
    printf("Compute_coloring took %f seconds (initial lower bound:%f, heur. "
-          "upper bound: %f, branching real: %f, branching cpu: %f.\n",
+          "upper bound: %f, branching real: %f, branching cpu: %f).\n",
           init_lb_rtime + colheur_rtime + branching_rtime,
           init_lb_rtime,colheur_rtime,branching_rtime,branching_cputime);
  CLEANUP:
