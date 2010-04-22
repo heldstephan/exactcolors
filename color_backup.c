@@ -64,15 +64,16 @@ static int write_colordata_to_file(colordata* cd,
    prval = fprintf(file,"ncount %d\n",cd->ncount);
    COLORcheck_fileio(prval,"Failed in fprintf");
 
-   prval = fprintf(file,"orig_node_ids ");
-   COLORcheck_fileio(prval,"Failed in fprintf");
-   for (i = 0; i < cd->ncount; ++ i) {
-      prval = fprintf(file," %d",cd->orig_node_ids[i]);
+   if (cd->orig_node_ids) {
+      prval = fprintf(file,"orig_node_ids ");
+      COLORcheck_fileio(prval,"Failed in fprintf");
+      for (i = 0; i < cd->ncount; ++ i) {
+         prval = fprintf(file," %d",cd->orig_node_ids[i]);
+         COLORcheck_fileio(prval,"Failed in fprintf");
+      }
+      prval = fprintf(file,"\n");
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
-   prval = fprintf(file,"\n");
-   COLORcheck_fileio(prval,"Failed in fprintf");
-
 
    prval = fprintf(file,"lower_bound %d\n",cd->lower_bound);
    COLORcheck_fileio(prval,"Failed in fprintf");
@@ -273,11 +274,11 @@ static int read_colordata_from_file(colordata* cd,
          data = strtok((char*)NULL,delim);
          cd->ncount = atoi(data);
          COLOR_IFFREE(cd->orig_node_ids,int);
-         cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC (cd->ncount, int);
       }
 
       else if (!strcmp(data,"orig_node_ids")) {
          int i;
+         cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC (cd->ncount, int);
          for (i = 0; i < cd->ncount; ++i) {
             data = strtok((char*)NULL,delim);
             cd->orig_node_ids[i] = atoi(data);
