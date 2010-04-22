@@ -75,9 +75,6 @@ int main (int ac, char **av)
     COLORset_dbg_lvl(0);
     COLORproblem_init(&colorproblem);
 
-    colorproblem.parms.delete_cclasses = 1;
-    colorproblem.parms.delete_elists   = 1;
-
     if (ac != 2) {
         usage (av[0]);
         rval = 1;  goto CLEANUP;
@@ -94,6 +91,10 @@ int main (int ac, char **av)
 
     while (1) {
        int include_bestcolors = 0;
+
+       colorproblem.parms.delete_cclasses = 1;
+       colorproblem.parms.delete_elists   = 1;
+
 
        rval = open_connection(&s, bosshost);
        COLORcheck_rval(rval,"open_connection failed.");
@@ -175,7 +176,6 @@ int main (int ac, char **av)
        COLORsafe_sclose (s);
        COLORproblem_free(&colorproblem);
        COLORproblem_init(&colorproblem);
-
     }
 
  CLEANUP:
