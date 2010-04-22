@@ -34,7 +34,7 @@ void COLORparms_init(COLORparms* parms)
    parms->branching_strategy        = COLOR_min_lb_strategy;
    /* parms->branching_strategy        = COLOR_dfs_strategy; */
 
-   parms->delete_elists             = 0;
+   parms->delete_elists             = 1;
    parms->delete_cclasses           = 0;
 
    parms->upper_bounds_only         = 0;

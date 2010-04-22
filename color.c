@@ -414,6 +414,7 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
    COLORcheck_rval(rval,"Failed in COLORsafe_sread_int(s,suppress_elist_and_orig_node_ids)");
 
    if (! suppress_elist_and_orig_node_ids) {
+
       COLOR_IFFREE (cd->elist, int);
       cd->elist = (int*) COLOR_SAFE_MALLOC(2 * cd->ecount, int);
       COLORcheck_NULL(cd->elist, "Failed to allocate cd->elist");
@@ -2973,6 +2974,7 @@ static int parallel_branching(COLORproblem* problem,
                fflush (stdout);
                COLORsafe_sclose (s);
 
+               free_elist(cd,&(problem->parms));
                rval = backup_colordata(cd,problem);
                COLORcheck_rval(rval,"Failed to write_colordata");
 
