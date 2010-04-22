@@ -72,8 +72,11 @@ int main (int ac, char **av)
     rval = COLORprogram_header (ac,av);
     COLORcheck_rval(rval, "Failed in COLORprogram_header");
 
-    COLORset_dbg_lvl(-1);
+    COLORset_dbg_lvl(0);
     COLORproblem_init(&colorproblem);
+
+    colorproblem.parms.delete_cclasses = 1;
+    colorproblem.parms.delete_elists   = 1;
 
     if (ac != 2) {
         usage (av[0]);
@@ -127,21 +130,23 @@ int main (int ac, char **av)
 
           COLORsafe_sclose (s);
 
-
-
           assert(task == COLOR_BOSS_YES);
+
+          cputime = -COLORcpu_time();
 
           if (!root_cd->ccount) {
              rval = compute_lower_bound(root_cd,&colorproblem);
              COLORcheck_rval(rval, "Failed in compute_lower_bound.");
           }
 
-          cputime = -COLORcpu_time();
-          rval = build_lp(root_cd);
-          COLORcheck_rval(rval,"Failed in build_lp");
+          if (!root_cd->lp) {
+             rval = build_lp(root_cd);
+             COLORcheck_rval(rval,"Failed in build_lp");
+          }
 
           rval = create_branches(root_cd,&(colorproblem));
           COLORcheck_rval(rval,"Failed in create_branches");
+
           cputime += COLORcpu_time();
 
           rval = open_connection(&s, bosshost);
