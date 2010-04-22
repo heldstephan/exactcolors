@@ -1225,7 +1225,11 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
    int first_valid_start = -1;
    int num_starts = sol->ncount; /* (int) sqrt((double) sol->ncount); */
    if (nsoldatas) {
+      double density = ((double) sol->G->ecount) * 2.0 / ((double) (sol->ncount * (sol->ncount - 1)));
       num_starts /= 20;
+      if (density < 0.05) {
+         num_starts *= density;
+      }
    }
    for (start_vertex = 0; start_vertex  < num_starts; ++start_vertex) {
       reinit_soldatas(sol);
@@ -1263,12 +1267,17 @@ static int repeated_greedy_followed_by_ls(soldata*  sol)
       }
 
       if (sol->cclasses.cnt > nsoldatas) {
+         double density = ((double) sol->G->ecount) * 2.0 / ((double) (sol->ncount * (sol->ncount - 1)));
          nsoldatas = sol->cclasses.cnt;
          last_improving_start = start_vertex;
          if (first_valid_start == -1)
             first_valid_start = start_vertex;
-         /* If a solution was found, put less effort in finding better ones.*/
-         num_starts *= 0.66;
+         /* If a solution -was found, put less effort in finding better ones.*/
+         num_starts *= 0.6667;
+
+         if (density < 0.05) {
+            num_starts *= density;
+         }
       }
    }
    if (COLORdbg_lvl()> 0) {
