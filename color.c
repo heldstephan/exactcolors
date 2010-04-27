@@ -1931,7 +1931,9 @@ static int x_frac(const double x[], int i)
 /** compute array-index from row-index v1 and column-index v2.*/
 static int nodepair_ref_key(int v1, int v2)
 {
-   assert(v1 < v2);/* We store only the elements of the lower left triangle within the ncount x ncount matrix */
+   /* We store only the elements of the upper right triangle within the
+      ncount x ncount matrix. */
+   assert(v1 < v2);
    return v2 * (v2 - 1) / 2 + v1;
 }
 
