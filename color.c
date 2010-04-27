@@ -2332,19 +2332,26 @@ static int collect_diff_children(colordata* cd)
    return rval;
 }
 
-static int print_graph_operations(const colordata* cd)
+static int print_graph_operations(const colordata* cd,COLORproblem* problem)
 {
+   int rval = 0;
    if (cd->parent && COLORdbg_lvl() > 1) {
-      print_graph_operations(cd->parent);
-      if (cd->ncount < cd->parent->ncount)
-         printf("SAME ");
-      else
-         printf("DIFF ");
-      printf("%d %d\n",
-             cd->parent->orig_node_ids[cd->v1],
-             cd->parent->orig_node_ids[cd->v2]);
+      if (cd->parent->orig_node_ids) {
+         print_graph_operations(cd->parent,problem);
+         if (cd->ncount < cd->parent->ncount)
+            printf("SAME ");
+         else
+            printf("DIFF ");
+         
+         printf("%d %d\n",
+                cd->parent->orig_node_ids[cd->v1],
+                cd->parent->orig_node_ids[cd->v2]);
+      } else {
+         printf("For printing graph operations set the parameter delete_elists "
+                "to 0 and recompile!\n");
+      }
    }
-   return 0;
+   return rval;
 }
 
 int compute_lower_bound(colordata* cd,COLORproblem* problem)
@@ -2661,7 +2668,7 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
              cd->depth,
              cd->id );
 
-      print_graph_operations(cd);
+      print_graph_operations(cd,problem);
    }
 
    free_elist(cd,&(problem->parms));
