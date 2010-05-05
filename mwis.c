@@ -407,7 +407,7 @@ int COLORstable_wrapper(MWISenv** env,
          rval = COLORstable_sewell(newsets, nnewsets,
                                    ncount, ecount, elist,
                                    nweights,cutoff,&sewell_objval);
-         COLORcheck_rval(rval,"COLORstable_LS failed");
+         COLORcheck_rval(rval,"COLORstable_sewell failed");
          rtime = COLORcpu_time() - rtime;
          if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 
@@ -417,7 +417,7 @@ int COLORstable_wrapper(MWISenv** env,
          rval = COLORstable_clique_enum(newsets, nnewsets,
                                         ncount, ecount, elist,
                                         nweights,cutoff, &oster_objval);
-         COLORcheck_rval(rval,"COLORstable_LS failed");
+         COLORcheck_rval(rval,"COLORstable_clique_enum failed");
          rtime = COLORcpu_time() - rtime;
          if (COLORdbg_lvl() > 0) { printf("Clique enumeration took %f seconds\n",rtime);}
 

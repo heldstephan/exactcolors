@@ -42,7 +42,7 @@ Previous History
 
 //_________________________________________________________________________________________________
 
-void reset_pointers(MWSSgraphpnt graph, 
+void reset_pointers(MWSSgraphpnt graph,
                     MWSSdatapnt data,
                     wstable_infopnt info)
 {
@@ -51,11 +51,11 @@ void reset_pointers(MWSSgraphpnt graph,
    graph->edge_list  = (nodepnt*) NULL;
    graph->adj_last   = (nodepnt**) NULL;
    graph->weight     = (MWISNW*) NULL;
-   
+
    data->cur_sol     = (nodepnt*) NULL;
    data->act         = (nodepnt**) NULL;
    data->best_sol    = (nodepnt*) NULL;
-   
+
 
    info->n_sub_depth = (int*) NULL;
 }
@@ -136,7 +136,7 @@ int call_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data,
  CLEANUP:
    MWIS_IFFREE(best_stable,nodepnt);
    MWIS_IFFREE(list,nodepnt);
-   
+
    return rval;
 }
 
@@ -255,12 +255,12 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       //printf("best_z = %8.3f  greedy = %8.3f\n", best_z, greedy_weight);
       cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
       if(parameters->prn_info) {
-         printf("%3d %5d %10d %12d %10.0f %10.0f\n", 
-                graph->n_nodes, graph->n_edges, data->best_z, 
+         printf("%3d %5d %10d %12lld %10.0f %10.0f\n",
+                graph->n_nodes, graph->n_edges, data->best_z,
                 info->n_subproblems, info->clique_cover_cpu, cpu);
       }
    }
-   
+
 
    info->cpu += (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
 
@@ -272,7 +272,7 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    if(parameters->prn_info) {
       printf("best_z = %d\n", data->best_z);
       //prn_nodes(best_stable,n_best_stable);
-      printf("n_subproblems = %d\n", info->n_subproblems);
+      printf("n_subproblems = %lld\n", info->n_subproblems);
       printf("depth n_sub_depth\n");
       for (i = 1; i <= data->n_best; i++)  printf("%5d %8d\n", i, info->n_sub_depth[i]);
    }
@@ -421,7 +421,7 @@ int wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int a
       //   fflush(stdout);
       //}
    }
-   
+
  CLEANUP:
    MWIS_IFFREE(sub_out,outnode);
    if (rval) {
@@ -668,7 +668,7 @@ int maximal_wclique(MWSSgraphpnt graph, int adj_last_offset, nodepnt pntv)
 
    MWIS_MALLOC(neighbors,graph->n_nodes + 1,nodepnt);
    MWIScheck_NULL(neighbors,"Failed to allocate nodepnt");
-   
+
    min_node = NULL;
    n_neighbors = 0;
    v_weight = pntv->remaining_weight;
@@ -1230,7 +1230,7 @@ int ascending_distrib_sort(nodepnt *list, int m, int n)
    int       i,i2,sum;
    int*      count;
    nodepnt*  list2 = (nodepnt*) NULL;
-   
+
    MWIS_MALLOC(count, m + 1, int);
    MWIScheck_NULL(count,"Failed to allocate count");
 
@@ -1254,7 +1254,7 @@ int ascending_distrib_sort(nodepnt *list, int m, int n)
       i2 = count[list2[i]->key]--;
       list[i2] = list2[i];
    }
-   
+
  CLEANUP:
    MWIS_IFFREE(count,int);
    MWIS_IFFREE(list2,nodepnt);
@@ -1295,9 +1295,9 @@ int greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stabl
    nodepnt* list2     = (nodepnt*) NULL;
    nodepnt* neighbors = (nodepnt*) NULL;
    nodepnt  min_node, *ppnt, pntv, pntw;
-   
+
    alpha_w = 0;
-   
+
    MWIS_MALLOC(list2, graph->n_nodes+1, nodepnt);
    MWIScheck_NULL(list2,"Failed to allocate list2");
    MWIS_MALLOC(neighbors, graph->n_nodes+1, nodepnt);
@@ -1415,7 +1415,7 @@ int allocate_data(MWSSdatapnt data, int n_nodes)
 
    MWIS_MALLOC(data->best_sol, n_nodes + 1, nodepnt);
    MWIScheck_NULL(data->best_sol,"Failed to allocate data->best_sol");
-   
+
  CLEANUP:
    return rval;
 }
@@ -1426,21 +1426,21 @@ int allocate_graph(MWSSgraphpnt graph, int n_nodes)
    int rval = 0;
    int i;
    graph->n_nodes = n_nodes;
-   
+
    MWIS_MALLOC(graph->adj, graph->n_nodes + 1, char*);
    MWIScheck_NULL(graph->adj,"Failed to allocate graph->adj");
-   
+
    for(i = 0; i <= graph->n_nodes; i++) {
       MWIS_MALLOC(graph->adj[i], graph->n_nodes + 1, char);
       MWIScheck_NULL(graph->adj[i],"Failed to allocate graph->adj[i]");
-   }   
+   }
 
    MWIS_MALLOC(graph->node_list, graph->n_nodes + 1, tnode);
    MWIScheck_NULL(graph->node_list,"Failed to allocate graph->node_list");
 
    MWIS_MALLOC(graph->weight, graph->n_nodes + 1, MWISNW);
    MWIScheck_NULL(graph->weight,"Failed to allocate graph->weight");
-   
+
  CLEANUP:
    return rval;
 }
@@ -1456,11 +1456,11 @@ void reset_osterdata_pointers(osterdatapnt odata)
    odata->n_elig = (int*) NULL;
 
    odata->oster_best_sol = (int*) NULL;
-   
+
    odata->ub = (int*) NULL;
 
    odata->oster_neighbors = (int*) NULL;
-   
+
 }
 
 //_________________________________________________________________________________________________
@@ -1488,7 +1488,7 @@ int allocate_osterdata(osterdatapnt odata, int n_nodes)
 
    MWIS_MALLOC(odata->oster_best_sol,n_nodes + 1, int);
    MWIScheck_NULL(odata->oster_best_sol, "Failed to allocate odata->oster_best_sol");
-   
+
    MWIS_MALLOC(odata->ub,n_nodes + 1, int);
    MWIScheck_NULL(odata->ub, "Failed to allocate odata->ub");
 
@@ -1516,7 +1516,7 @@ void free_osterdata(osterdatapnt odata)
    MWIS_IFFREE(odata->n_elig, int);
 
    MWIS_IFFREE(odata->oster_best_sol, int);
-   
+
    MWIS_IFFREE(odata->ub, int);
 
    MWIS_IFFREE(odata->oster_neighbors, int);
@@ -1531,9 +1531,9 @@ int build_graph(MWSSgraphpnt graph)
    int      i, j;
    nodepnt  *p;
 
- 
+
    graph->n_edges = 0;
-   for(i = 1; i < graph->n_nodes; i++) {    
+   for(i = 1; i < graph->n_nodes; i++) {
       for(j = i+1; j <= graph->n_nodes; j++) {
          if(graph->adj[i][j] == 1) {
             graph->n_edges++;
@@ -1786,10 +1786,10 @@ void prn_stable(nodepnt *active, MWISNW best_z, MWISNW cur_z, nodepnt *branch_no
    ratio2 = sum_w / (best_z - cur_z);
    cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
    if(prn_level > 1) {
-      printf("depth = %3d n_sub = %10d  cpu = %10.0f cur_z = %10d best_z = %10d  sum_w = %10d n_active = %3d sum_covered = %10d n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
+      printf("depth = %3d n_sub = %10lld  cpu = %10.0f cur_z = %10d best_z = %10d  sum_w = %10d n_active = %3d sum_covered = %10d n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
               depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
    } else {
-      printf("%3d %10d  %8.2f %10d %10d  %10d %3d %10d %3d %5.2f %5.2f \n", depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
+      printf("%3d %10lld  %8.2f %10d %10d  %10d %3d %10d %3d %5.2f %5.2f \n", depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);
    }
    if(prn_level >= 3) {
       printf("active\n");
@@ -1926,7 +1926,7 @@ int testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
 
       rval = initialize_max_wstable(graph, info);
       MWIScheck_rval(rval,"Failed in initialize_max_wstable");
-      
+
       rval = call_max_wstable(graph, data, parms, info, goal, lower_bound);
       MWIScheck_rval(rval,"Failed in call_max_wstable");
 
@@ -1970,7 +1970,7 @@ void free_max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, wstable_infopnt info
 
    free_data(data);
 
-   free_wstable_info(info);   
+   free_wstable_info(info);
 }
 
 //_________________________________________________________________________________________________
@@ -1990,7 +1990,7 @@ void free_graph(MWSSgraphpnt graph)
       //new_memory((void**) &node_list[i].adj_last, n_nodes+1, sizeof(nodepnt *));
       MWIS_IFFREE(graph->node_list[i].adj_last,tnode**);
    }
-      
+
    for(i = 0; graph->adj && i <= graph->n_nodes; i++) {
       MWIS_IFFREE(graph->adj[i],char);
    }
