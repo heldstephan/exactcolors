@@ -86,7 +86,7 @@ typedef struct wstable_parameters {
 } wstable_parameters, *wstable_parameterspnt;
 
 typedef struct wstable_info {
-   int      n_subproblems;             // # of subproblems in branch & bound tree
+   long long int n_subproblems;             // # of subproblems in branch & bound tree
    int*     n_sub_depth;               // # of subproblems at given depth
    int      n_calls;                   // # of times max_wstable is called
    clock_t  start_time;                // starting cpu time
@@ -185,7 +185,7 @@ void branch_out(nodepnt *active, nodepnt *active2, nodepnt *branch_nodes, int n_
 int reorder_out(MWSSgraphpnt graph, int adj_last_offset/* , int depth */, int n_out, outnode *out);
 void new_out(int adj_last_offset, nodepnt branch_node, outnode *out, int n_out, outnode *sub_out, int *n_sub_out);
 int ascending_distrib_sort(nodepnt *list, int m, int n);
-int greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stable_set, int *n_stable_set, 
+int greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stable_set, int *n_stable_set,
                    MWISNW* greedy_weight);
 void reset_pointers(MWSSgraphpnt graph, MWSSdatapnt data, wstable_infopnt info);
 void reset_osterdata_pointers(osterdatapnt odata);
