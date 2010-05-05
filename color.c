@@ -1987,9 +1987,9 @@ static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
    for (i = 0; i < cd->ccount; ++i) {
       int j;
       if (x[i] <= 0.0) {continue;}
-      if (x[i] >= 1.0) {
-         debug_breakpoint();
-      }
+/*       if (x[i] >= 1.0) { */
+/*          debug_breakpoint(); */
+/*       } */
       for (j = 0; j < cd->cclasses[i].count; ++j) {
          int v1 = cd->cclasses[i].members[j];
          int k;
@@ -2018,10 +2018,10 @@ static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
          double denom        = (nodepair_weights[v1_key] + nodepair_weights[v2_key]) / 2;
          double dbl_heap_key = nodepair_weights[ref_key] / denom;
          int    int_heap_key =  x_frac(dbl_heap_key);
-         if (denom > 1) {
-            printf ("Found denom %f > 1, v1_weight = %f, v2_weight = %f, dbl_heap_key = %f\n",
-                    denom, nodepair_weights[v1_key], nodepair_weights[v2_key], dbl_heap_key);
-         }
+/*          if (denom > 1) { */
+/*             printf ("Found denom %f > 1, v1_weight = %f, v2_weight = %f, dbl_heap_key = %f\n", */
+/*                     denom, nodepair_weights[v1_key], nodepair_weights[v2_key], dbl_heap_key); */
+/*          } */
          rval = COLORNWTheap_insert(heap,
                                     &(nodepair_refs[ref_key]),
                                     int_heap_key,
