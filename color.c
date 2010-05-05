@@ -1919,11 +1919,11 @@ static int grab_integral_solution(colordata* cd,
    return rval;
 }
 
-static int x_frac(const double x[], int i)
+static int x_frac(const double x)
 {
    double mean = 0.55;
-   double frac = mean - fabs(x[i] - mean);
-   assert(frac <= mean);
+   double frac = fabs(x - mean);
+   assert(frac <= 1.0);
    return (int) ( frac * (double) INT_MAX);
 }
 
@@ -1933,16 +1933,46 @@ static int nodepair_ref_key(int v1, int v2)
 {
    /* We store only the elements of the upper right triangle within the
       ncount x ncount matrix. */
-   assert(v1 < v2);
-   return v2 * (v2 - 1) / 2 + v1;
+   assert(v1 <= v2);
+   return v2 * (v2 + 1) / 2 + v1;
 }
 
 /** compute row-index v1 and column-index v2 from array-index.*/
 static void inodepair_ref_key(int* v1, int* v2,int index)
 {
-   *v2 = (int) floor (sqrt(2*((double)index) + 0.25) + 0.5);
-   *v1 = index - (*v2 * (*v2 -1) / 2);
+   *v2 = (int) floor (sqrt(2*((double)index) + 0.25) - 0.5);
+   *v1 = index - (*v2 * (*v2 + 1) / 2);
 }
+
+
+COLOR_MAYBE_UNUSED
+static int report_largest_nodeweight(colordata* cd, const double x[])
+{
+   int v;
+   double best_sum =  0;
+   int    best_v   = -1;
+   for (v = 0; v < cd->ncount; ++v) {
+      int    c;
+      double sum = 0;
+      for (c = 0; c < cd->ccount; ++c) {
+         int i;
+         for (i = 0; i < cd->cclasses[c].count; ++i) {
+            if (cd->cclasses[c].members[i] == v) {
+               sum += x[c];
+            }
+         }
+      }
+      if (sum > best_sum) {
+         best_sum = sum;
+         best_v   = v;
+      }
+   }
+
+   printf("Largest v: %d weight %f.\n", best_v, best_sum);
+   return 0;
+}
+
+
 
 static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
                                              int*          nodepair_refs,
@@ -1956,10 +1986,17 @@ static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
 
    for (i = 0; i < cd->ccount; ++i) {
       int j;
-      if (x[i] <= 0.0 || x[i] >= 1 ) {continue;}
+      if (x[i] <= 0.0) {continue;}
+      if (x[i] >= 1.0) {
+         debug_breakpoint();
+      }
       for (j = 0; j < cd->cclasses[i].count; ++j) {
          int v1 = cd->cclasses[i].members[j];
          int k;
+
+         ref_key  = nodepair_ref_key(v1, v1);
+         nodepair_weights[ref_key] += x[i];
+
          for (k = j + 1 ; k < cd->cclasses[i].count; ++k) {
             assert (k != j);
             int v2 = cd->cclasses[i].members[k];
@@ -1967,18 +2004,27 @@ static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
             ref_key  = nodepair_ref_key(v1, v2);
 
             nodepair_weights[ref_key] += x[i];
-            fflush(stdout);
          }
       }
    }
 
    for (ref_key = 0; ref_key < npairs; ++ref_key) {
-      if (nodepair_weights[ref_key] > 0.0) {
-         int         heap_key  =  - x_frac(nodepair_weights,ref_key);
+      int v1,v2;
+      inodepair_ref_key(&v1,&v2,ref_key);
 
+      if (v1 != v2 && nodepair_weights[ref_key] > 0.0) {
+         int v1_key  = nodepair_ref_key(v1,v1);
+         int v2_key  = nodepair_ref_key(v2,v2);
+         double denom        = (nodepair_weights[v1_key] + nodepair_weights[v2_key]) / 2;
+         double dbl_heap_key = nodepair_weights[ref_key] / denom;
+         int    int_heap_key =  x_frac(dbl_heap_key);
+         if (denom > 1) {
+            printf ("Found denom %f > 1, v1_weight = %f, v2_weight = %f, dbl_heap_key = %f\n",
+                    denom, nodepair_weights[v1_key], nodepair_weights[v2_key], dbl_heap_key);
+         }
          rval = COLORNWTheap_insert(heap,
                                     &(nodepair_refs[ref_key]),
-                                    heap_key,
+                                    int_heap_key,
                                     & (nodepair_refs[ref_key]));
          COLORcheck_rval(rval, "Failed in COLORNWTheap_insert");
       }
@@ -1988,8 +2034,8 @@ static int insert_fractional_pairs_into_heap(colordata* cd, const double x[],
    return rval;
 }
 
-
 static int find_strongest_children(int           *strongest_v1,
+
                                    int           *strongest_v2,
                                    colordata*    cd,
                                    COLORproblem* problem,
@@ -2005,6 +2051,7 @@ static int find_strongest_children(int           *strongest_v1,
    int*   min_nodepair;
    *strongest_v1 = -1;
    *strongest_v2 = -1;
+
 
    while ( (min_nodepair = (int*) COLORNWTheap_min(cand_heap)) && (remaining_branches--) ) {
       int v1 = -1,v2 = -1;
@@ -2075,7 +2122,7 @@ int create_branches(colordata* cd,COLORproblem* problem)
    */
    int*    nodepair_refs    = (int*) NULL;
    double* nodepair_weights = (double*) NULL;
-   int     npairs = cd->ncount * (cd->ncount - 1) / 2;
+   int     npairs = cd->ncount * (cd->ncount + 1) / 2;
    /* For each vertex marked in the nodepair bucket
       we mark its most fractional column in s1_value.*/
    int*    mf_col = (int*) NULL;
@@ -2342,7 +2389,7 @@ static int print_graph_operations(const colordata* cd,COLORproblem* problem)
             printf("SAME ");
          else
             printf("DIFF ");
-         
+
          printf("%d %d\n",
                 cd->parent->orig_node_ids[cd->v1],
                 cd->parent->orig_node_ids[cd->v2]);
