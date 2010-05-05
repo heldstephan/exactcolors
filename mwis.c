@@ -339,6 +339,14 @@ int COLORstable_wrapper(MWISenv** env,
       if (COLORdbg_lvl()) {
          printf("Enforced rounding!\n");
       }
+      if (!(*env)->ls_env) {
+	 rval = COLORstable_init_LS(&((*env)->ls_env),
+				    ncount,
+				    ecount, elist,
+                                       nweights,cutoff);
+	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
+      }
+
       rval = COLORstable_round_down_weights((*env)->ls_env,
                                             nweights,cutoff);
       COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights");
