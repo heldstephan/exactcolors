@@ -107,5 +107,5 @@ int main (int ac, char **av)
 
 static void usage (char *f)
 {
-   fprintf (stderr, "Usage %s: bossname\n", f);
+   fprintf (stderr, "Usage %s: <coloring job id>\n", f);
 }
