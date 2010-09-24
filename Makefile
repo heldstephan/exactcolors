@@ -38,9 +38,9 @@ endif
 ifneq ($(CPLEXPATH),)
 PROCESSOR := $(shell uname -p)
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
-LPLIB=$(CPLEXPATH)/lib/x86-64_debian4.0_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/Linux64/static_pic/libcplex.a
 ifeq ($(PROCESSOR), i686)
-LPLIB=$(CPLEXPATH)/lib/x86_debian4.0_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/Linux32/static_pic/libcplex.a
 endif
 LPSOURCE=lpcplex.o
 GRBMWIS=
@@ -50,7 +50,7 @@ endif
 
 export CC=gcc
 export LD=gcc
-# CFLAGS+= -g
+#CFLAGS+= -g
 CFLAGS+= -O3
 
 # For static code analysis with clang we use the clang compiler.
@@ -154,4 +154,3 @@ cliq_enum.o: color.h lp.h graph.h mwis.h
 test_boss.o: test_boss.c bbsafe.h
 test_worker.o: test_worker.c bbsafe.h
 test_tell.o: test_tell.c bbsafe.h
-

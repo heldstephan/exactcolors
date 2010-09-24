@@ -79,6 +79,7 @@ static int cutting_loop (COLORadjgraph *G, COLORlp *lp, pool *P,
 static int add_cuts (COLORlp *lp, pool *P, prob *sp, stablecut **pclist);
 static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
     int *clist);
+static int add_edges_to_lp (COLORlp *lp, int ecount, int* elist);
 static int add_cut_to_lp (COLORlp *lp, stablecut *cset);
 static void init_stable_prob (prob *p);
 static void free_stable_prob (prob *p);
@@ -90,15 +91,15 @@ static int add_cut_to_pool (pool *P, stablecut **pcset, int *hit);
 static void free_cut_pool (pool *P);
 static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
     stablecut **pclist, int *setcount);
-static int find_violated_cliques (COLORadjgraph *G, double *x, 
+static int find_violated_cliques (COLORadjgraph *G, double *x,
     stablecut **pclist, int *pcount);
-static int cover_node (COLORadjgraph *G, double *weights, int k, 
+static int cover_node (COLORadjgraph *G, double *weights, int k,
     stablecut **pcset, int *nmarks, int *nlist);
 static int cover_edge (COLORadjgraph *G, int end1, int end2, stablecut **pcset,
     int *nmarks, int *nlist);
-static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset, 
+static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset,
     int *emarks, int *nmarks, int *elist);
-static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset, 
+static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset,
     int *yesno);
 static int find_violated_holes (COLORadjgraph *G, double *x,
     stablecut **cutlist, int *pcount);
@@ -109,9 +110,9 @@ static int call_dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp,
 static int dfs_branching (COLORadjgraph *G, int *weights, COLORlp *lp, pool *P,
     prob *probdata, int *bestval, double *x, int depth, int *bcount);
 static int find_branch (COLORadjgraph *G, double *x, int *pvertex);
-static int get_integer_soln (COLORadjgraph *G, int *weights, double *x, 
+static int get_integer_soln (COLORadjgraph *G, int *weights, double *x,
     COLORset *sol, int *solval);
-static int build_incidence (COLORadjgraph *G, int ecount, int *elist, 
+static int build_incidence (COLORadjgraph *G, int ecount, int *elist,
     int **incid);
 static int parseargs (int ac, char **av);
 static void usage (char *f);
@@ -160,7 +161,7 @@ int main (int ac, char **av)
                                      wlen, COLOR_MAXINT, &val);
             COLORcheck_rval (rval, "COLORcliq_enum failed");
         }
-        
+
         printf ("Optimal Weight Clique: %d\n", val);
         fflush (stdout);
 
@@ -200,6 +201,8 @@ static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
     rval = COLORadjgraph_build (&G, ncount, ecount, elist);
     COLORcheck_rval (rval, "COLORadjgraph_build failed");
 
+
+
     root = COLOR_SAFE_MALLOC (1, prob);
     COLORcheck_NULL (root, "out of memory for root");
     init_stable_prob (root);
@@ -207,17 +210,21 @@ static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
     rval = build_stable_lp (&lp, &G, weights, (int *) NULL);
     COLORcheck_rval (rval, "build_stable_lp failed");
 
-    rval = cover_edge_cliques (&G, ecount, elist, &clist, &setcount);
-    COLORcheck_rval (rval, "cover_edge_cliques");
+    rval = add_edges_to_lp (lp, ecount, elist);
+    COLORcheck_rval (rval, "add_edges_to_lp");
 
-    rval = build_cut_pool (&P, setcount, G.ncount); 
-    COLORcheck_rval (rval, "build_cut_pool failed");
 
-    rval = build_stable_prob (root, setcount, G.ncount);
-    COLORcheck_rval (rval, "build_stable_prob failed");
+/*     rval = cover_edge_cliques (&G, ecount, elist, &clist, &setcount); */
+/*     COLORcheck_rval (rval, "cover_edge_cliques"); */
 
-    rval = add_cuts (lp, &P, root, &clist);
-    COLORcheck_rval (rval, "add_cuts failed");
+/*     rval = build_cut_pool (&P, setcount, G.ncount); */
+/*     COLORcheck_rval (rval, "build_cut_pool failed"); */
+
+/*     rval = build_stable_prob (root, setcount, G.ncount); */
+/*     COLORcheck_rval (rval, "build_stable_prob failed"); */
+
+/*     rval = add_cuts (lp, &P, root, &clist); */
+/*     COLORcheck_rval (rval, "add_cuts failed"); */
 
     x = COLOR_SAFE_MALLOC (ncount, double);
     COLORcheck_NULL (x, "out of memory for x");
@@ -226,11 +233,13 @@ static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
     COLORcheck_rval (rval, "call_lp_solver failed");
 
     printf ("Initial LP Objective: %.6lf\n", val);
-    fflush (stdout); 
+    fflush (stdout);
+
+    goto CLEANUP;
 
     rval = cutting_loop (&G, lp, &P, root, 0);
     COLORcheck_rval (rval, "cutting_loop failed");
-    printf ("Total Cuts: %d\n", root->cutcount); 
+    printf ("Total Cuts: %d\n", root->cutcount);
 
     rval = call_lp_solver (lp, &val, x);
     COLORcheck_rval (rval, "call_lp_solver failed");
@@ -331,7 +340,7 @@ static int cutting_loop (COLORadjgraph *G, COLORlp *lp, pool *P,
         iterations++;
     } while ((setcount > 0 || hcount > 0) && iterations < 500);
 
-CLEANUP: 
+CLEANUP:
 
     COLOR_IFFREE (x, double);
     return rval;
@@ -342,7 +351,7 @@ static int add_cuts (COLORlp *lp, pool *P, prob *sp, stablecut **pclist)
     int hit, rval = 0;
     stablecut *clist = *pclist;
     stablecut *cnext;
-    
+
     while (clist) {
         cnext = clist->next;
         if (clist->type != STABLE_CLIQUE && clist->type != STABLE_ODDHOLE) {
@@ -373,12 +382,12 @@ static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
 
     rval = COLORlp_init (lp, "stableset");
     COLORcheck_rval (rval, "COLORlp_init failed");
-    rval = COLORlp_objective_sense (*lp, COLORlp_MAX);  
+    rval = COLORlp_objective_sense (*lp, COLORlp_MAX);
 
     for (i = 0; i < ncount; i++) {
         w = (double) weights[i];
         rval = COLORlp_addcol (*lp, 0, (int *) NULL, (double *) NULL,
-                 w, 0.0, 1.0, COLORlp_CONTINUOUS, NULL);
+                 w, 0.0, 1.0, COLORlp_INTEGER, NULL);
         COLORcheck_rval (rval, "COLORlp_addcol failed");
     }
 
@@ -392,7 +401,33 @@ CLEANUP:
     return rval;
 }
 
-static int add_cut_to_lp (COLORlp *lp, stablecut *c) 
+static int add_edges_to_lp (COLORlp *lp, int ecount, int* elist)
+{
+   int rval = 0;
+   int i;
+   for (i = 0; i < ecount; i++) {
+      int v = elist[2*i];
+      int w = elist[2*i + 1];
+      int count = 2;
+      int inodes[2];
+      double coef[2] = {1.0,1.0};
+      double rhs = 1.0;
+      inodes[0] = v;
+      inodes[1] = w;
+
+      rval = COLORlp_addrow (lp, count, inodes, coef, COLORlp_LESS_EQUAL,
+                             rhs, NULL);
+      if (rval) COLORlp_printerrorcode (rval);
+      COLORcheck_rval (rval, "COLORlp_addrow failed");
+
+   }
+CLEANUP:
+   return rval;
+}
+
+
+
+static int add_cut_to_lp (COLORlp *lp, stablecut *c)
 {
     int rval = 0;
     int i;
@@ -452,7 +487,7 @@ CLEANUP:
     return rval;
 }
 
-static int find_violated_holes (COLORadjgraph *G, double *x, 
+static int find_violated_holes (COLORadjgraph *G, double *x,
         stablecut **phlist, int *pcount)
 {
     int i, j, k, ncount = G->ncount, rval = 0;
@@ -524,7 +559,7 @@ static int find_violated_holes (COLORadjgraph *G, double *x,
                 deg = G->nodelist[current].degree;
                 do {
                     trys++;
-                    uval = ((double) COLORutil_lprand (&rstate)) / 
+                    uval = ((double) COLORutil_lprand (&rstate)) /
                            ((double) COLOR_PRANDMAX);
                     uval *= nsum[current];
                     t = 0.0;
@@ -603,7 +638,7 @@ static void init_stable_prob (prob *p)
     p->warmstart = (COLORlp_warmstart *) NULL;
     p->next = (prob *) NULL;
     p->prev = (prob *) NULL;
-} 
+}
 
 static void free_stable_prob (prob *p)
 {
@@ -686,7 +721,7 @@ static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
     *setcount = 0;
 
     incid = COLOR_SAFE_MALLOC (ncount, int *);
-    COLORcheck_NULL (incid, "out of memory for incid"); 
+    COLORcheck_NULL (incid, "out of memory for incid");
 
     for (i = 0; i < ncount; i++) incid[i] = (int *) NULL;
     rval = build_incidence (G, ecount, elist, incid);
@@ -696,10 +731,10 @@ static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
     COLORcheck_NULL (emarks, "out of memory for emarks");
 
     nmarks = COLOR_SAFE_MALLOC (ncount, int);
-    COLORcheck_NULL (nmarks, "out of memory for nmarks"); 
+    COLORcheck_NULL (nmarks, "out of memory for nmarks");
 
     nlist = COLOR_SAFE_MALLOC (ncount, int);
-    COLORcheck_NULL (nlist, "out of memory for nlist"); 
+    COLORcheck_NULL (nlist, "out of memory for nlist");
 
     for (i = 0; i < ecount; i++) emarks[i] = 0;
     for (i = 0; i < ncount; i++) nmarks[i] = 0;
@@ -712,9 +747,9 @@ static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
             cset->next = clist;
             clist = cset;
             count++;
-            mark_edges (G, incid, cset, emarks, nmarks, elist); 
+            mark_edges (G, incid, cset, emarks, nmarks, elist);
         }
-    } 
+    }
 
     *pclist = clist;
     *setcount = count;
@@ -734,7 +769,7 @@ CLEANUP:
     return rval;
 }
 
-static int find_violated_cliques (COLORadjgraph *G, double *x, 
+static int find_violated_cliques (COLORadjgraph *G, double *x,
         stablecut **pclist, int *pcount)
 {
     int rval = 0;
@@ -885,7 +920,7 @@ CLEANUP:
     return rval;
 }
 
-static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset, 
+static void check_clique (COLORadjgraph *G, int *nmarks, stablecut *cset,
         int *yesno)
 {
     int i, j;
@@ -927,8 +962,8 @@ CLEANUP:
     }
 }
 
-static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset, 
-        int *emarks, int *nmarks, int *elist) 
+static void mark_edges (COLORadjgraph *G, int **incid, stablecut *cset,
+        int *emarks, int *nmarks, int *elist)
 {
     int i, j, k, n, n1, n2;
 
@@ -1162,7 +1197,7 @@ static int find_branch (COLORadjgraph *G, double *x, int *pvertex)
     } else {
         *pvertex = perm[0];
     }
-    
+
 CLEANUP:
 
     COLOR_IFFREE (dist, double);
@@ -1170,7 +1205,7 @@ CLEANUP:
     return rval;
 }
 
-static int get_integer_soln (COLORadjgraph *G, int *weights, double *x, 
+static int get_integer_soln (COLORadjgraph *G, int *weights, double *x,
         COLORset *sol, int *solval)
 {
     int i, w = 0, cnt = 0, rval = 0;
@@ -1199,7 +1234,7 @@ CLEANUP:
     return rval;
 }
 
-static int build_incidence (COLORadjgraph *G, int ecount, int *elist, 
+static int build_incidence (COLORadjgraph *G, int ecount, int *elist,
         int **incid)
 {
     int rval = 0;
@@ -1209,7 +1244,7 @@ static int build_incidence (COLORadjgraph *G, int ecount, int *elist,
     for (i = 0; i < G->ncount; i++) {
         incid[i] = COLOR_SAFE_MALLOC (G->nodelist[i].degree, int);
         COLORcheck_NULL (incid[i], "out of memory for incid");
-    } 
+    }
 
     deg = COLOR_SAFE_MALLOC (G->ncount, int);
     COLORcheck_NULL (deg, "out of memory for deg");
@@ -1292,7 +1327,7 @@ static int get_problem_name(char* pname,const char* efname)
     } else {
         fname++;
     }
-   
+
     if (lastdot) {
        len = lastdot - fname + 1;
     } else {
@@ -1342,7 +1377,7 @@ static int read_dimacs_mwis (char *f, int *pncount, int *pecount, int **pelist,
             }
             haveprob = 1;
             data = strtok(p,delim); /* get 'p' */
-            
+
             data = strtok(NULL,delim); /* get type */
             if ( strcmp(data,"graph") && strcmp(data,"edges") &&
                                         strcmp(data,"col") ) {
@@ -1387,7 +1422,7 @@ static int read_dimacs_mwis (char *f, int *pncount, int *pecount, int **pelist,
     }
 
     *pncount = ncount;
-    *pecount = icount; 
+    *pecount = icount;
     *pelist = elist;
     *pwlen = wlen;
 
@@ -1419,7 +1454,7 @@ static int build_set (int *nlist, int count, COLORset **pcset)
 
     *pcset = cset;
 
-CLEANUP: 
+CLEANUP:
 
     if (rval) {
         COLORfree_set (cset);
@@ -1459,7 +1494,7 @@ static int build_stablecut (int *nlist, int count, int cuttype,
 
     *pcut = cut;
 
-CLEANUP: 
+CLEANUP:
 
     if (rval) {
         free_stablecut (cut);
@@ -1483,31 +1518,30 @@ void init_stablecut (stablecut *cut)
 void free_stablecut (stablecut *cut)
 {
     if (cut) {
-        COLOR_IFFREE (cut->inodes, int); 
+        COLOR_IFFREE (cut->inodes, int);
         init_stablecut (cut);
     }
 }
 
 static int call_lp_solver (COLORlp *lp, double *objval, double *x)
 {
-    int rval = 0;
+   int rval = 0;
 
-    rval = COLORlp_optimize (lp);
-    COLORcheck_rval (rval, "COLORlp_optimize failed");
+   rval = COLORlp_optimize (lp);
+   COLORcheck_rval (rval, "COLORlp_optimize failed");
 
-    if (objval) {
-        rval = COLORlp_objval (lp, objval);
-        COLORcheck_rval (rval, "COLORlp_objval failed");
-    }
+   if (objval) {
+      rval = COLORlp_objval (lp, objval);
+      COLORcheck_rval (rval, "COLORlp_objval failed");
+   }
 
-    if (x) {
-        rval = COLORlp_x (lp, x);
-        COLORcheck_rval (rval, "COLORlp_x failed");
-    }
+   if (x) {
+      rval = COLORlp_x (lp, x);
+      COLORcheck_rval (rval, "COLORlp_x failed");
+   }
 
 CLEANUP:
-
-    return rval;
+   return rval;
 }
 
 static void perm_dbl_quicksort (int *perm, const double *len, int n)
@@ -1563,4 +1597,3 @@ static void perm_dbl_rquicksort (int *perm, const double *len, int n)
 int COLORdbg_lvl() {
    return debug;
 }
-
