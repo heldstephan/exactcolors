@@ -240,8 +240,8 @@ int COLORlp_basis_cols (COLORlp *p, int *int_cstat)
 
    rstat = COLOR_SAFE_MALLOC(nrows, char);
    COLORcheck_NULL(rstat,"Failed to allocate rstat");
-   
-   
+
+
    rval = QSget_basis_array (p->p, cstat,rstat);
    COLORcheck_rval (rval, "QSget_basis_array failed");
 
@@ -357,4 +357,17 @@ void COLORlp_printerrorcode (int c)
 double COLORlp_int_tolerance ()
 {
    return int_tolerance;
+}
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 1;
+
+   (void) p;
+   (void) cutoff;
+
+   COLORcheck_rval(rval,"COLORlp_set_cutoff not yet implemented.");
+
+CLEANUP:
+   return rval;
 }
