@@ -34,6 +34,7 @@
 #define STABLE_CLIQUE  1
 #define STABLE_ODDHOLE 2
 
+
 typedef struct branchobj {
     int vertex;
     int value;
@@ -70,6 +71,7 @@ static int debug = 0;
 static int rundfs = 0;
 static int usecuttingplanes = 0;
 static int useostergard = 0;
+static double lower_cutoff = 0;
 
 int main (int ac, char **av);
 static int optimal_stable_set (int ncount, int ecount, int *elist,
@@ -390,6 +392,8 @@ static int build_stable_lp (COLORlp **lp, COLORadjgraph *G, int *weights,
                  w, 0.0, 1.0, COLORlp_INTEGER, NULL);
         COLORcheck_rval (rval, "COLORlp_addcol failed");
     }
+
+    COLORlp_set_cutoff (*lp, lower_cutoff);
 
     if (clist) {
         printf ("ERROR: Not yet set up for clique list\n");
@@ -1268,7 +1272,7 @@ static int parseargs (int ac, char **av)
     int c;
     int rval = 0;
 
-    while ((c = getopt (ac, av, "bcdOo:")) != EOF) {
+    while ((c = getopt (ac, av, "bcdOo:l:")) != EOF) {
         switch (c) {
         case 'b':
             rundfs = 1;
@@ -1285,6 +1289,9 @@ static int parseargs (int ac, char **av)
         case 'o':
             outfile = optarg;
             break;
+        case 'l':
+           lower_cutoff = atof(optarg);
+           break;
         default:
             usage (av[0]);
             rval = 1;  goto CLEANUP;
@@ -1311,6 +1318,7 @@ static void usage (char *f)
     fprintf (stderr, "   -d    turn on debugging\n");
     fprintf (stderr, "   -O    Ostergard alg for max-weight clique\n");
     fprintf (stderr, "   -o f  write result file f\n");
+    fprintf (stderr, "   -l d  lower cutoff value d\n");
     fprintf (stderr,"    NOTE: clique is found if -c not specified\n");
 }
 
@@ -1344,99 +1352,6 @@ CLEANUP:
 
    return rval;
 }
-
-#if 0
-static int read_dimacs_mwis (char *f, int *pncount, int *pecount, int **pelist,
-        int **pwlen)
-{
-    int rval = 0;
-    int ncount, ecount, icount = 0, haveprob = 0;
-    int end0, end1, n, i, len;
-    double t;
-    int *elist = (int *) NULL;
-    int *wlen = (int *) NULL;
-    char buf[256], *p;
-    FILE *in = (FILE *) NULL;
-
-    in = fopen (f, "r");
-    if (!in) {
-        fprintf (stderr, "Unable to open %s for input\n", f);
-        rval = 1;  goto CLEANUP;
-    }
-
-    while (fgets (buf, 254, in) != (char *) NULL) {
-        p = buf;
-        if (p[0] == 'c') {
-            printf ("Comment: %s", p+1);
-        } else if (p[0] == 'p') {
-            const char* delim = " \t\n";
-            char* data = (char *) NULL;
-            if (haveprob) {
-                fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
-                rval = 1;  goto CLEANUP;
-            }
-            haveprob = 1;
-            data = strtok(p,delim); /* get 'p' */
-
-            data = strtok(NULL,delim); /* get type */
-            if ( strcmp(data,"graph") && strcmp(data,"edges") &&
-                                        strcmp(data,"col") ) {
-                fprintf (stderr, "ERROR in Dimacs file -- not a graph file\n");
-                rval = 1;  goto CLEANUP;
-            }
-            data = strtok(NULL,delim);
-            sscanf (data, "%d", &ncount);
-            data = strtok(NULL,delim);
-            sscanf (data, "%d", &ecount);
-
-            printf ("Number of Nodes: %d\n", ncount);
-            printf ("Number of Edges: %d\n", ecount);
-            elist = COLOR_SAFE_MALLOC (2 * ecount, int);
-            COLORcheck_NULL(elist, "out of memory for elist");
-            wlen = COLOR_SAFE_MALLOC (ncount, int);
-            COLORcheck_NULL(elist, "out of memory for wlen");
-            for (i = 0; i < ncount; i++) wlen[i] = 0;
-        } else if (p[0] == 'e') {
-            if (!haveprob) {
-                fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
-                rval = 1;  goto CLEANUP;
-            }
-            if (icount >= ecount) {
-                fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
-                rval = 1;  goto CLEANUP;
-            }
-            p++;
-            sscanf (p, "%d %d", &end0, &end1);
-            elist[2*icount] = end0-1;    /* Number nodes from 0, not 1 */
-            elist[2*icount+1] = end1-1;
-            icount++;
-        } else if (p[0] == 'n') {
-            if (!haveprob) {
-                fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
-                rval = 1;  goto CLEANUP;
-            }
-            p++;
-            sscanf (p, "%d %d", &n, &len);
-            wlen[n-1] = len;
-        }
-    }
-
-    *pncount = ncount;
-    *pecount = icount;
-    *pelist = elist;
-    *pwlen = wlen;
-
-CLEANUP:
-
-    if (rval) {
-        COLOR_IFFREE(elist,int);
-        COLOR_IFFREE(wlen,int);
-    }
-    if (in) fclose (in);
-
-    return rval;
-}
-#endif
 
 static int build_set (int *nlist, int count, COLORset **pcset)
 {

@@ -55,10 +55,10 @@ int COLORlp_basis_cols (COLORlp *p, int *cstat);
 
 int COLORlp_change_objective(COLORlp *p, int start, int len, double* values);
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
                     char sense, double rhs, char *name);
 
-int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,   
+int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
                     double obj, double lb, double ub, char vartype, char *name);
 
 int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind);
@@ -68,6 +68,8 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense);
 int COLORlp_objective_sense (COLORlp *p, int sense);
 int COLORlp_setbound (COLORlp *p, int col, char lower_or_upper, double bnd);
 int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit);
+int COLORlp_set_cutoff (COLORlp *p, double cutoff);
+
 
 int COLORlp_write (COLORlp *p, const char *fname);
 void COLORlp_free_warmstart (COLORlp_warmstart **w);

@@ -31,6 +31,7 @@ struct COLORlp {
     int       noptcalls;
     int       ncols;
     int       nintegers;
+     double   dbl_cutoff;
 };
 
 const double int_tolerance = 0.00001;
@@ -55,6 +56,7 @@ int COLORlp_init (COLORlp **p, const char *name)
     (*p)->noptcalls = 0;
     (*p)->ncols     = 0;
     (*p)->nintegers = 0;
+    (*p)->dbl_cutoff = 0.0;
     (*p)->cplex_env = (CPXENVptr) NULL;
     (*p)->cplex_lp = (CPXLPptr) NULL;
 
@@ -422,6 +424,81 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
     }
     return rval;
 }
+
+
+
+static int intercept_cplex_incumbent_cb(CPXCENVptr cpx_env, void *cbdata,
+                                        int where, void *cbhandle)
+{
+   int rval = 0;
+
+   /* Avoid warning on unused parameter usrdata:*/
+   double dbl_cutoff = ((COLORlp*)cbhandle)->dbl_cutoff;
+
+   if (where ==CPX_CALLBACK_MIP) {
+      double objective, objbound;
+      int    feas_exists;
+      rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_MIP_FEAS,
+                                (void*) &feas_exists);
+      COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_MIP_FEAS failed");
+
+      if (feas_exists) {
+
+         rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_BEST_INTEGER,
+                                   (void*) &objective);
+         COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_BEST_INTEGER failed");
+
+         rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_BEST_REMAINING,
+                                   (void*) &objbound);
+         COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_BEST_REMAINING failed");
+
+         if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
+            if(COLORdbg_lvl() > 0) {
+               printf("Terminating gurobi based on current objective value %f\n.",
+                      objective);
+            }
+            rval = 99;
+            goto CLEANUP;
+         }
+      }
+   }
+ CLEANUP:
+      return rval;
+}
+
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 0;
+   int objsens = -1;
+
+   COLORcheck_NULL(p, "COLORlp_set_cutoff called with NULL lp.");
+
+
+   rval = COLORlp_objective_sense (p, objsens);
+   COLORcheck_rval (rval, "COLORlp_objective_sense CPX_PARAM_EPPER failed");
+
+   if (objsens == COLORlp_MAX) {
+      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTLO, cutoff);
+      COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
+   }
+
+   if (objsens == COLORlp_MIN) {
+      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTUP, cutoff);
+      COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
+   }
+
+   if (cutoff > 0) {
+      p->dbl_cutoff = cutoff;
+      rval = CPXsetmipcallbackfunc(p->cplex_env,intercept_cplex_incumbent_cb,
+                                   (void*) p);
+      COLORcheck_rval (rval, "CPXsetmipcallbackfunc  failed");
+   }
+
+CLEANUP:
+   return rval;
+}
+
 
 int COLORlp_write (COLORlp *p, const char *fname)
 {

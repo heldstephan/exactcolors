@@ -25,6 +25,8 @@
 struct COLORlp {
     GRBenv *env;
     GRBmodel *model;
+
+    double dbl_cutoff;
 };
 
 const double int_tolerance = 0.00001;
@@ -399,6 +401,59 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
    int rval = GRBsetdblparam (GRBgetenv(p->model), GRB_DBL_PAR_NODELIMIT, mip_node_limit);
    COLORcheck_rval_grb (rval, "GRBsetdblparam NODELIMIT failed",p->env);
  CLEANUP:
+   return rval;
+}
+
+
+
+static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *usrdata)
+{
+   int rval = 0;
+
+   /* Avoid warning on unused parameter usrdata:*/
+
+   double dbl_cutoff = ((COLORlp*)usrdata)->dbl_cutoff;
+
+   if (where ==GRB_CB_MIPSOL) {
+      double objective, objbound;
+
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBST,(void*) &objective);
+      COLORcheck_rval (rval, "GRBcbget OBJBST failed");
+
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBND,(void*) &objbound);
+      COLORcheck_rval (rval, "GRBcbget OBJBND failed");
+
+
+      if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
+         if(COLORdbg_lvl() > 0) {
+            printf("Terminating gurobi based on current objective value %f\n.",
+                   objective);
+         }
+         GRBterminate(grb_model);
+      }
+   }
+
+ CLEANUP:
+   return rval;
+}
+
+
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 0;
+
+   rval = GRBsetdblparam (GRBgetenv(p->model),GRB_DBL_PAR_CUTOFF, cutoff);
+   COLORcheck_rval(rval,"Failed in GRBsetdblparam GRB_DBL_PAR_CUTOFF");
+
+   if (cutoff > 0) {
+      p->dbl_cutoff = cutoff;
+
+      rval  = GRBsetcallbackfunc(p->model, intercept_grb_cb, (void*) p);
+      COLORcheck_rval (rval, "GRBsetcallbackfunc failed");
+   }
+
+CLEANUP:
    return rval;
 }
 

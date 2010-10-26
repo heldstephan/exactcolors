@@ -1782,8 +1782,12 @@ void prn_stable(nodepnt *active, MWISNW best_z, MWISNW cur_z, nodepnt *branch_no
    for(i = 1; i <= n_active; i++) sum_w += active[i]->weight;
    sum_uncovered = 0;
    for(i = 1; i <= n_branch_nodes; i++) sum_uncovered += branch_nodes[i]->weight;
-   ratio = (sum_w - sum_uncovered) / (best_z - cur_z);
-   ratio2 = sum_w / (best_z - cur_z);
+   ratio = DBL_MAX;
+   ratio2 = DBL_MAX;
+   if (best_z != cur_z) {
+      ratio = (sum_w - sum_uncovered) / (best_z - cur_z);
+      ratio2 = sum_w / (best_z - cur_z);
+   }
    cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
    if(prn_level > 1) {
       printf("depth = %3d n_sub = %10lld  cpu = %10.0f cur_z = %10d best_z = %10d  sum_w = %10d n_active = %3d sum_covered = %10d n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
@@ -2198,4 +2202,3 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
    if (in) fclose (in);
    return rval;
 }
-
