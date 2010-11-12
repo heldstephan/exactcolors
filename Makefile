@@ -17,8 +17,8 @@
 # exactcolors requires one of the following 3 LP solvers: Gurobi, Cplex, or QSopt.
 # Please set the environment path and uncomment the lines correspondingly.
 # You might also need to adopt the  LPINCLUDE & LPLIB  paths further below.
-#GUPATH=$(GUROBI_HOME)
-CPLEXPATH=$(CPLEX_HOME)
+GUPATH=$(GUROBI_HOME)
+#CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 ifneq ($(QSPATH),)
@@ -29,7 +29,7 @@ endif
 
 ifneq ($(GUPATH),)
 LPINCLUDE=$(GUPATH)/include
-LPLIB=$(GUPATH)/lib/libgurobi.so.2.0.2
+LPLIB=$(GUPATH)/lib/libgurobi.so.3.0.0
 LPSOURCE=lpgurobi.o
 GRBMWIS=mwis_grb.o
 GUROBI_FLAG=-DUSE_GUROBI
@@ -38,26 +38,31 @@ endif
 ifneq ($(CPLEXPATH),)
 PROCESSOR := $(shell uname -p)
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
-LPLIB=$(CPLEXPATH)/lib/x86-64_debian4.0_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/Linux64/static_pic/libcplex.a
 ifeq ($(PROCESSOR), i686)
-LPLIB=$(CPLEXPATH)/lib/x86_debian4.0_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/Linux32/static_pic/libcplex.a
 endif
 LPSOURCE=lpcplex.o
 GRBMWIS=
 GUROBI_FLAG=
 endif
 
-CC=gcc
-CFLAGS= -g
+
+export CC=gcc
+export LD=gcc
+#CFLAGS+= -g
 CFLAGS+= -O3
+
+# For static code analysis with clang we use the clang compiler.
+# NOTE: You need to disable optimization otherwise
+#export CC=clang
 
 #
 # Valgrind does not support fegetround & fesetround. With following compile option
 # their use is circumvented. We also recommend to use QSopt as the LP-solver while
 # debugging with valgrind, as the commercial solvers impose valgrind errors internally.
 #
-# CFLAGS+= -DCOMPILE_FOR_VALGRIND
-
+#CFLAGS+= -DCOMPILE_FOR_VALGRIND
 
 
 
@@ -65,6 +70,9 @@ CFLAGS+= -O3
 # Below this comment changes should be unnecessary.#
 ####################################################
 
+SEWELL_DIR=mwis_sewell
+SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
+SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
 
 CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
 export CFLAGS
@@ -74,23 +82,35 @@ export CFLAGS
 OBJFILES=color.o color_backup.o color_parms.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 BOSSFILES=graph.o bbsafe.o util.o
-CBOSSFILES=color_main.o $(OBJFILES)
+CBOSSFILES=color_version.h color_main.o $(OBJFILES)
 CWORKERFILES=color_worker.o $(OBJFILES)
+CKILLERFILES=color_jobkiller.o $(OBJFILES)
 PARTFILES=partition.o  $(OBJFILES)
+COMPFILES=complement.o  $(OBJFILES)
 
-all: color color_worker stable queen test_boss test_worker test_tell partition
+all: color color_worker color_jobkiller stable queen test_boss test_worker test_tell partition complement
 
-color: $(CBOSSFILES)  color_worker
-	$(CC) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread
+color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
+	$(LD) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
 
-color_worker: $(CWORKERFILES)
-	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread
+color_worker: $(SEWELL_LIB) $(CWORKERFILES)
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+
+color_jobkiller: $(SEWELL_LIB) $(CKILLERFILES)
+	$(CC) $(CFLAGS) -o color_jobkiller $(CKILLERFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
+
+$(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
+	cd $(SEWELL_DIR) && $(MAKE)
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
 
-partition: $(PARTFILES)
-	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread
+partition: $(SEWELL_LIB) $(PARTFILES)
+	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
+
+complement: $(SEWELL_LIB) $(COMPFILES)
+	$(CC) $(CFLAGS) -o complement $(COMPFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
+
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
@@ -107,14 +127,18 @@ test_tell: test_tell.o $(BOSSFILES)
 tags:
 	etags *.[hc]
 clean:
-	rm -f *.o color stable test_boss test_worker test_tell mwis_gurobi.log gurobi.log look.lp vg.log*
+	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h
+	cd $(SEWELL_DIR) && $(MAKE) clean
 
+color_version.h: *.[hc]
+	./create_version_header > color_version.h
 
-color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h
+color.o:     color_main.c color.c color.h color_private.h lp.h color_defs.h mwis.h plotting.h heap.h bbsafe.h color_version.h
 color_worker.o: color_worker.c color_private.h color_defs.h bbsafe.h
 color_backup.o: color_backup.c color_private.h color_defs.h
 color_parms.o: color_parms.c color_parms.h color_defs.h
 partition.o: partition.c  color.h graph.h color_defs.h
+complement.c:  color.h graph.h color_defs.h
 heap.o:      heap.c heap.h color_defs.h
 graph.o:     graph.c graph.h color_defs.h
 greedy.o:    greedy.c  color.h graph.h color_defs.h
@@ -130,4 +154,3 @@ cliq_enum.o: color.h lp.h graph.h mwis.h
 test_boss.o: test_boss.c bbsafe.h
 test_worker.o: test_worker.c bbsafe.h
 test_tell.o: test_tell.c bbsafe.h
-

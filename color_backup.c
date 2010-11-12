@@ -14,33 +14,19 @@
     You should have received a copy of the GNU General Public License
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 */
-
-#include <sys/stat.h>
 #include <time.h>
 
 #include "color_private.h"
 
-static char* backupdir = 0;
-
-
-void COLORset_backupdir(char* dir)
-{
-   backupdir = dir;
-}
-
-const char* COLORget_backupdir(void )
-{
-   return backupdir;
-}
-
+static int recover_colordata_recursion(colordata* cd,COLORproblem* problem);
 
 COLOR_MAYBE_UNUSED
-static int write_colordata_to_file(colordata* cd, 
+static int write_colordata_to_file(colordata* cd,
 				   FILE* file) {
    int prval = 0;
    int rval  = 0;
    int i;
-   
+
 
    prval = fprintf(file,"id %d\n",cd->id);
    COLORcheck_fileio(prval,"Failed in fprintf");
@@ -54,7 +40,7 @@ static int write_colordata_to_file(colordata* cd,
       COLORcheck_fileio(prval,"Failed in fprintf");
 
    }
-   
+
    prval = fprintf(file,"pname %s\n",cd->pname);
    COLORcheck_fileio(prval,"Failed in fprintf");
 
@@ -70,7 +56,7 @@ static int write_colordata_to_file(colordata* cd,
    COLORcheck_fileio(prval,"Failed in fprintf");
 
 
-   for (i = 0; i < cd->ecount; ++ i) {
+   for (i = 0; cd->elist && i < cd->ecount; ++ i) {
       prval = fprintf(file,"e %d %d\n",cd->elist[2*i], cd->elist[2*i+1]);
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
@@ -78,15 +64,16 @@ static int write_colordata_to_file(colordata* cd,
    prval = fprintf(file,"ncount %d\n",cd->ncount);
    COLORcheck_fileio(prval,"Failed in fprintf");
 
-   prval = fprintf(file,"orig_node_ids ");
-   COLORcheck_fileio(prval,"Failed in fprintf");
-   for (i = 0; i < cd->ncount; ++ i) {
-      prval = fprintf(file," %d",cd->orig_node_ids[i]);
+   if (cd->orig_node_ids) {
+      prval = fprintf(file,"orig_node_ids ");
+      COLORcheck_fileio(prval,"Failed in fprintf");
+      for (i = 0; i < cd->ncount; ++ i) {
+         prval = fprintf(file," %d",cd->orig_node_ids[i]);
+         COLORcheck_fileio(prval,"Failed in fprintf");
+      }
+      prval = fprintf(file,"\n");
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
-   prval = fprintf(file,"\n");
-   COLORcheck_fileio(prval,"Failed in fprintf");
-
 
    prval = fprintf(file,"lower_bound %d\n",cd->lower_bound);
    COLORcheck_fileio(prval,"Failed in fprintf");
@@ -120,11 +107,11 @@ static int write_colordata_to_file(colordata* cd,
       prval = fprintf(file,"\n");
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
-   
-   
+
+
    prval = fprintf(file,"nbestcolors %d\n",cd->nbestcolors);
    COLORcheck_fileio(prval,"Failed in fprintf");
-   
+
    for (i = 0; i < cd->nbestcolors; ++ i) {
       int j;
       prval = fprintf(file,"bestcolors_count %d\n",cd->bestcolors[i].count);
@@ -138,7 +125,7 @@ static int write_colordata_to_file(colordata* cd,
       prval = fprintf(file,"\n");
       COLORcheck_fileio(prval,"Failed in fprintf");
    }
-   
+
    prval = fprintf(file,"v1 %d\n",cd->v1);
    COLORcheck_fileio(prval,"Failed in fprintf");
    prval = fprintf(file,"v2 %d\n",cd->v2);
@@ -146,7 +133,7 @@ static int write_colordata_to_file(colordata* cd,
 
    prval = fprintf(file,"nsame %d\n",cd->nsame);
    COLORcheck_fileio(prval,"Failed in fprintf");
-   
+
    prval = fprintf(file,"same_children");
    COLORcheck_fileio(prval,"Failed in fprintf");
    for (i = 0; i < cd->nsame; ++ i) {
@@ -172,24 +159,24 @@ static int write_colordata_to_file(colordata* cd,
    return rval;
 }
 
-int backup_colordata(colordata* cd) {
-   
+int backup_colordata(colordata* cd, COLORproblem* problem) {
+
    char bkp_filename[256] = "";
 
    int   prval = 0;
    int   rval  = 0;
    FILE* file  = (FILE*) NULL;
-   
+   const char* backupdir = problem->parms.backupdir;
    if (backupdir) {
       char filename[256];
-      
+
       sprintf(bkp_filename,"%s",cd->pname);
 
       if(!COLORdir_exists(backupdir)) {
-	 prval = mkdir(backupdir,(S_IRUSR | S_IWUSR | S_IXUSR));
-	 COLORcheck_fileio(prval,"Failed to mkdir");
+         rval = COLORdir_create(backupdir);
+	 COLORcheck_rval(rval,"Failed in COLORdir_create");
       }
-    
+
       /* prval = sprintf(filename,"gzip >|%s/%s.%d.gz", */
       /* 		      backupdir, cd->pname, cd->id); */
       /* COLORcheck_fileio(prval,"Failed in sprintf");	  */
@@ -203,13 +190,13 @@ int backup_colordata(colordata* cd) {
          prval = sprintf(bkp_filename,"%s.bkp",
                          filename);
          COLORcheck_fileio(prval,"Failed in sprintf");
-      
+
          printf("Renaming %s to %s before update.\n",
                 filename, bkp_filename);
          rval = rename(filename,bkp_filename);
          COLORcheck_rval(rval, "Failed to rename file.");
       }
-      file = fopen(filename,"w"); 
+      file = fopen(filename,"w");
 
       rval = write_colordata_to_file
 	 (cd,file);
@@ -221,7 +208,7 @@ CLEANUP:
       fclose(file);
    }
 
-   if(!rval && strcmp(bkp_filename,cd->pname) && 
+   if(!rval && strcmp(bkp_filename,cd->pname) &&
       COLORfile_exists(bkp_filename)) {
       remove(bkp_filename);
    }
@@ -231,9 +218,9 @@ CLEANUP:
 
 
 COLOR_MAYBE_UNUSED
-static int read_colordata_from_file(colordata* cd, 
+static int read_colordata_from_file(colordata* cd,
                                     COLORproblem* problem,
-                                    FILE* file) 
+                                    FILE* file)
 {
    const int LINE_SIZE = 32769;
    int rval = 0;
@@ -257,7 +244,7 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"pname")) {
          data = strtok((char*)NULL,delim);
-         prval = sprintf(cd->pname,data);
+         prval = sprintf(cd->pname, "%s",data);
          COLORcheck_fileio(prval,"Failed in sprintf");
       }
       else if (!strcmp(data,"depth")) {
@@ -287,11 +274,11 @@ static int read_colordata_from_file(colordata* cd,
          data = strtok((char*)NULL,delim);
          cd->ncount = atoi(data);
          COLOR_IFFREE(cd->orig_node_ids,int);
-         cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC (cd->ncount, int);
       }
 
       else if (!strcmp(data,"orig_node_ids")) {
          int i;
+         cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC (cd->ncount, int);
          for (i = 0; i < cd->ncount; ++i) {
             data = strtok((char*)NULL,delim);
             cd->orig_node_ids[i] = atoi(data);
@@ -317,12 +304,14 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"ccount")) {
          data = strtok((char*)NULL,delim);
-         cd->ccount = atoi(data);
+         cd->gallocated = cd->ccount = atoi(data);
          COLOR_IFFREE(cd->cclasses,COLORset);
          if (cd->ccount) cd->cclasses = COLOR_SAFE_MALLOC(cd->ccount, COLORset);
       }
-            
+
       else if (!strcmp(data,"count")) {
+         COLORcheck_NULL(cd->cclasses,
+                         "members token occured prior to ccount");
          data = strtok((char*)NULL,delim);
          cd->cclasses[cclass_i].count = atoi(data);
          if (cd->cclasses[cclass_i].count) cd->cclasses[cclass_i].members = COLOR_SAFE_MALLOC(cd->cclasses[cclass_i].count, int);
@@ -330,6 +319,8 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"members")) {
          int i;
+         COLORcheck_NULL(cd->cclasses,
+                         "members token occured prior to ccount");
          for (i = 0; i < cd->cclasses[cclass_i].count; ++i) {
             data = strtok((char*)NULL,delim);
             cd->cclasses[cclass_i].members[i] = atoi(data);
@@ -343,8 +334,10 @@ static int read_colordata_from_file(colordata* cd,
          COLOR_IFFREE(cd->bestcolors, COLORset);
          if (cd->nbestcolors) cd->bestcolors = COLOR_SAFE_MALLOC(cd->nbestcolors, COLORset);
       }
-            
+
       else if (!strcmp(data,"bestcolors_count")) {
+         COLORcheck_NULL(cd->bestcolors,
+                         "bestcolors token occured prior to bestcolors_count");
          data = strtok((char*)NULL,delim);
          cd->bestcolors[bestc_i].count = atoi(data);
          if (cd->bestcolors[bestc_i].count) cd->bestcolors[bestc_i].members = COLOR_SAFE_MALLOC(cd->bestcolors[bestc_i].count, int);
@@ -352,6 +345,9 @@ static int read_colordata_from_file(colordata* cd,
 
       else if (!strcmp(data,"bestcolors_members")) {
          int i;
+         COLORcheck_NULL(cd->bestcolors,
+                         "bestcolors token occured prior to bestcolors_members");
+
          for (i = 0; i < cd->bestcolors[bestc_i].count; ++i) {
             data = strtok((char*)NULL,delim);
             cd->bestcolors[bestc_i].members[i] = atoi(data);
@@ -388,8 +384,8 @@ static int read_colordata_from_file(colordata* cd,
             data = strtok((char*)NULL,delim);
             cd->same_children[i].id = atoi(data);
             strcpy(cd->same_children[i].pname,cd->pname);
-            
-            rval = recover_colordata(cd->same_children + i,problem);
+
+            rval = recover_colordata_recursion(cd->same_children + i,problem);
             if (rval) {
                free_children_data(cd); rval = 0;
                goto CLEANUP;
@@ -419,7 +415,7 @@ static int read_colordata_from_file(colordata* cd,
             cd->diff_children[i].id = atoi(data);
             strcpy(cd->diff_children[i].pname,cd->pname);
 
-            rval = recover_colordata(cd->diff_children + i,problem);
+            rval = recover_colordata_recursion(cd->diff_children + i,problem);
             if (rval) {
                free_children_data(cd); rval = 0;
                goto CLEANUP;
@@ -428,26 +424,64 @@ static int read_colordata_from_file(colordata* cd,
          }
       }
    }
+   if (!ecount_test) {/** Edges were temporarily deleted.*/
+      COLOR_IFFREE(cd->elist,int);
+   } else if (ecount_test != cd->ecount) {
+      printf("ERROR read_colordata_from_file found wrong number of edges!\n");
+      rval = 1; goto CLEANUP;
+   }
+
  CLEANUP:
    return rval;
 }
 
-int recover_colordata(colordata* cd,COLORproblem* problem) {
+static int recover_colordata_recursion(colordata* cd,COLORproblem* problem) {
    int rval  = 0;
    int prval = 0;
    FILE* file = (FILE*) NULL;
+   const char* backupdir = problem->parms.backupdir;
    if (backupdir) {
       char filename[256];
       prval = sprintf(filename,"%s/%s.%d",
       		      backupdir, cd->pname, cd->id);
       COLORcheck_fileio(prval,"Failed in sprintf");
-      file = fopen(filename,"r"); 
-      COLORcheck_NULL(file, "Failed to fopen");
 
-      init_colordata(cd);
+      if (COLORfile_exists(filename)) {
+         file = fopen(filename,"r");
+         COLORcheck_NULL(file, "Failed to fopen");
 
-      rval = read_colordata_from_file(cd, problem, file);
-      COLORcheck_rval(rval,"Failed in read_colordata_from_file");
+         init_colordata(cd);
+
+         rval = read_colordata_from_file(cd, problem, file);
+             COLORcheck_rval(rval,"Failed in read_colordata_from_file");
+      }
+   }
+ CLEANUP:
+   if (file) {
+      fclose(file);
+   }
+   return rval;
+}
+
+
+int recover_colordata(colordata* cd,COLORproblem* problem) {
+   int rval  = 0;
+   int prval = 0;
+   FILE* file = (FILE*) NULL;
+   const char* backupdir = problem->parms.backupdir;
+   if (backupdir) {
+      char filename[256];
+      prval = sprintf(filename,"%s/%s.%d",
+      		      backupdir, cd->pname, cd->id);
+      COLORcheck_fileio(prval,"Failed in sprintf");
+
+      if (COLORfile_exists(filename)) {
+         printf("Reading data from old run from %s.\n",filename);
+         rval = recover_colordata_recursion(cd,problem);
+         COLORcheck_rval(rval, "Failed in recover_colordata_recursion");
+
+         problem->global_upper_bound = cd->upper_bound;
+      }
    }
  CLEANUP:
    if (file) {
@@ -460,13 +494,8 @@ int recover_colordata(colordata* cd,COLORproblem* problem) {
 int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp)
 {
    int rval = 0;
-   if (parms->cclasses_outfile != (char*) NULL) {
+   if ( (!cd->parent) && parms->cclasses_outfile != (char*) NULL) {
       char   fname[256];
-      const colordata* root_cd = cd;
-
-      while (root_cd->parent) {
-         root_cd = root_cd->parent;
-      }
 
       if (add_timestamp) {
          char   timestr[256];
@@ -479,7 +508,7 @@ int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp)
          sprintf(fname,"%s",parms->cclasses_outfile);
       }
       rval = COLORstable_write_stable_sets(cd->cclasses,cd->ccount,cd->ncount,
-                                           fname,root_cd->pname);
+                                           fname,cd->pname);
       COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
    }
  CLEANUP:

@@ -361,7 +361,6 @@ static COLOR_SFILE *sopen_read (const char *f)
         if (t == -1) {
             perror (f);
             fprintf (stderr, "Couldn't open for input\n");
-            s = (COLOR_SFILE *) NULL;
         }
         s = sdopen_read (t);
         if (!s) {

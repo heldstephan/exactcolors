@@ -62,7 +62,8 @@ static int run_clique_enum (int ncount, int ecount, int *elist, int *weights,
     int *pval, int first, int *marks, int *invmap, int cutoff,
     COLORset *bestcliq);
 static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
-        int *optval, int *bestcnt, int *bestset, int cutoff);
+                           int *optval, int *bestcnt, int *bestset, int cutoff,
+                           int nrbranches);
 static int run_ostergard (COLORadjgraph *G, int Ucount, int *U, int *weights, int psum,
         int *C, int *bigmax, int *marks, int *pcnt, int *pset, int *bestcnt,
         int *bestset);
@@ -85,6 +86,9 @@ int COLORclique_enum (COLORset **newsets, int *nnewsets, int ncount,
     int i, yesno = 0, val = 0;
     int *marks = (int *) NULL, *invmap = (int *) NULL;
     COLORset cliq;
+
+    COLORcheck_NULL(nnewsets, "COLORclique_enum: nnewsets must not be NULL");
+    COLORcheck_NULL(newsets,  "COLORclique_enum: newsets must not be NULL");
 
     if (nnewsets) *nnewsets = 0;
     if (newsets) *newsets = (COLORset *) NULL;
@@ -278,7 +282,8 @@ CLEANUP:
 }
 
 int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
-        int ecount, int *elist, int *weights, int cutoff, int *pval)
+                           int ecount, int *elist, int *weights, int cutoff, int *pval,
+                           int nrbranches)
 {
     int i, yesno = 0, rval = 0, optval = 0;
     int *order = (int *) NULL, *invorder = (int *) NULL;
@@ -287,6 +292,9 @@ int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
     COLORadjgraph G;
 
     COLORadjgraph_init (&G);
+
+    COLORcheck_NULL(nnewsets, "COLORclique_ostergard: nnewsets must not be NULL");
+    COLORcheck_NULL(newsets,  "COLORclique_ostergard: newsets must not be NULL");
 
     if (nnewsets) *nnewsets = 0;
     if (newsets) *newsets = (COLORset *) NULL;
@@ -313,7 +321,7 @@ int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
     COLORcheck_rval (rval, "permute nodes failed");
 
     rval = main_ostergard (ncount, ecount, ielist, iweights, &optval,
-                           &bestcnt, bestset, cutoff);
+                           &bestcnt, bestset, cutoff, nrbranches);
     COLORcheck_rval (rval, "main_ostergard failed");
 
     *newsets = COLOR_SAFE_MALLOC (1, COLORset);
@@ -349,7 +357,8 @@ CLEANUP:
 }
 
 static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
-        int *optval, int *bestcnt, int *bestset, int cutoff)
+                           int *optval, int *bestcnt, int *bestset, int cutoff,
+                           int nrbranches)
 {
     int i, rval = 0;
     int *C = (int *) NULL, *marks = (int *) NULL;
@@ -377,7 +386,7 @@ static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
     if (optval) *optval = bigmax;
     if (bigmax >= cutoff) goto CLEANUP;
 
-    for (i = 1; i < ncount && bigmax < cutoff; i++) {
+    for (i = 1; i < ncount && bigmax < cutoff && i < nrbranches; i++) {
         if (G.nodelist[i].degree == 0) {
             if (weights[i] > bigmax) {
                 bigmax = weights[i];
@@ -393,7 +402,8 @@ static int main_ostergard (int ncount, int ecount, int *elist, int *weights,
             COLORcheck_rval (rval, "run_ostergard failed");
             pcnt--;
             C[i] = bigmax;
-        }
+        }        
+/*         printf("Node %d/%d best: %d.\n",i+1,ncount,bigmax);fflush(stdout); */
     }
 
     if (optval) *optval = bigmax;

@@ -34,6 +34,8 @@
 
 
 #define COLOR_MAXINT (2147483647)
+#define MAX_PNAME_LEN 128
+
 
 double COLORwall_time (void);
 double COLORcpu_time (void);
@@ -43,6 +45,7 @@ void  COLORutil_freerus (void *p);
 
 int COLORfile_exists(const char* filename);
 int COLORdir_exists(const char* dirname);
+int COLORdir_create(const char* dirname);
 
 int COLORdbg_lvl(void);
 void COLORset_dbg_lvl(int dbglvl);

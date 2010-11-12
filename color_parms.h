@@ -18,9 +18,13 @@
 */
 
 enum COLORBranchingStrategy {
+   COLOR_min_strategy    = 0,
+   COLOR_no_branching    = COLOR_min_strategy,
+
    COLOR_min_lb_strategy = 1,
    COLOR_dfs_strategy    = 2,
-   COLOR_hybrid_strategy = 3
+   COLOR_hybrid_strategy = 3,
+   COLOR_max_strategy    = 4
 };
 
 typedef struct COLORparms {
@@ -30,14 +34,22 @@ typedef struct COLORparms {
    int      branch_with_same_sequence;
    int      branching_strategy;
 
+   int      delete_elists;
+   int      delete_cclasses;
+
+
+   int      upper_bounds_only;
+
+   double   branching_cpu_limit;
+
    char *edgefile;
    char *outfile;
    char *cclasses_infile;
    char *cclasses_outfile;
    char *color_infile;
    char *backupdir;
-   
-   
+
+
 
 } COLORparms;
 
@@ -55,6 +67,8 @@ int COLORparms_set_backupdir(COLORparms* parms,       const char* filename);
 int COLORparms_set_initial_upper_bound(COLORparms* parms,int bound);
 int COLORparms_set_write_mwis(COLORparms* parms,int write_mwis);
 int COLORparms_set_parallel(COLORparms* parms,int parallel);
+int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_limit);
+int COLORparms_set_branching_strategy(COLORparms* parms, int strategy);
 
 
 #endif

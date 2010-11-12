@@ -36,8 +36,10 @@ extern int gethostname (char *, int);
 #define COLOR_SBUFFER_SIZE (4000)
 #define COLOR_SFNAME_SIZE (32)
 
-#define COLOR_BOSS_SEND    'S'
-#define COLOR_BOSS_RECEIVE 'R'
+#define COLOR_BOSS_SEND       'S'
+#define COLOR_BOSS_RECEIVE    'R'
+#define COLOR_BOSS_REMOVE_JOB 'J'
+
 #define COLOR_BOSS_YES     'Y'
 #define COLOR_BOSS_NO      'N'
 #define COLOR_BOSS_EXIT    'X'

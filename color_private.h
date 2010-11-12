@@ -23,9 +23,9 @@
 
 #include "heap.h"
 #include "color_parms.h"
+#include "color_defs.h"
 
 typedef struct colordata colordata;
-#define MAX_PNAME_LEN 128
 
 struct colordata {
 
@@ -66,6 +66,8 @@ struct colordata {
    MWISenv*  mwis_env;
    int       ccount;
    COLORset *cclasses;
+   int       dzcount; /* counting the number of cclasses older than retirementage.*/
+
    int       gallocated;
    COLORset *newsets;
    int       nnewsets;
@@ -126,6 +128,8 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
 
 int compute_coloring(COLORproblem* problem);
 
+int  compute_lower_bound(colordata* cd, COLORproblem* problem);
+
 int print_colors(COLORset* cclasses, int ccount);
 
 void COLORset_cclasses_outfile(char* outfile);
@@ -136,7 +140,7 @@ const char* COLORget_backupdir(void );
 
 int recover_colordata(colordata* cd,COLORproblem* problem);
 
-int backup_colordata(colordata* cd);
+int backup_colordata(colordata* cd, COLORproblem* problem);
 
 int write_root_LP_snapshot(colordata* cd, COLORparms* parms, int add_timestamp);
 
