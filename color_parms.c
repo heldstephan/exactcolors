@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <limits.h>
+#include <float.h>
 #include <string.h>
 
 #include "color_defs.h"
@@ -33,19 +34,24 @@ void COLORparms_init(COLORparms* parms)
    parms->branching_strategy        = COLOR_min_lb_strategy;
    /* parms->branching_strategy        = COLOR_dfs_strategy; */
 
+   parms->delete_elists             = 1;
+   parms->delete_cclasses           = 0;
 
-   parms->edgefile                  = (char*) NULL;    
-   parms->outfile                   = (char*) NULL;    
-   parms->cclasses_infile           = (char*) NULL;    
-   parms->cclasses_outfile          = (char*) NULL;    
-   parms->color_infile              = (char*) NULL;    
-   parms->backupdir                 = (char*) NULL;       
+   parms->upper_bounds_only         = 0;
+   parms->branching_cpu_limit       = DBL_MAX;
+
+   parms->edgefile                  = (char*) NULL;
+   parms->outfile                   = (char*) NULL;
+   parms->cclasses_infile           = (char*) NULL;
+   parms->cclasses_outfile          = (char*) NULL;
+   parms->color_infile              = (char*) NULL;
+   parms->backupdir                 = (char*) NULL;
 }
 
 void COLORparms_free(COLORparms* parms)
 {
    COLOR_IFFREE(parms->edgefile,char);
-   COLOR_IFFREE(parms->outfile,char);   
+   COLOR_IFFREE(parms->outfile,char);
    COLOR_IFFREE(parms->cclasses_infile,char);
    COLOR_IFFREE(parms->cclasses_outfile,char);
    COLOR_IFFREE(parms->color_infile,char);
@@ -113,3 +119,19 @@ int COLORparms_set_parallel(COLORparms* parms,int parallel)
 }
 
 
+int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_limit)
+{
+   parms->branching_cpu_limit = branching_cpu_limit;
+   return 0;
+}
+
+int COLORparms_set_branching_strategy(COLORparms* parms, int strategy)
+{
+   if (COLOR_min_strategy <= strategy && strategy < COLOR_max_strategy) {
+      parms->branching_strategy = strategy;
+      return 0;
+   } else {
+      printf("ERROR: Unknown branching strategy %d.\n", strategy);
+      return 1;
+   }
+}

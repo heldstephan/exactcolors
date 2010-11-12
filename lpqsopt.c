@@ -129,20 +129,20 @@ CLEANUP:
    return rval;
 }
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
-       char sense, double rhs, char *name) 
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
+       char sense, double rhs, char *name)
 {
     int rval = 0;
     char isense;
 
     switch (sense) {
-    case COLORlp_EQUAL: 
+    case COLORlp_EQUAL:
         isense = 'E'; break;
-    case COLORlp_LESS_EQUAL:    
+    case COLORlp_LESS_EQUAL:
         isense = 'L'; break;
-    case COLORlp_GREATER_EQUAL:    
+    case COLORlp_GREATER_EQUAL:
         isense = 'G'; break;
-    default: 
+    default:
         fprintf (stderr, "unknown variable sense: %c\n", sense);
         rval = 1;  goto CLEANUP;
     }
@@ -154,8 +154,8 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval, 
-       double obj, double lb, double ub, char sense, char *name) 
+int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
+       double obj, double lb, double ub, char sense, char *name)
 {
     int rval = 0;
 
@@ -171,14 +171,25 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
    int rval = 0;
+   int* dellist = (int*) NULL;
+   int numdel  = last_cind - first_cind + 1;
+   int i;
 
-   rval = QSdelete_col (p->p, cind);
+   dellist = COLOR_SAFE_MALLOC(numdel,int);
+   COLORcheck_NULL(dellist, "Failed to allocate dellist");
+
+   for (i = 0; i < numdel; ++i) {
+      dellist[i] = first_cind + i;
+   }
+
+   rval = QSdelete_cols (p->p, numdel,dellist);
    COLORcheck_rval (rval, "QSdelete_col failed");
 
 CLEANUP:
+   if (dellist) free(dellist);
    return rval;
 }
 
@@ -210,10 +221,54 @@ int COLORlp_x (COLORlp *p, double *x)
     int rval = 0;
 
     rval = QSget_x_array (p->p, x);
-    COLORcheck_rval (rval, "QSget_x_array failed")
+    COLORcheck_rval (rval, "QSget_x_array failed");
 
-CLEANUP:
+ CLEANUP:
     return rval;
+}
+
+int COLORlp_basis_cols (COLORlp *p, int *int_cstat)
+{
+   int rval = 0;
+   char* rstat = (char*) NULL;
+   char* cstat = (char*) NULL;
+   int   ncols = QSget_colcount (p->p);
+   int   nrows = QSget_rowcount (p->p);
+   int   i;
+   cstat = COLOR_SAFE_MALLOC(ncols, char);
+   COLORcheck_NULL(cstat,"Failed to allocate cstat");
+
+   rstat = COLOR_SAFE_MALLOC(nrows, char);
+   COLORcheck_NULL(rstat,"Failed to allocate rstat");
+
+
+   rval = QSget_basis_array (p->p, cstat,rstat);
+   COLORcheck_rval (rval, "QSget_basis_array failed");
+
+   for (i = 0; i < ncols; ++i) {
+      switch (cstat[i]) {
+      case QS_COL_BSTAT_LOWER:
+         int_cstat[i] = COLORlp_LOWER;
+         break;
+      case QS_COL_BSTAT_UPPER:
+         int_cstat[i] = COLORlp_UPPER;
+         break;
+      case QS_COL_BSTAT_FREE:
+         int_cstat[i] = COLORlp_FREE;
+         break;
+      case QS_COL_BSTAT_BASIC:
+         int_cstat[i] = COLORlp_BASIC;
+         break;
+      default:
+         rval = 1;
+         COLORcheck_rval(rval,"ERROR: Received unknown cstat");
+      }
+   }
+ CLEANUP:
+   if(cstat) free(cstat);
+   if(rstat) free(rstat);
+
+   return rval;
 }
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
@@ -302,4 +357,17 @@ void COLORlp_printerrorcode (int c)
 double COLORlp_int_tolerance ()
 {
    return int_tolerance;
+}
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 1;
+
+   (void) p;
+   (void) cutoff;
+
+   COLORcheck_rval(rval,"COLORlp_set_cutoff not yet implemented.");
+
+CLEANUP:
+   return rval;
 }

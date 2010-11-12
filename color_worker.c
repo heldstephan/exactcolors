@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
-#include <getopt.h>
 #include <string.h>
 #include <sys/resource.h>
 #include <time.h>
@@ -44,12 +43,11 @@ static int open_connection(COLOR_SFILE** s,const char* bosshost)
       *s = COLORsafe_snet_open (bosshost, COLOR_BOSS_PORT);
       if (! (*s)) {
          fprintf (stderr, "COLORsafe_snet_open failed\n");
-/*          sleep (100); */
-         sleep (5);
+         sleep (10);
       }
       k++;
-   } while (! (*s) && k < 2 /* 5 */);
-        
+   } while (! (*s) && k < 10000);
+
    if (! (*s)) {
       fprintf (stderr, "Could not connect in %d trys.\n", k);
       goto CLEANUP;
@@ -57,7 +55,7 @@ static int open_connection(COLOR_SFILE** s,const char* bosshost)
  CLEANUP:
    return rval;
 }
-                           
+
 
 int main (int ac, char **av)
 {
@@ -69,8 +67,12 @@ int main (int ac, char **av)
     COLORproblem  colorproblem;
     colordata* root_cd = &(colorproblem.root_cd);
     COLOR_SFILE *s = (COLOR_SFILE *) NULL;
-    double cputime = COLORcpu_time();
-    COLORset_dbg_lvl(-1);
+    double cputime;
+
+    rval = COLORprogram_header (ac,av);
+    COLORcheck_rval(rval, "Failed in COLORprogram_header");
+
+    COLORset_dbg_lvl(0);
     COLORproblem_init(&colorproblem);
 
     if (ac != 2) {
@@ -78,20 +80,22 @@ int main (int ac, char **av)
         rval = 1;  goto CLEANUP;
     }
 
+
     bosshost = av[1];
 
     rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
     COLORcheck_rval (rval, "gethostname failed");
-
-    printf ("Machine Name: %s pid: %lld\n", my_hostname,(long long) my_pid);
-    fflush (stdout);
 
     snprintf(myname,MAX_PNAME_LEN, "%s:%lld",
              my_hostname, (long long) my_pid);
 
     while (1) {
        int include_bestcolors = 0;
-              
+
+       colorproblem.parms.delete_cclasses = 1;
+       colorproblem.parms.delete_elists   = 1;
+
+
        rval = open_connection(&s, bosshost);
        COLORcheck_rval(rval,"open_connection failed.");
 
@@ -119,33 +123,39 @@ int main (int ac, char **av)
        if (task == COLOR_BOSS_YES) {
           int adopt_id = 1;
           include_bestcolors = 0;
-          
+
 
           rval = receive_colordata (s, root_cd,adopt_id,include_bestcolors,
                                     &(colorproblem));
           COLORcheck_rval (rval, "receive_prob failed");
 
           COLORsafe_sclose (s);
-       
-       
-          
+
           assert(task == COLOR_BOSS_YES);
-          
-          /*        sleep(3); */
-          cputime = -COLORcpu_time();          
-          rval = build_lp(root_cd);
-          COLORcheck_rval(rval,"Failed in build_lp");
-          
+
+          cputime = -COLORcpu_time();
+
+          if (!root_cd->ccount) {
+             rval = compute_lower_bound(root_cd,&colorproblem);
+             COLORcheck_rval(rval, "Failed in compute_lower_bound.");
+          }
+
+          if (!root_cd->lp) {
+             rval = build_lp(root_cd);
+             COLORcheck_rval(rval,"Failed in build_lp");
+          }
+
           rval = create_branches(root_cd,&(colorproblem));
           COLORcheck_rval(rval,"Failed in create_branches");
-          cputime += COLORcpu_time();          
-          
+
+          cputime += COLORcpu_time();
+
           rval = open_connection(&s, bosshost);
           COLORcheck_rval(rval,"open_connection failed.");
-          
+
           printf ("Send the completed problem %d to boss\n", root_cd->id);
           fflush (stdout);
-          
+
           rval = COLORsafe_swrite_string (s, myname);
           COLORcheck_rval (rval, "COLORsafe_swrite_string failed (NAME)");
 
@@ -166,12 +176,11 @@ int main (int ac, char **av)
        COLORsafe_sclose (s);
        COLORproblem_free(&colorproblem);
        COLORproblem_init(&colorproblem);
-   
     }
 
  CLEANUP:
     COLORproblem_free(&colorproblem);
-    
+
     return rval;
 }
 

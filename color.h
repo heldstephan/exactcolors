@@ -42,11 +42,39 @@ void COLORproblem_init(COLORproblem* problem);
 void COLORproblem_free(COLORproblem* problem);
 
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
-        COLORset **colorclasses);
+                 COLORset **colorclasses);
+int COLORdsatur(int ncount, int ecount, int *elist, int *ncolors,
+                COLORset **colorclasses);
+int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors,
+                                 COLORset *cclasses);
+
 int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
         int ecount, int *elist, int *weights, int cutoff, int *pval);
+
+/**
+   Run Ostergards cliquer algorithms to find a stable set of size >= cutoff
+   withing timelimit cpu seconds.
+   Parameters:
+   
+   newsets:  array of found stable sets (usually one)
+   nnewsets: # of stable sets in newsets
+   ncount:   #vertices
+   ecount:   #edges
+   elist:    array of edges (array of size 2*edges)), 
+   weights:  node weights
+   cutoff:   the algorithm may stop once a stable set of this weight was found
+   pval:     weight of the best found solution
+
+   nrbranches: maximum number of root branches. Ostergard's algorithm
+               creates ncount toplevel branches, one for every
+               node. This number can be restricted to use the
+               algorirthm as a heuristic. This implementation
+               will branch with the first min(ncount, nrbranches)
+               branches.
+*/
 int COLORclique_ostergard (COLORset **newsets, int *nnewsets, int ncount,
-        int ecount, int *elist, int *weights, int cutoff, int *pval);
+                           int ecount, int *elist, int *weights, int cutoff, int *pval,
+                           int nbranches);
 
 void COLORinit_set (COLORset *s);
 void COLORfree_set (COLORset *s);
@@ -67,6 +95,9 @@ void COLORutil_quicksort_reverse (int *len, int n);
 void COLORutil_perm_quicksort (int *perm, int *len, int n);
 
 void COLORset_quicksort (COLORset *cclasses, int ccount);
+
+int COLORprogram_header(int ac, char **av);
+
 
 
 

@@ -18,10 +18,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
+#include <unistd.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 
+#include "color_defs.h"
 #include "color.h"
+#include "color_version.h"
+
+extern int gethostname (char *, int);
 
 void *COLORutil_allocrus (size_t size)
 {
@@ -66,6 +74,20 @@ int COLORdir_exists(const char* dirname)
 }
 
 
+int COLORdir_create(const char* dirname)
+{
+   int    prval = 0;
+   int    rval  = 0;
+
+   prval = mkdir(dirname,(S_IRUSR | S_IWUSR | S_IXUSR));
+   COLORcheck_fileio(prval,"Failed to mkdir");
+   
+ CLEANUP:
+   
+   return rval;
+}
+
+
 
 /****************************************************************************/
 /*    RNG Based on DIMACS Code.                                             */
@@ -101,8 +123,7 @@ void COLORutil_sprand (int seed, COLORrandstate *r)
     }
     r->a = 0;
     r->b = 24;
-    for (i = 0; i < 165; i++)
-        last = COLORutil_lprand (r);
+    for (i = 0; i < 165; i++) COLORutil_lprand (r);
 }
 
 int COLORutil_lprand (COLORrandstate *r)
@@ -202,6 +223,8 @@ void COLORinit_set (COLORset *s)
     if (s) {
         s->members = (int *) NULL;
         s->count = 0;
+        s->age   = 0;
+        s->next  = (COLORset*) NULL;
     }
 }
 
@@ -218,10 +241,11 @@ void COLORfree_sets(COLORset** sets,int* nsets)
 {
    int i;
    if (*sets) {
-      for (i = 0; i < *nsets; i++) COLORfree_set (& (*sets)[i]);
-      free (*sets);
+      for (i = 0; i < *nsets; i++) {
+         COLORfree_set (& (*sets)[i]);
+      }
+      COLOR_FREE (*sets, COLORset);
    }
-   *sets  = (COLORset*) NULL;
    *nsets = 0;
 }
 
@@ -243,5 +267,55 @@ int COLORcopy_sets (COLORset **s,int *nsets,
 
  CLEANUP:
    return rval;
+}
+
+
+double COLORwall_time (void)
+{
+    return (double) time (0);
+}
+
+double COLORcpu_time (void)
+{
+    struct rusage ru;
+    double t;
+
+    getrusage (RUSAGE_SELF, &ru);
+
+    t = ((double) ru.ru_utime.tv_sec) +
+        ((double) ru.ru_utime.tv_usec) / 1000000.0;
+    return t;
+}
+
+
+int COLORprogram_header(int ac, char **av) {
+    int   rval     = 0;
+    time_t starttime;
+    char my_hostname[MAX_PNAME_LEN];
+    pid_t my_pid   = getpid();
+    int   i;
+
+    rval = gethostname (my_hostname, MAX_PNAME_LEN - 1);
+    COLORcheck_rval (rval, "gethostname failed");
+
+    printf("##############################################################\n");
+
+    printf("Running  :");
+    for (i = 0; i < ac; ++i) {printf(" %s", av[i]);}
+    printf ("\n");
+    
+    printf("Machine  : %s, pid: %lld\n",
+           my_hostname, (long long) my_pid);
+
+    (void) time(&starttime);
+
+    printf("Date     : %s", ctime(&starttime));
+
+    printf("Changeset: %s\n", color_verion_string);
+    fflush (stdout);
+    printf("##############################################################\n");
+
+ CLEANUP:
+    return rval;
 }
 

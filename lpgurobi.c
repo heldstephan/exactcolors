@@ -25,6 +25,8 @@
 struct COLORlp {
     GRBenv *env;
     GRBmodel *model;
+
+    double dbl_cutoff;
 };
 
 const double int_tolerance = 0.00001;
@@ -55,6 +57,11 @@ int COLORlp_init (COLORlp **p, const char *name)
     rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_OUTPUTFLAG, (COLORdbg_lvl() > 0) ? 1 : 0);
     COLORcheck_rval_grb (rval, "GRBsetintparam OUTPUTFLAG failed",(*p)->env);
 
+    /* Use primal simplex. */
+    rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_LPMETHOD, GRB_LPMETHOD_PRIMAL);
+    COLORcheck_rval_grb (rval, "GRBsetintparam LPMETHOD failed",(*p)->env);
+
+
     rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_THREADS , 1);
     COLORcheck_rval_grb (rval, "GRBsetintparam THREADS failed",(*p)->env);
 
@@ -83,7 +90,7 @@ int COLORlp_optimize (COLORlp *p)
 
     rval = GRBoptimize (p->model);
     COLORcheck_rval_grb (rval, "GRBoptimize failed",p->env);
-    
+
     rval = GRBgetintattr(p->model,GRB_INT_ATTR_STATUS,&status);
     COLORcheck_rval_grb (rval, "GRBgetintattr failed",p->env);
 
@@ -99,7 +106,7 @@ int COLORlp_optimize (COLORlp *p)
           COLORcheck_rval_grb (rval, "GRBcomputeIIS failed",p->env);
           rval = GRBwrite(p->model,"grbinfeas_debug.lp");
           COLORcheck_rval_grb (rval, "GRBwrite lp failed",p->env);
-          
+
           rval = 1;break;
        case GRB_INF_OR_UNBD:
           printf("GRB_INF_OR_UNBD ");
@@ -145,25 +152,25 @@ int COLORlp_change_objective(COLORlp *p, int start, int len, double* values)
    return rval;
 }
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
-       char sense, double rhs, char *name) 
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
+       char sense, double rhs, char *name)
 {
     int rval = 0;
     char isense;
 
     switch (sense) {
-    case COLORlp_EQUAL: 
+    case COLORlp_EQUAL:
         isense = GRB_EQUAL; break;
-    case COLORlp_LESS_EQUAL:    
+    case COLORlp_LESS_EQUAL:
         isense = GRB_LESS_EQUAL; break;
-    case COLORlp_GREATER_EQUAL:    
+    case COLORlp_GREATER_EQUAL:
         isense = GRB_GREATER_EQUAL; break;
-    default: 
+    default:
         fprintf (stderr, "unknown variable sense: %c\n", sense);
         rval = 1;  goto CLEANUP;
     }
 
-    rval = GRBaddconstr (p->model, nzcount, cind, cval, isense, rhs, name); 
+    rval = GRBaddconstr (p->model, nzcount, cind, cval, isense, rhs, name);
     COLORcheck_rval_grb (rval, "GRBaddconstr failed", p->env);
     rval = GRBupdatemodel (p->model);
     COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
@@ -173,26 +180,26 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval, 
-       double obj, double lb, double ub, char sense, char *name) 
+int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
+       double obj, double lb, double ub, char sense, char *name)
 {
     int rval = 0;
     char isense;
 
     switch (sense) {
-    case COLORlp_CONTINUOUS: 
+    case COLORlp_CONTINUOUS:
         isense = GRB_CONTINUOUS; break;
-    case COLORlp_BINARY:    
+    case COLORlp_BINARY:
         isense = GRB_BINARY; break;
-    case COLORlp_INTEGER:    
+    case COLORlp_INTEGER:
         isense = GRB_INTEGER; break;
-    default: 
+    default:
         fprintf (stderr, "unknown variable sense: %c\n", sense);
         rval = 1;  goto CLEANUP;
     }
 
     rval = GRBaddvar (p->model, nzcount, cind, cval, obj, lb, ub, isense,
-                      name); 
+                      name);
     COLORcheck_rval_grb (rval, "GRBaddvar failed", p->env);
     rval = GRBupdatemodel (p->model);
     COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
@@ -202,16 +209,28 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
    int rval = 0;
+   int* dellist = (int*) NULL;
+   int numdel  = last_cind - first_cind + 1;
+   int i;
 
-   rval = GRBdelvars(p->model,1,&cind);
+   dellist = COLOR_SAFE_MALLOC(numdel,int);
+   COLORcheck_NULL(dellist, "Failed to allocate dellist");
+
+   for (i = 0; i < numdel; ++i) {
+      dellist[i] = first_cind + i;
+   }
+
+   rval = GRBdelvars(p->model,numdel,dellist);
    COLORcheck_rval_grb (rval, "GRBdelvars failed", p->env);
    rval = GRBupdatemodel (p->model);
    COLORcheck_rval_grb (rval, "GRBupdatemodel failed", p->env);
+
  CLEANUP:
-   
+   if(dellist) {free (dellist);}
+
    return rval;
 }
 
@@ -223,7 +242,7 @@ int COLORlp_pi (COLORlp *p, double *pi)
     int solstat;
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_STATUS, &solstat);
-    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_STATUS failed", 
+    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_STATUS failed",
                          p->env);
     if (solstat == GRB_INFEASIBLE) {
         fprintf (stderr, "Problem is infeasible\n");
@@ -231,13 +250,16 @@ int COLORlp_pi (COLORlp *p, double *pi)
     }
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMCONSTRS, &nrows);
+    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_NUMCONSTRS failed",
+                         p->env);
+
     if (nrows == 0) {
         fprintf (stderr, "No rows in LP\n");
         rval = 1;  goto CLEANUP;
     }
 
     rval = GRBgetdblattrarray(p->model, GRB_DBL_ATTR_PI, 0, nrows, pi);
-    COLORcheck_rval_grb (rval, "GRBgetdblattrarray GRB_DBL_ATTR_PI failed", 
+    COLORcheck_rval_grb (rval, "GRBgetdblattrarray GRB_DBL_ATTR_PI failed",
                          p->env);
 
 CLEANUP:
@@ -251,7 +273,7 @@ int COLORlp_x (COLORlp *p, double *x)
     int solstat;
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_STATUS, &solstat);
-    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_STATUS failed", 
+    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_STATUS failed",
                          p->env);
     if (solstat == GRB_INFEASIBLE) {
         fprintf (stderr, "Problem is infeasible\n");
@@ -259,17 +281,53 @@ int COLORlp_x (COLORlp *p, double *x)
     }
 
     rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMVARS, &ncols);
+    COLORcheck_rval(rval,"Failed in GRBgetintattr");
+
     if (ncols == 0) {
         fprintf (stderr, "No columns in LP\n");
         rval = 1;  goto CLEANUP;
     }
 
     rval = GRBgetdblattrarray(p->model, GRB_DBL_ATTR_X, 0, ncols, x);
-    COLORcheck_rval_grb (rval, "GRBgetdblattrarray GRB_DBL_ATTR_X failed", 
+    COLORcheck_rval_grb (rval, "GRBgetdblattrarray GRB_DBL_ATTR_X failed",
                          p->env);
 
 CLEANUP:
     return rval;
+}
+
+int COLORlp_basis_cols (COLORlp *p, int *cstat)
+{
+   int rval = 0;
+   int ncols,i;
+
+   rval = GRBgetintattr(p->model, GRB_INT_ATTR_NUMVARS, &ncols);
+   COLORcheck_rval(rval,"Failed in GRBgetintattr");
+
+   rval = GRBgetintattrarray(p->model, GRB_INT_ATTR_VBASIS,0,ncols,cstat);
+   COLORcheck_rval(rval,"Failed in GRBgetintattrarray");
+
+   for (i = 0; i < ncols; ++i) {
+      switch (cstat[i]) {
+      case GRB_BASIC:
+         cstat[i] = COLORlp_BASIC;
+         break;
+      case GRB_NONBASIC_LOWER:
+         cstat[i] = COLORlp_LOWER;
+         break;
+      case GRB_NONBASIC_UPPER:
+         cstat[i] = COLORlp_UPPER;
+         break;
+      case GRB_SUPERBASIC:
+         cstat[i] = COLORlp_FREE;
+         break;
+      default:
+         rval = 1;
+         COLORcheck_rval(rval,"ERROR: Received unknown cstat");
+      }
+   }
+ CLEANUP:
+   return rval;
 }
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
@@ -278,13 +336,13 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense)
    char isense;
 
    switch (sense) {
-   case COLORlp_CONTINUOUS: 
+   case COLORlp_CONTINUOUS:
        isense = GRB_CONTINUOUS; break;
-   case COLORlp_BINARY:    
+   case COLORlp_BINARY:
        isense = GRB_BINARY; break;
-   case COLORlp_INTEGER:    
+   case COLORlp_INTEGER:
        isense = GRB_INTEGER; break;
-   default: 
+   default:
        fprintf (stderr, "unknown variable sense: %c\n", sense);
        rval = 1;  goto CLEANUP;
    }
@@ -292,7 +350,7 @@ int COLORlp_set_all_coltypes (COLORlp *p, char sense)
    rval= GRBgetintattr(p->model,GRB_INT_ATTR_NUMVARS,&nvars);
    COLORcheck_rval_grb (rval, "GRBgetintattr GRB_INT_ATTR_NUMVARS failed",
                         p->env);
-   
+
    for (i = 0; i < nvars; i++) {
       rval = GRBsetcharattrelement(p->model,GRB_CHAR_ATTR_VTYPE,i,isense);
       COLORcheck_rval_grb (rval, "GRBsetintattrelement GRB_CHAR_ATTR_VTYPE failed",
@@ -343,6 +401,59 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
    int rval = GRBsetdblparam (GRBgetenv(p->model), GRB_DBL_PAR_NODELIMIT, mip_node_limit);
    COLORcheck_rval_grb (rval, "GRBsetdblparam NODELIMIT failed",p->env);
  CLEANUP:
+   return rval;
+}
+
+
+
+static int intercept_grb_cb(GRBmodel *grb_model, void *cbdata, int where, void *usrdata)
+{
+   int rval = 0;
+
+   /* Avoid warning on unused parameter usrdata:*/
+
+   double dbl_cutoff = ((COLORlp*)usrdata)->dbl_cutoff;
+
+   if (where ==GRB_CB_MIPSOL) {
+      double objective, objbound;
+
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBST,(void*) &objective);
+      COLORcheck_rval (rval, "GRBcbget OBJBST failed");
+
+      rval = GRBcbget(cbdata,where,GRB_CB_MIPSOL_OBJBND,(void*) &objbound);
+      COLORcheck_rval (rval, "GRBcbget OBJBND failed");
+
+
+      if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
+         if(COLORdbg_lvl() > 0) {
+            printf("Terminating gurobi based on current objective value %f\n.",
+                   objective);
+         }
+         GRBterminate(grb_model);
+      }
+   }
+
+ CLEANUP:
+   return rval;
+}
+
+
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 0;
+
+   rval = GRBsetdblparam (GRBgetenv(p->model),GRB_DBL_PAR_CUTOFF, cutoff);
+   COLORcheck_rval(rval,"Failed in GRBsetdblparam GRB_DBL_PAR_CUTOFF");
+
+   if (cutoff > 0) {
+      p->dbl_cutoff = cutoff;
+
+      rval  = GRBsetcallbackfunc(p->model, intercept_grb_cb, (void*) p);
+      COLORcheck_rval (rval, "GRBsetcallbackfunc failed");
+   }
+
+CLEANUP:
    return rval;
 }
 
@@ -420,7 +531,7 @@ void COLORlp_printerrorcode (int c)
         break;
     case GRB_ERROR_IIS_NOT_INFEASIBLE:
         printf ("Attempted to perform infeasibility analysis on a\n");
-        printf ("feasible model\n"); 
+        printf ("feasible model\n");
         break;
     case GRB_ERROR_NOT_FOR_MIP:
         printf ("Requested operation not valid for a MIP model\n");

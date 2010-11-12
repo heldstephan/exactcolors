@@ -28,13 +28,24 @@
 struct COLORlp {
     CPXENVptr cplex_env;
     CPXLPptr  cplex_lp;
+    int       noptcalls;
+    int       ncols;
+    int       nintegers;
+     double   dbl_cutoff;
 };
 
 const double int_tolerance = 0.00001;
 
 int COLORlp_init (COLORlp **p, const char *name)
 {
-    int rval = 0;
+   int rval = 0;
+   int cpx_dbglvl = CPX_OFF;
+   if (COLORdbg_lvl() == 1) {
+      cpx_dbglvl = CPX_MIN;
+   }
+   if (COLORdbg_lvl() > 1) {
+      cpx_dbglvl = CPX_MAX;
+   }
 
     (*p) = COLOR_SAFE_MALLOC (1, COLORlp);
     if ((*p) == (COLORlp *) NULL) {
@@ -42,6 +53,10 @@ int COLORlp_init (COLORlp **p, const char *name)
         rval = 1; goto CLEANUP;
     }
 
+    (*p)->noptcalls = 0;
+    (*p)->ncols     = 0;
+    (*p)->nintegers = 0;
+    (*p)->dbl_cutoff = 0.0;
     (*p)->cplex_env = (CPXENVptr) NULL;
     (*p)->cplex_lp = (CPXLPptr) NULL;
 
@@ -50,6 +65,12 @@ int COLORlp_init (COLORlp **p, const char *name)
         fprintf (stderr, "CPXopenCPLEX failed, return code %d\n", rval);
         goto CLEANUP;
     }
+
+
+    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_SCRIND,
+                           cpx_dbglvl);
+    COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_SCRIND failed");
+
 
     rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_ADVIND, 1);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_ADVIND failed");
@@ -72,6 +93,10 @@ int COLORlp_init (COLORlp **p, const char *name)
 
     rval = CPXsetdblparam ((*p)->cplex_env, CPX_PARAM_EPRHS, 1.0E-9);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_EPRHS failed");
+
+    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_THREADS,1);
+    COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_THREADS failed");
+
 
 
     (*p)->cplex_lp = CPXcreateprob ((*p)->cplex_env, &rval, name);
@@ -97,36 +122,86 @@ void COLORlp_free (COLORlp **p)
     }
 }
 
+static
+int COLORmip_optimize (COLORlp *p)
+{
+   int rval   = 0;
+   int status = 0;
+   int solstat;
+
+   status = CPXmipopt (p->cplex_env, p->cplex_lp);
+   COLORcheck_rval (status, "CPXmipopt failed");
+
+   solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
+   if (solstat == CPX_STAT_INFEASIBLE) {
+      printf ("Infeasible MIP\n");
+      COLORlp_write (p, "joethelion.lp");
+      rval = 2;  goto CLEANUP;
+   } else if (solstat != CPXMIP_OPTIMAL       &&
+              solstat != CPXMIP_OPTIMAL_INFEAS  )
+   {
+      fprintf (stderr, "Cplex optimization status %d\n", solstat);
+      goto CLEANUP;
+   }
+
+CLEANUP:
+   return rval;
+}
 int COLORlp_optimize (COLORlp *p)
 {
     int rval = 0;
     int solstat;
 
-    rval = CPXdualopt (p->cplex_env, p->cplex_lp);
-    COLORcheck_rval (rval, "CPXdualopt failed");
+    if (p->nintegers) {
+       rval = COLORmip_optimize (p);
+       COLORcheck_rval (rval, "COLORmip_optimize failed");
+    } else {
 
-    solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
-    if (solstat == CPX_STAT_INFEASIBLE) {
-        printf ("Infeasible LP\n");
-        COLORlp_write (p, "joethelion.lp");
-        rval = 2;  goto CLEANUP;
-    } else if (solstat != CPX_STAT_OPTIMAL       &&
-               solstat != CPX_STAT_OPTIMAL_INFEAS  ) {
-        fprintf (stderr, "Cplex optimization status %d\n", solstat);
-        if (solstat == CPX_STAT_ABORT_IT_LIM) {
-            int itlim;
-            rval = CPXgetintparam (p->cplex_env, CPX_PARAM_ITLIM, &itlim);
-            if (!rval) {
+       /** When restarting coloring with a set of stable sets (-r <filename>).
+           The Simplex Method has a very long running time for solving the first LP.
+           On C4000.5 the dual simplex would take several hours.
+           In such situations we presolve the first LP with the Barrier Method.
+
+           The steepest edge norms are not initialized properly but only
+           to 1. Therefore, Barrier should not be used when there are
+           only a few rows.
+       */
+       if (p->noptcalls == 0) {
+          int ncols = CPXgetnumcols (p->cplex_env, p->cplex_lp);
+          int nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
+          if (ncols > 5 * nrows) {
+             rval = CPXbaropt (p->cplex_env, p->cplex_lp);
+             COLORcheck_rval (rval, "CPXbaropt failed");
+          }
+       }
+       rval = CPXdualopt (p->cplex_env, p->cplex_lp);
+       COLORcheck_rval (rval, "CPXdualopt failed");
+
+
+       solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
+       if (solstat == CPX_STAT_INFEASIBLE) {
+          printf ("Infeasible LP\n");
+          COLORlp_write (p, "joethelion.lp");
+          rval = 2;  goto CLEANUP;
+       } else if (solstat != CPX_STAT_OPTIMAL       &&
+                  solstat != CPX_STAT_OPTIMAL_INFEAS  ) {
+          fprintf (stderr, "Cplex optimization status %d\n", solstat);
+          if (solstat == CPX_STAT_ABORT_IT_LIM) {
+             int itlim;
+             rval = CPXgetintparam (p->cplex_env, CPX_PARAM_ITLIM, &itlim);
+             if (!rval) {
                 printf ("cplex iteration limit: %d\n", itlim);
                 fflush (stdout);
-            }
-        }
-        rval  = 1;  goto CLEANUP;
+             }
+          }
+          rval  = 1;  goto CLEANUP;
+       }
     }
+    (p->noptcalls)++;
 
-CLEANUP:
-    return rval;
-}
+    CLEANUP:
+       return rval;
+    }
 
 int COLORlp_objval (COLORlp *p, double *obj)
 {
@@ -158,8 +233,8 @@ CLEANUP:
    return rval;
 }
 
-int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval, 
-       char sense, double rhs, char *name) 
+int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
+       char sense, double rhs, char *name)
 {
     int rval = 0;
     char isense[1];
@@ -169,17 +244,17 @@ int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
 
 
     switch (sense) {
-    case COLORlp_EQUAL: 
+    case COLORlp_EQUAL:
         isense[0] = 'E'; break;
-    case COLORlp_LESS_EQUAL:    
+    case COLORlp_LESS_EQUAL:
         isense[0] = 'L'; break;
-    case COLORlp_GREATER_EQUAL:    
+    case COLORlp_GREATER_EQUAL:
         isense[0] = 'G'; break;
-    default: 
+    default:
         fprintf (stderr, "unknown variable sense: %c\n", sense);
         rval = 1;  goto CLEANUP;
     }
- 
+
     irhs[0] = rhs;
     iname[0] = name;
     matbeg[0] = 0;
@@ -198,13 +273,14 @@ CLEANUP:
     return rval;
 }
 
-int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval, 
-       double obj, double lb, double ub, char sense, char *name) 
+int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
+       double obj, double lb, double ub, char sense, char *name)
 {
     int rval = 0;
     int matbeg[1];
     double iobj[1], ilb[1], iub[1];
     char *iname[1];
+    int ncolind = p->ncols;
 
     if (sense < 0) {
         printf ("bad sense, but cplex does not use this anyway\n");
@@ -219,17 +295,31 @@ int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
 
     rval = CPXaddcols (p->cplex_env, p->cplex_lp, 1, nzcount, iobj, matbeg,
                        cind, cval, ilb, iub, (char **) NULL);
+    p->ncols++;
+    if (sense == COLORlp_BINARY) {
+       char cpx_binary = CPX_BINARY;
+       rval = CPXchgctype (p->cplex_env, p->cplex_lp, 1, &ncolind, &cpx_binary);
+       COLORcheck_rval (rval, "CPXchgctype failed");
+       p->nintegers++;
+    }
+    if (sense == COLORlp_INTEGER) {
+       char cpx_integer = CPX_INTEGER;
+       rval = CPXchgctype (p->cplex_env, p->cplex_lp, 1, &ncolind, &cpx_integer);
+       COLORcheck_rval (rval, "CPXchgctype failed");
+       p->nintegers++;
+    }
+
     COLORcheck_rval (rval, "CPXaddcols failed");
 
 CLEANUP:
     return rval;
 }
 
-int COLORlp_deletecol (COLORlp *p, int cind)
+int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
     int rval = 0;
 
-    rval = CPXdelcols (p->cplex_env, p->cplex_lp, cind, cind);
+    rval = CPXdelcols (p->cplex_env, p->cplex_lp, first_cind, last_cind);
     COLORcheck_rval (rval, "CPXdelcols failed");
 
 CLEANUP:
@@ -244,7 +334,7 @@ int COLORlp_pi (COLORlp *p, double *pi)
 
     nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
     rval = CPXgetpi (p->cplex_env, p->cplex_lp, pi, 0, nrows - 1);
-    COLORcheck_rval (rval, "CPXgetpi failed"); 
+    COLORcheck_rval (rval, "CPXgetpi failed");
 
 CLEANUP:
     return rval;
@@ -261,6 +351,18 @@ int COLORlp_x (COLORlp *p, double *x)
 
 CLEANUP:
     return rval;
+}
+
+int COLORlp_basis_cols (COLORlp *p, int *cstat)
+{
+   int rval = 0;
+   int* rstat = (int*) NULL;
+
+   rval =  CPXgetbase(p->cplex_env, p->cplex_lp, cstat, rstat);
+   COLORcheck_rval (rval, "CPXgetbase failed");
+
+ CLEANUP:
+   return rval;
 }
 
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
@@ -322,6 +424,81 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
     }
     return rval;
 }
+
+
+
+static int intercept_cplex_incumbent_cb(CPXCENVptr cpx_env, void *cbdata,
+                                        int where, void *cbhandle)
+{
+   int rval = 0;
+
+   /* Avoid warning on unused parameter usrdata:*/
+   double dbl_cutoff = ((COLORlp*)cbhandle)->dbl_cutoff;
+
+   if (where ==CPX_CALLBACK_MIP) {
+      double objective, objbound;
+      int    feas_exists;
+      rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_MIP_FEAS,
+                                (void*) &feas_exists);
+      COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_MIP_FEAS failed");
+
+      if (feas_exists) {
+
+         rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_BEST_INTEGER,
+                                   (void*) &objective);
+         COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_BEST_INTEGER failed");
+
+         rval = CPXgetcallbackinfo(cpx_env, cbdata, where,CPX_CALLBACK_INFO_BEST_REMAINING,
+                                   (void*) &objbound);
+         COLORcheck_rval (rval, "CPXgetcallbackinfo CPX_CALLBACK_INFO_BEST_REMAINING failed");
+
+         if (objective < objbound && objective > dbl_cutoff + COLORlp_int_tolerance()) {
+            if(COLORdbg_lvl() > 0) {
+               printf("Terminating gurobi based on current objective value %f\n.",
+                      objective);
+            }
+            rval = 99;
+            goto CLEANUP;
+         }
+      }
+   }
+ CLEANUP:
+      return rval;
+}
+
+
+int COLORlp_set_cutoff (COLORlp *p, double cutoff)
+{
+   int rval = 0;
+   int objsens = -1;
+
+   COLORcheck_NULL(p, "COLORlp_set_cutoff called with NULL lp.");
+
+
+   rval = COLORlp_objective_sense (p, objsens);
+   COLORcheck_rval (rval, "COLORlp_objective_sense CPX_PARAM_EPPER failed");
+
+   if (objsens == COLORlp_MAX) {
+      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTLO, cutoff);
+      COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
+   }
+
+   if (objsens == COLORlp_MIN) {
+      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTUP, cutoff);
+      COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
+   }
+
+   if (cutoff > 0) {
+      p->dbl_cutoff = cutoff;
+      rval = CPXsetmipcallbackfunc(p->cplex_env,intercept_cplex_incumbent_cb,
+                                   (void*) p);
+      COLORcheck_rval (rval, "CPXsetmipcallbackfunc  failed");
+   }
+
+CLEANUP:
+   return rval;
+}
+
 
 int COLORlp_write (COLORlp *p, const char *fname)
 {
