@@ -1442,6 +1442,9 @@ static int call_lp_solver (COLORlp *lp, double *objval, double *x)
 {
    int rval = 0;
 
+   /* rval =  COLORlp_write (lp, "mwis.lp"); */
+   /* COLORcheck_rval (rval, "COLORlp_write failed"); */
+
    rval = COLORlp_optimize (lp);
    COLORcheck_rval (rval, "COLORlp_optimize failed");
 
