@@ -58,10 +58,14 @@ int COLORlp_init (COLORlp **p, const char *name)
     COLORcheck_rval_grb (rval, "GRBsetintparam OUTPUTFLAG failed",(*p)->env);
 
     /* Use primal simplex. */
+#if GRB_VERSION_MAJOR<=3
     rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_LPMETHOD, GRB_LPMETHOD_PRIMAL);
     COLORcheck_rval_grb (rval, "GRBsetintparam LPMETHOD failed",(*p)->env);
-
-
+#endif
+#if GRB_VERSION_MAJOR>=4
+    rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_METHOD, GRB_METHOD_PRIMAL);
+    COLORcheck_rval_grb (rval, "GRBsetintparam LPMETHOD failed",(*p)->env);
+#endif 
     rval = GRBsetintparam ((*p)->env, GRB_INT_PAR_THREADS , 1);
     COLORcheck_rval_grb (rval, "GRBsetintparam THREADS failed",(*p)->env);
 
