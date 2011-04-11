@@ -23,6 +23,7 @@
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#include <time.h>
 
 #ifndef COMPILE_FOR_VALGRIND
 #include <fenv.h>
@@ -2580,8 +2581,14 @@ static int trigger_lb_changes(colordata* child,COLORproblem* problem)
       }
       if (new_lower_bound > cd->lower_bound) {
          if (! cd->parent) {/* i.e. cd == root_cd */
-            printf("Lower bound increased from %d to %d.\n",
-                   cd->lower_bound,new_lower_bound);
+            time_t current_time;
+            char   current_timestr[40] = "";
+            (void) time(&current_time);
+
+            strftime(current_timestr,39,"%c",localtime(&current_time));
+
+            printf("Lower bound increased from %d to %d (%s). \n",
+                   cd->lower_bound,new_lower_bound,current_timestr);
          }
          cd->lower_bound = new_lower_bound;
          rval = backup_colordata(cd,problem);
