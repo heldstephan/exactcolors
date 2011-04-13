@@ -38,9 +38,9 @@ endif
 ifneq ($(CPLEXPATH),)
 PROCESSOR := $(shell uname -p)
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
-LPLIB=$(CPLEXPATH)/lib/Linux64/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/x86-64_sles10_4.1/static_pic/libcplex.a
 ifeq ($(PROCESSOR), i686)
-LPLIB=$(CPLEXPATH)/lib/Linux32/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/x86_sles10_4.1/static_pic/libcplex.a
 endif
 LPSOURCE=lpcplex.o
 GRBMWIS=
