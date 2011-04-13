@@ -1,0 +1,63 @@
+In order to compile exactcolors you need an LP-solver. Either one of
+- Gurobi 3.0.0,
+- CPLEX  12.2, or
+- Qsopt
+will work.
+
+1. Preparing the Makefile for the LP-Solver
+
+ For Gurobi, the GUPATH variable in the Makefile has to point to
+ to the os-dependent subdir in your Gurobi-installation. E.g.
+ you set
+ export GUROBI_HOME=<path-to-gurobi-installation>/gurobi300/linux64/ ,
+uncomment the line
+  GUPATH=$(GUROBI_HOME)
+ in the Makefile and  comment out the lines were CPLEXPATH and QSPATH.
+
+ For CPLEX, the CPLEXPATH variable needs to point to the cplex installation.
+ E.g. you can set
+ export CPLEX_HOME=<path-to-cplex-installation>/cplex/cplex122/cplex/
+ and uncomment the line
+ CPLEXPATH=$(CPLEX_HOME)
+ in the Makefile and comment out the lines were GUPATH and QSPATH are defined.
+ Depending on your installation you might also need to adapt the
+ LPLIB path in the Makefile.
+
+ For QSOPT, QSPATH variable in the Makefile need to point to the qsopt installation.
+ E.g. you can set  QSOPT_PATH=<path-to-qsopt-headers-and-lib>/
+ and uncomment the line
+  QSPATH=$(QSOPT_HOME)
+ in the Makefile and comment out the lines were GUPATH and QSPATH are defined.
+
+2. Compiling
+
+ For compiling you simply call
+
+   make
+
+ This will build the programs:
+  -  'color', the main B&P program for graph coloring
+  -  'stable',  can be used to cal Gurobi or Cplex as an MWSS-sovler.
+  -  'mwis_sewell/sewell' (Algorithm 1 in "Held, Cook, and Sewell:yes
+        Safe Lower Bounds for Graph Coloring. IPCO2011"),
+        an adaption of Sewells combinatorial stable set algorithm.
+  - 'complement' to construct the complement of a graph
+  - 'partition' to find dense subgraphs with a given number of vertices.
+Special commands for the parallel B&P framework:
+  -  'color_worker' a worker for solving a B&P-node.
+      When color is called with the '-p' option, it will solve only the root LP
+      and then act as a boss for the parallel B&P code. To this end it
+      will maintain a job queue. Workers (color_worker) will ask for jobs and
+      submit results.
+      The program color_worker can be started on any machine that as network access
+      to the machine were the boss  'color' runs by
+           'color_worker <hostname of boss-machine>'
+     ATTENTION: The boss listens to the port 24870 as specified in bbsafe.h!
+                Make sure that this port is available on the machine you use for the boss
+                and that you start at most one boss on a host!
+  -  'color_jobkiller', can be used to notify the master program that the branch-and-bound
+     node with the given Id should be resubmitted to the job-queue, because the
+     worker died.
+
+3. Help
+   For all programs if you just call the program without parameters you will get a help.
