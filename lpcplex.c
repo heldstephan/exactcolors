@@ -40,11 +40,8 @@ int COLORlp_init (COLORlp **p, const char *name)
 {
    int rval = 0;
    int cpx_dbglvl = CPX_OFF;
-   if (COLORdbg_lvl() == 1) {
-      cpx_dbglvl = CPX_MIN;
-   }
    if (COLORdbg_lvl() > 1) {
-      cpx_dbglvl = CPX_MAX;
+      cpx_dbglvl = CPX_MIN;
    }
 
     (*p) = COLOR_SAFE_MALLOC (1, COLORlp);

@@ -963,7 +963,10 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
    for (i = 0; i < cd->ncount; ++i) {colored[i] = 0;}
 
    rval = COLORlp_set_all_coltypes(cd->lp, COLORlp_BINARY);
-   COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
+   COLORcheck_rval (rval,
+                    "COLORlp_set_all_coltypes "
+                    "(this warning can be ignored if you are using "
+                    "CPLEX or QSopt as an LP-solver)");
 
    /* COLORlp_write (cd->lp, "lpheur.lp"); */
 
@@ -2508,7 +2511,8 @@ int compute_lower_bound(colordata* cd,COLORproblem* problem)
          rval = COLORstable_wrapper(&(cd->mwis_env),&(cd->newsets), &(cd->nnewsets),
                                     cd->ncount, cd->ecount,
                                     cd->elist, cd->mwis_pi,cd->mwis_pi_scalef,
-                                    problem->parms.upper_bounds_only,force_rounding);
+                                    problem->parms.upper_bounds_only,force_rounding,
+                                    problem->parms.rounding_strategy);
 
          COLORcheck_rval (rval, "COLORstable_wrapper failed");
 

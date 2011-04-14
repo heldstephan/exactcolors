@@ -25,6 +25,7 @@
 
 #include "graph.h"
 
+#include "color_parms.h"
 #include "color.h"
 
 #include "mwis_sewell/mwss_ext.h"
@@ -314,7 +315,8 @@ int COLORstable_wrapper(MWISenv** env,
                         int ecount, const int elist[], COLORNWT nweights[],
                         COLORNWT cutoff,
                         int      greedy_only,
-                        int      force_rounding)
+                        int      force_rounding,
+                        int      rounding_strategy)
 {
    int rval = 0;
    double rtime;
@@ -382,10 +384,16 @@ int COLORstable_wrapper(MWISenv** env,
 	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
       }
 
-/*       rval = COLORstable_round_down_weights_uniformly(nweights,ncount,cutoff); */
-      rval = COLORstable_round_down_weights((*env)->ls_env,
-                                            nweights,cutoff);
-      COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights");
+      if (rounding_strategy == COLOR_neighbor_rounding) {
+         rval = COLORstable_round_down_weights((*env)->ls_env,
+                                               nweights,cutoff);
+         COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights");
+      } else if (rounding_strategy == COLOR_uniform_rounding) {
+         rval = COLORstable_round_down_weights_uniformly(nweights,ncount,cutoff);
+         COLORcheck_rval(rval,"Failed in COLORstable_round_down_weights_uniformly");
+      }
+
+
 
       if( (*env)->write_mwis) {
          char filename [256];
@@ -768,4 +776,3 @@ int COLORstable_write_stable_sets(const COLORset* sets, int nsets,
    if (ofile) fclose(ofile);
    return rval;
 }
-
