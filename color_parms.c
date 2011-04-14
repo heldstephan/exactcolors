@@ -135,3 +135,14 @@ int COLORparms_set_branching_strategy(COLORparms* parms, int strategy)
       return 1;
    }
 }
+
+int COLORparms_set_rounding_strategy(COLORparms* parms, int strategy)
+{
+   if (strategy >=COLOR_min_rounding_strategy && strategy < COLOR_max_rounding_strategy) {
+      parms->rounding_strategy = strategy;
+      return 0;
+   } else {
+      printf("ERROR: Unknown rounding strategy %d.\n", strategy);
+      return 1;
+   }
+}

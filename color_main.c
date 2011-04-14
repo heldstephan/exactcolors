@@ -40,11 +40,12 @@ static void usage (char *f)
     fprintf (stderr, "   -w f   write stable sets to file f\n");
     fprintf (stderr, "   -c f   read initial coloring from file f\n");
     fprintf (stderr, "   -p     start boss of parallel coloring\n");
-    fprintf (stderr, "   -u int initial upper bound f\n");
-    fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns. f\n");
+    fprintf (stderr, "   -u int initial upper bound\n");
+    fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns.\n");
     fprintf (stderr, "   -s int Branching strategy: 0 = none, 1 = minimum lower bound (default),"
-             " 2 = DFS, 3 = hybrid (2 followed by 1). f\n");
-    fprintf (stderr, "   -l dbl cpu time limit for branching. f\n");
+             " 2 = DFS, 3 = hybrid (2 followed by 1).\n");
+    fprintf (stderr, "   -R int rounding style: 0 = neighbor (default), 1 = uniform, 2 = none\n");
+    fprintf (stderr, "   -l dbl cpu time limit for branching.\n");
 
 }
 
@@ -55,7 +56,7 @@ static int parseargs (int ac, char **av, COLORparms* parms)
     int rval = 0;
     int debug = COLORdbg_lvl();
 
-    while ((c = getopt (ac, av, "admpo:r:w:c:u:b:l:s:")) != EOF) {
+    while ((c = getopt (ac, av, "admpo:r:w:c:u:b:l:s:R:")) != EOF) {
         switch (c) {
         case 'd':
            /* each -d increases the verbosity by one.*/
@@ -104,6 +105,10 @@ static int parseargs (int ac, char **av, COLORparms* parms)
 	case 's':
            rval = COLORparms_set_branching_strategy(parms,atoi(optarg));
            COLORcheck_rval(rval,"Failed in COLORparms_set_branching_strategy");
+	   break;
+	case 'R':
+           rval = COLORparms_set_rounding_strategy(parms,atoi(optarg));
+           COLORcheck_rval(rval,"Failed in COLORparms_set_rounding_strategy");
 	   break;
         default:
            usage (av[0]);
@@ -205,7 +210,7 @@ int main (int ac, char **av)
 
     COLORset*  debugcolors = (COLORset*) NULL;
     int        ndebugcolors = 0;
-    
+
     rval = COLORprogram_header (ac,av);
     COLORcheck_rval(rval, "Failed in COLORprogram_header");
 
@@ -219,6 +224,18 @@ int main (int ac, char **av)
     cd->upper_bound = parms->initial_upper_bound;
     get_problem_name(cd->pname,parms->edgefile);
 
+    printf ("Rounding strategy: ");
+     switch (parms->rounding_strategy) {
+     case COLOR_neighbor_rounding:
+        printf("neighbor\n");
+        break;
+     case COLOR_uniform_rounding:
+        printf("uniform\n");
+        break;
+     case COLOR_no_rounding:
+        printf("none\n");
+        break;
+     }
 
     if (COLORdbg_lvl() > 1) printf ("Debugging turned on\n");
     fflush (stdout);
