@@ -27,12 +27,22 @@ enum COLORBranchingStrategy {
    COLOR_max_strategy    = 4
 };
 
+enum COLORRoundingStrategy {
+   COLOR_min_rounding_strategy  = 0,
+   COLOR_neighbor_rounding    = COLOR_min_strategy,
+
+   COLOR_uniform_rounding = 1,
+   COLOR_no_rounding      = 2,
+   COLOR_max_rounding_strategy     = 3
+};
+
 typedef struct COLORparms {
    int      write_mwis;
    int      initial_upper_bound;
    int      parallel_branching;
    int      branch_with_same_sequence;
    int      branching_strategy;
+   int      rounding_strategy;
 
    int      delete_elists;
    int      delete_cclasses;
@@ -69,6 +79,7 @@ int COLORparms_set_write_mwis(COLORparms* parms,int write_mwis);
 int COLORparms_set_parallel(COLORparms* parms,int parallel);
 int COLORparms_set_branching_cpu_limit(COLORparms* parms, double branching_cpu_limit);
 int COLORparms_set_branching_strategy(COLORparms* parms, int strategy);
+int COLORparms_set_rounding_strategy(COLORparms* parms, int strategy);
 
 
 #endif
