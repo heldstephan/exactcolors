@@ -35,6 +35,9 @@ uncomment the line
 
    make
 
+ For parallel compiling via 'make -j' you may have to call 'make -j' twice, because
+ some c-files are generated during compilation and may not be ready on time.
+
  This will build the programs:
   -  'color', the main B&P program for graph coloring
   -  'stable',  can be used to cal Gurobi or Cplex as an MWSS-sovler.
