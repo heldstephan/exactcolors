@@ -523,3 +523,53 @@ int  COLORgraph_print(int ecount, const int elist[])
    }
    return 0;
 }
+
+int  COLORcheck_connectedness(const COLORadjgraph* G)
+{
+   int rval = 0;
+   int i;
+   int* reached = (int*) NULL;
+   int* node_stack = (int*) NULL;
+   int num_reached = 1; // 0 is always reached
+   int stack_last  = 0; // 0 is inserted in the beginning
+   reached = COLOR_SAFE_MALLOC (G->ncount, int);
+   COLORcheck_NULL(reached,"Failed to allocate reached");
+   node_stack = COLOR_SAFE_MALLOC (G->ncount, int);
+   COLORcheck_NULL(node_stack,"Failed to allocate node_stack");
+
+   reached[0] = 1;
+   node_stack[0] = 0;
+   for (i = 1; i < G->ncount; i++) {
+      reached[i] = 0;
+      node_stack[i] = -1;
+   }
+   while (stack_last > -1) {
+      int v = node_stack[stack_last--];
+      int j;
+      for (j = 0; j < G->nodelist[v].degree; ++j) { 
+	 int w = G->nodelist[v].adj[j];
+	 
+	 if (! reached[w]) {
+	    reached[w]               = 1;
+	    node_stack[++stack_last] = w;
+	    num_reached ++;
+	 }
+      }
+   }
+
+   if (num_reached < G->ncount) {
+      printf("c Graph is not connected: reached %d out of %d",
+	     num_reached, G->ncount);
+   } else {
+      printf("c Graph is connected: reached %d out of %d edges.\n",
+	     num_reached, G->ncount);
+   }
+   
+ CLEANUP:
+
+   if (reached) free(reached);
+   if (node_stack) free(node_stack);
+
+   return rval;
+   
+}

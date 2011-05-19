@@ -99,6 +99,9 @@ int main (int ac, char **av)
     rval = COLORadjgraph_build(&G,ncount,ecount, elist);
     COLORcheck_rval (rval, "COLORadjgraph_build failed");
 
+    rval =  COLORcheck_connectedness(&G);
+    COLORcheck_rval (rval, "COLORcheck_connectedness failed");
+    
     rval = COLORadjgraph_build_complement(&Gc,&G);
     COLORcheck_rval (rval, "COLORadjgraph_build_complement failed");
     
