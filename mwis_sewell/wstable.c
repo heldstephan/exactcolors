@@ -229,6 +229,8 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    rval = greedy_wstable(graph, list, n_list, data->best_sol, &data->n_best,&greedy_weight);
    MWIScheck_rval(rval,"Failed in greedy_stable");
    if(greedy_weight > data->best_z) {
+      printf("Greedy algorithm found  best_z %d.\n",
+	     greedy_weight);	     
       data->best_z = greedy_weight;
    }
 
@@ -2087,6 +2089,7 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
          char* data = (char *) NULL;
          if (haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
+	    rval = 1;
             goto CLEANUP;
          }
          haveprob = 1;
@@ -2095,6 +2098,7 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
          data = strtok(NULL,delim); /* get type */
          if ( strcmp(data,"edge") && strcmp(data,"edges") && strcmp(data,"col") && strcmp(data,"graph") ) {
             fprintf (stderr, "ERROR in Dimacs file -- not an edge file\n");
+	    rval = 1;
             goto CLEANUP;
          }
          data = strtok(NULL,delim);
@@ -2143,22 +2147,31 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
       } else if (p[0] == 'e') {
          if (!haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
+	    rval = 1;
             goto CLEANUP;
          }
          if (icount >= graph->n_edges) {
             fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
+	    rval = 1;
             goto CLEANUP;
          }
          p++;
          sscanf (p, "%d %d", &v, &w);
          graph->node_list[v].degree++;
          graph->node_list[w].degree++;
+	 if (graph->adj[v][w] || graph->adj[w][v]) {
+	    fprintf (stderr, "ERROR: The edge %d -> %d was specified at least twice."
+		     "This program tolerates only simple graphs without parallel edges as input.\n",
+		     v, w);
+	    rval = 1;
+	 }
          graph->adj[v][w] = 1;
          graph->adj[w][v] = 1;
          icount++;
       } else if (p[0] == 'n') {
          if (!haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
+	    rval = 1;
             goto CLEANUP;
          }
          p++;
