@@ -62,7 +62,8 @@ int main(int ac, char **av)
          rval = rgrphgen(&graph, n, density, &seed);
          MWIScheck_rval(rval,"Failed in rgrphgen");
       } else {
-         read_dimacs(&graph, prob_file);
+         rval = read_dimacs(&graph, prob_file);
+         MWIScheck_rval(rval,"Failed in read_dimacs");
       }
       if(parms.prn_info > 0) prn_graph(&graph);
 
