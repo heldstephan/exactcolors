@@ -1916,7 +1916,9 @@ static int grab_integral_solution(colordata* cd,
    if (cd->nbestcolors < cd->upper_bound) {
       cd->upper_bound = cd->nbestcolors;
    }
-   cd->status = finished;
+   if ( cd->upper_bound == cd->lower_bound) {
+      cd->status = finished;
+   }
  CLEANUP:
    if (colored) free(colored);
 
