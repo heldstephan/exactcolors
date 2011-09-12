@@ -77,6 +77,9 @@ int main(int ac, char **av)
       rval = call_max_wstable(&graph, &data, &parms, &info, goal, lower_bound);
       MWIScheck_rval(rval,"Failed in call_max_wstable");
 
+      if (rval == 0) {
+         printf("Found best stable set of weight %d.\n",data.best_z);
+      }
    }
 
  CLEANUP:

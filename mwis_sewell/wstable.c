@@ -232,7 +232,12 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       printf("Greedy algorithm found  best_z %d.\n",
 	     greedy_weight);	     
       data->best_z = greedy_weight;
+      if(parameters->prn_info) {
+	printf("Greedy best_z = %d\n", data->best_z);
+      }
    }
+
+
 
    info->n_subproblems = 0;
    info->n_calls++;
