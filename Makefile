@@ -81,6 +81,7 @@ export CFLAGS
 
 OBJFILES=color.o color_backup.o color_parms.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o
 STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
+STABGRDYFILES=stable_grdy.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o mwis.o mwis_grdy.o  heap.o $(SEWELL_LIB)
 BOSSFILES=graph.o bbsafe.o util.o
 CBOSSFILES=color_version.h color_main.o $(OBJFILES)
 CWORKERFILES=color_worker.o $(OBJFILES)
@@ -88,7 +89,7 @@ CKILLERFILES=color_jobkiller.o $(OBJFILES)
 PARTFILES=partition.o  $(OBJFILES)
 COMPFILES=complement.o  $(OBJFILES)
 
-all: color color_worker color_jobkiller stable queen test_boss test_worker test_tell partition complement
+all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement
 
 color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
 	$(LD) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
@@ -104,6 +105,9 @@ $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
 
 stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
+
+stable_grdy: $(STABGRDYFILES)
+	$(CC) $(CFLAGS) -o stable_gdry $(STABGRDYFILES) $(LPLIB) -lm -lpthread
 
 partition: $(SEWELL_LIB) $(PARTFILES)
 	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)

@@ -79,6 +79,7 @@ int main(int ac, char **av)
 
       if (rval == 0) {
          printf("Found best stable set of weight %d.\n",data.best_z);
+         fflush(stdout);
       }
    }
 
