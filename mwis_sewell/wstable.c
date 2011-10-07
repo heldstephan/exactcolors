@@ -230,10 +230,11 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    MWIScheck_rval(rval,"Failed in greedy_stable");
    if(greedy_weight > data->best_z) {
       printf("Greedy algorithm found  best_z %d.\n",
-	     greedy_weight);	     
+	     greedy_weight);
       data->best_z = greedy_weight;
       if(parameters->prn_info) {
 	printf("Greedy best_z = %d\n", data->best_z);
+        fflush(stdout);
       }
    }
 
