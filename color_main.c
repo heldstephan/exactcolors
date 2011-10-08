@@ -38,7 +38,7 @@ static void usage (char *f)
     fprintf (stderr, "   -m     write final stable set and clique instances\n");
     fprintf (stderr, "   -r f   read initial stable sets from file f\n");
     fprintf (stderr, "   -w f   write stable sets to file f\n");
-    fprintf (stderr, "   -c f   read initial coloring from file f\n");
+    fprintf (stderr, "   -c f   read initial coloring from file to track optimum path in the B&B-tree f\n");
     fprintf (stderr, "   -p     start boss of parallel coloring\n");
     fprintf (stderr, "   -u int initial upper bound\n");
     fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns.\n");
@@ -273,9 +273,26 @@ int main (int ac, char **av)
 
 
        if (parms->cclasses_infile != (char*) NULL) {
+	 printf ("Reading initial stable set cover from %s.\n", 
+		 parms->cclasses_infile);
           rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
                                               cd->ncount,parms->cclasses_infile,cd->pname);
           COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
+
+          rval = COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
+                                cd->cclasses,cd->ccount);
+          COLORcheck_rval(rval,"Failed in COLORcopy_sets");
+
+          rval = COLORtransform_into_coloring(cd->ncount, &(cd->nbestcolors), &(cd->bestcolors));
+          COLORcheck_rval(rval,"Failed in COLORtransform_into_coloring");
+
+          rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
+                                     cd->ncount, cd->ecount, cd->elist);
+          COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
+
+	  printf ("Extracted an initial coloring from stable set cover in %s to obtain an upper bound of %d.\n", 
+		  parms->cclasses_infile, cd->nbestcolors);
+          
        } else {
           if (0) {
              rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
@@ -292,13 +309,7 @@ int main (int ac, char **av)
           COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
                          cd->cclasses,cd->ccount);
           COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
-                              cd->ncount, cd->ccount, cd->elist);
-
-/*           rval = COLORtransform_into_maximal (cd->ncount, cd->ecount, cd->elist,  cd->ccount, */
-/*                                               cd->cclasses); */
-/*           COLORcheck_rval (rval, "Failed in COLORtransform_into_maximal"); */
-
-          cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
+                              cd->ncount, cd->ecount, cd->elist);
        }
 
        if (parms->color_infile != (char*) NULL) {
@@ -313,6 +324,7 @@ int main (int ac, char **av)
           cd->opt_track = 1;
        }
 
+       cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
        colorproblem.global_upper_bound = cd->upper_bound;
        cd->gallocated = cd->ccount;
     }

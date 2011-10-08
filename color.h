@@ -41,10 +41,19 @@ typedef struct COLORrandstate {
 void COLORproblem_init(COLORproblem* problem);
 void COLORproblem_free(COLORproblem* problem);
 
+/* find a greedy coloring.*/
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
                  COLORset **colorclasses);
+/* find a greedy coloring using the DSATUR algorithm.*/
 int COLORdsatur(int ncount, int ecount, int *elist, int *ncolors,
                 COLORset **colorclasses);
+
+/* transform colorclasses (a covering of the vertices by stable sets)
+   into a coloring (a partition of the vertices into stable sets from colorclasses).
+*/
+int COLORtransform_into_coloring(int ncount, int *ncolors,
+                                COLORset **colorclasses);
+
 int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors,
                                  COLORset *cclasses);
 
@@ -55,12 +64,12 @@ int COLORclique_enum (COLORset** newsets, int *nnewsets, int ncount,
    Run Ostergards cliquer algorithms to find a stable set of size >= cutoff
    withing timelimit cpu seconds.
    Parameters:
-   
+
    newsets:  array of found stable sets (usually one)
    nnewsets: # of stable sets in newsets
    ncount:   #vertices
    ecount:   #edges
-   elist:    array of edges (array of size 2*edges)), 
+   elist:    array of edges (array of size 2*edges)),
    weights:  node weights
    cutoff:   the algorithm may stop once a stable set of this weight was found
    pval:     weight of the best found solution
@@ -84,7 +93,7 @@ int  COLORcopy_sets (COLORset **dsts,int* nsets,
 void COLORunique_sets (COLORset **s,int* nsets);
 int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
 
-/** Test whether (set,ncount) defines a feasible coloring for (ncount,elist,ecount).*/ 
+/** Test whether (set,ncount) defines a feasible coloring for (ncount,elist,ecount).*/
 int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, const int elist[]);
 
 void COLORutil_sprand (int seed, COLORrandstate *r);
