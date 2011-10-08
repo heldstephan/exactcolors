@@ -3240,6 +3240,15 @@ int compute_coloring(COLORproblem* problem)
           "upper bound: %f, branching real: %f, branching cpu: %f).\n",
           init_lb_rtime + colheur_rtime + branching_rtime,
           init_lb_rtime,colheur_rtime,branching_rtime,branching_cputime);
+
+   if (problem->parms.outfile != (char*) NULL && root_cd->nbestcolors) {
+     printf("Writing coloring to file %s.\n", problem->parms.outfile);
+     rval = COLORstable_write_stable_sets(root_cd->bestcolors,root_cd->nbestcolors,
+					  root_cd->ncount,
+					  problem->parms.outfile,root_cd->pname);
+     COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
+   }
+
  CLEANUP:
    COLOR_IFFREE(br_heap, COLORNWTHeap);
 

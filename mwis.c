@@ -758,7 +758,7 @@ int COLORstable_write_stable_sets(const COLORset* sets, int nsets,
    fprintf(ofile,"c Stable sets from exactcolors on instance %s:\n",problem_name);
    fprintf(ofile,"c Syntax:\n");
    fprintf(ofile,"c \t p <problem name> <node count>\n");
-   fprintf(ofile,"c \t s <list of intergers ( = nodes of a stable set)>\n");
+   fprintf(ofile,"c \t s <list of integers ( = nodes of a stable set)>\n");
 
    fprintf(ofile,"p %s %d\n",problem_name,ncount);
    for(i = 0; i < nsets; ++i) {

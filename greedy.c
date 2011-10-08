@@ -24,7 +24,7 @@
 
 
 static void color_node (COLORadjgraph *G, int n);
-static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node, 
+static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node,
                                             int freedegree[], int satdegree[], int tmp_colors[]);
 
 
@@ -90,7 +90,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         COLORinit_set (&csets[i]);
     }
     for (i = 0; i < ncount; i++) {
-        csets[G.nodelist[i].color].count++;
+       csets[G.nodelist[i].color].count++;
     }
     for (i = 0; i < k; i++) {
         csets[i].members = (int *) malloc (csets[i].count * sizeof (int));
@@ -173,7 +173,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
       for (j = 0; j < (*colorclasses)[i].count; ++j) {
          int v = (*colorclasses)[i].members[j];
          color_node (&G, v);
-         update_satdegree_for_neighbors (&G, v, 
+         update_satdegree_for_neighbors (&G, v,
                                          freedegree, satdegree, tmpcolors);
       }
    }
@@ -201,7 +201,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
       }
       if (maxsatdegree_node > -1) {
          color_node (&G, maxsatdegree_node);
-         update_satdegree_for_neighbors (&G, maxsatdegree_node, 
+         update_satdegree_for_neighbors (&G, maxsatdegree_node,
                                          freedegree, satdegree, tmpcolors);
       }
    }
@@ -260,7 +260,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
    return rval;
 }
 
-static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node, 
+static void update_satdegree_for_neighbors (COLORadjgraph *G, int colored_node,
                                             int freedegree[], int satdegree[], int tmpcolors[])
 {
    int j;
@@ -308,11 +308,11 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
    int *color_incidence= (int *) NULL;
    COLORadjgraph G;
    int i,c;
-   
+
 
    rval = COLORadjgraph_build (&G, ncount, ecount, elist);
    COLORcheck_rval(rval, "Failed in COLORadjgraph_build.");
- 
+
    color_incidence = COLOR_SAFE_MALLOC(ncount,int);
    COLORcheck_NULL(color_incidence,"Failed to allocate color_incidence.");
 
@@ -338,7 +338,7 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
             new_count++;
          }
       }
-      
+
       if (new_count > cclasses[c].count) {
          COLOR_FREE(cclasses[c].members,int);
          cclasses[c].members = COLOR_SAFE_MALLOC(new_count,int);
@@ -354,5 +354,77 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
       }
    }
  CLEANUP:
+   return rval;
+}
+
+
+int COLORtransform_into_coloring(int ncount, int *ncolors,
+                                 COLORset **colorclasses)
+{
+   int rval = 0;
+   int* node_color   = (int*) NULL;
+
+   int nnewcolors = 0;
+   COLORset* newcolors = (COLORset*) NULL;
+   int i,c;
+
+   node_color = COLOR_SAFE_MALLOC(ncount,int);
+   COLORcheck_NULL(node_color, "Failed to allocate node_color");
+
+
+   for (i = 0; i< ncount; ++i) {
+      node_color[i]   = -1;
+   }
+   for (c = 0; c < *ncolors; ++c) {
+      int nc = 0;
+      for (i = 0; i < (*colorclasses)[c].count; ++i) {
+         if (node_color[ (*colorclasses)[c].members[i]] == -1) {
+            node_color[(*colorclasses)[c].members[i]] = nnewcolors;
+            nc++;
+         } else {
+            // current node is already covered.
+         }
+      }
+      if (nc) {
+         nnewcolors++;
+      }
+   }
+
+   COLORfree_sets (colorclasses, ncolors);
+
+   newcolors = COLOR_SAFE_MALLOC(nnewcolors, COLORset);
+   COLORcheck_NULL(newcolors, "Failed to allocate newcolors");
+
+   for (i = 0; i < nnewcolors; i++) {
+      COLORinit_set (newcolors + i);
+   }
+   for (i = 0; i < ncount; i++) {
+      newcolors[node_color[i]].count++;
+   }
+
+   for (c = 0; c < nnewcolors; c++) {
+      newcolors[c].members = COLOR_SAFE_MALLOC(newcolors[c].count,int);
+      COLORcheck_NULL(newcolors[c].members,"Failed to allocate newcolors[c].members.");
+
+      newcolors[c].count = 0;
+   }
+
+   for (i = 0; i < ncount; i++) {
+      int c = node_color[i];
+      newcolors[c].members[newcolors[c].count] = i;
+      newcolors[c].count++;
+   }
+
+   *colorclasses = newcolors;
+   *ncolors      = nnewcolors;
+   newcolors  = (COLORset*) NULL;
+   nnewcolors = 0;
+
+
+CLEANUP:
+
+   COLORfree_sets (&newcolors, &nnewcolors);
+   COLOR_IFFREE(node_color, int);
+
    return rval;
 }
