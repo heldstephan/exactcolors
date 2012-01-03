@@ -23,14 +23,16 @@
 #include <string.h>
 #include <fenv.h>
 
+#include "color_defs.h"
 #include "color.h"
 #include "lp.h"
 #include "graph.h"
 #include "mwis.h"
+#include "mwis_sewell/mwss_ext.h"
 
 static char *graphfile = (char *) NULL;
 static int debug = 0;
-
+static double cpu_limit  = 0.0;
 static int parseargs (int ac, char **av);
 static int get_problem_name(char* pname,const char* efname);
 static void usage (char *f);
@@ -41,10 +43,13 @@ static int parseargs (int ac, char **av)
     int c;
     int rval = 0;
 
-    while ((c = getopt (ac, av, "d")) != EOF) {
+    while ((c = getopt (ac, av, "dc:")) != EOF) {
        switch (c) {
        case 'd':
           debug = 1;
+          break;
+       case 'c':
+          cpu_limit = atof(optarg);
           break;
        default:
           usage (av[0]);
@@ -97,13 +102,13 @@ CLEANUP:
 static void usage (char *f)
 {
     fprintf (stderr, "Usage %s: [-see below-] graph_file\n", f);
-    fprintf (stderr, "   -d    turn on debugging\n");
+    fprintf (stderr, "   -d       turn on debugging\n");
+    fprintf (stderr, "   -c <double> number of seconds spend in B&B, negative values impose no limit\n");
 }
 
 int COLORdbg_lvl() {
    return debug;
 }
-
 
 int main (int ac, char **av)
 {
@@ -118,6 +123,7 @@ int main (int ac, char **av)
     COLORNWT cutoff = 0;
     double szeit;
     int set_i, i;
+    COLORNWT total_weight = 0;
     rval = parseargs (ac, av);
     if (rval) goto CLEANUP;
 
@@ -132,9 +138,10 @@ int main (int ac, char **av)
     rval = COLORstable_LS(&ls_env, &newsets, &nnewsets,
                           ncount, ecount, elist,
                           nweights, cutoff);
+    COLORcheck_rval(rval,"COLORstable_LS failed.");
 
     for (set_i = 0; set_i < nnewsets; ++set_i) {
-       COLORNWT total_weight = 0;
+       total_weight = 0;
        for (i = 0; i < newsets[set_i].count; ++i) {
           int v = newsets[set_i].members[i];
           total_weight += nweights[v];
@@ -143,6 +150,41 @@ int main (int ac, char **av)
               set_i + 1, total_weight);
     }
 
+    printf("cpu_limit = %f\n", cpu_limit);
+    if (cpu_limit > 0) {
+       int*      bnb_newset  = (int*) NULL;
+       int       bnb_nnewset = 0;
+       COLORNWT  goal = COLORNWT_MAX;
+
+       rval =  SEWELL_heur ( &bnb_newset, &bnb_nnewset,
+                             ncount,ecount,
+                             elist,  nweights,
+                             total_weight,
+                             goal,cpu_limit);
+
+       if (rval == 0) {
+          printf("B-&-B found maximum-weight stable set!\n");
+       }
+
+       if (rval == SEWELL_TIMEOUT) {
+          printf("B-&-B reached cpu timeout!\n");
+          rval = 0;
+       }
+
+       COLORcheck_rval(rval,"COLORstable_LS failed.");
+
+
+       COLORNWT sewell_total_weight = 0;
+          for (i = 0; i < bnb_nnewset; ++i) {
+             int v = bnb_newset[i];
+             sewell_total_weight += nweights[v];
+          }
+          if (sewell_total_weight > total_weight) {
+             printf("Sewell:\n");
+             printf("Found stable set number %d with weight %d.\n",
+                    set_i + 1, sewell_total_weight);
+          }
+    }
     printf ("Running Time: %.2lf seconds\n", COLORutil_zeit () - szeit);
     fflush (stdout);
 

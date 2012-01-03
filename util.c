@@ -29,19 +29,17 @@
 #include "color.h"
 #include "color_version.h"
 
-extern int gethostname (char *, int);
-
 void *COLORutil_allocrus (size_t size)
 {
     void *mem = (void *) NULL;
 
     if (size == 0) {
         fprintf (stderr, "Warning: 0 bytes allocated\n");
-    }
-
-    mem = (void *) malloc (size);
-    if (mem == (void *) NULL) {
-        fprintf (stderr, "Out of memory. Asked for %d bytes\n", (int) size);
+    } else {
+       mem = (void *) malloc (size);
+       if (mem == (void *) NULL) {
+          fprintf (stderr, "Out of memory. Asked for %d bytes\n", (int) size);
+       }
     }
     return mem;
 }
@@ -81,9 +79,9 @@ int COLORdir_create(const char* dirname)
 
    prval = mkdir(dirname,(S_IRUSR | S_IWUSR | S_IXUSR));
    COLORcheck_fileio(prval,"Failed to mkdir");
-   
+
  CLEANUP:
-   
+
    return rval;
 }
 
@@ -218,7 +216,7 @@ void COLORutil_perm_quicksort (int *perm, int *len, int n)
     COLORutil_perm_quicksort (perm + i, len, n - i);
 }
 
-void COLORinit_set (COLORset *s) 
+void COLORinit_set (COLORset *s)
 {
     if (s) {
         s->members = (int *) NULL;
@@ -228,7 +226,7 @@ void COLORinit_set (COLORset *s)
     }
 }
 
-void COLORfree_set (COLORset *s) 
+void COLORfree_set (COLORset *s)
 {
     if (s && s->members) {
         free (s->members);
@@ -303,7 +301,7 @@ int COLORprogram_header(int ac, char **av) {
     printf("Running  :");
     for (i = 0; i < ac; ++i) {printf(" %s", av[i]);}
     printf ("\n");
-    
+
     printf("Machine  : %s, pid: %lld\n",
            my_hostname, (long long) my_pid);
 
@@ -318,4 +316,3 @@ int COLORprogram_header(int ac, char **av) {
  CLEANUP:
     return rval;
 }
-

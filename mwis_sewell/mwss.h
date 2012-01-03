@@ -89,8 +89,8 @@ typedef struct wstable_info {
    long long int n_subproblems;             // # of subproblems in branch & bound tree
    int*     n_sub_depth;               // # of subproblems at given depth
    int      n_calls;                   // # of times max_wstable is called
-   clock_t  start_time;                // starting cpu time
-   clock_t  end_time;                  // ending cpu time
+   double   start_time;                // starting cpu time
+   double   end_time;                  // ending cpu time
    double   cpu;                       // cpu used during search process
    double   clique_cover_cpu;          // cpu used to create clique covers
 

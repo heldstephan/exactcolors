@@ -35,6 +35,7 @@ Previous History
 
 #include <limits.h>
 #include <float.h>
+#include <sys/resource.h>
 
 #include "mwss_ext.h"
 
@@ -60,6 +61,16 @@ void reset_pointers(MWSSgraphpnt graph,
    info->n_sub_depth = (int*) NULL;
 }
 
+static
+double MWSSzeit (void)
+{
+   struct rusage ru;
+
+   getrusage (RUSAGE_SELF, &ru);
+
+   return ((double) ru.ru_utime.tv_sec) +
+      ((double) ru.ru_utime.tv_usec) / 1000000.0;
+}
 
 //_________________________________________________________________________________________________
 
@@ -93,7 +104,7 @@ void default_parameters(wstable_parameterspnt parms)
 {
    parms->clique_cover =   1; /* 1 = maximal cliques, 2 = maximum cliques*/
    parms->reorder      =   1;
-   parms->cpu_limit    = 300;
+   parms->cpu_limit    =   -1.0;
    parms->prn_info     =   0;
 }
 //_________________________________________________________________________________________________
@@ -189,10 +200,16 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    int      adj_last_offset, i, depth, n_active, n_out, v;
    double   cpu;
    MWISNW   greedy_weight, sum_weight;
-   outnode  *out;
+   outnode  *out = (outnode*) NULL;
    osterdata   oster_data;
 
    reset_osterdata_pointers(&oster_data);
+
+   if (graph->n_nodes < 1) {
+      printf("Graph is empty, exiting!\n");
+      rval = 1;
+      goto CLEANUP;
+   }
 
    if(parameters->clique_cover == 2) {
       rval = allocate_osterdata(&oster_data, graph->n_nodes);
@@ -243,10 +260,10 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    info->n_subproblems = 0;
    info->n_calls++;
    for(i = 0; i <= graph->n_nodes; i++) info->n_sub_depth[i] = 0;
-   info->start_time = clock();
+   info->start_time = MWSSzeit();
 
    adj_last_offset = 0;
-
+   assert(graph->n_nodes > 0);
    MWIS_MALLOC(out, graph->n_nodes, outnode);
    MWIScheck_NULL(out,"Failed to allocate out");
 
@@ -261,7 +278,7 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       for(i = 1; i <= data->n_best; i++) best_stable[i] = data->best_sol[i];
       *status = 1;
       //printf("best_z = %8.3f  greedy = %8.3f\n", best_z, greedy_weight);
-      cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
+      cpu = (double) (MWSSzeit() - info->start_time);
       if(parameters->prn_info) {
          printf("%3d %5d %10d %12lld %10.0f %10.0f\n",
                 graph->n_nodes, graph->n_edges, data->best_z,
@@ -269,8 +286,9 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       }
    }
 
+   info->cpu = (double) (MWSSzeit() - info->start_time);
 
-   info->cpu += (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
+
 
    //printf("\nn = %d  m = %d  alpha = %d  n_sub = %d\n",
    //        n_nodes,n_edges, alpha, n_subproblems);
@@ -285,9 +303,8 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
       for (i = 1; i <= data->n_best; i++)  printf("%5d %8d\n", i, info->n_sub_depth[i]);
    }
 
-   free(out);
-
  CLEANUP:
+   free(out);
    free_osterdata(&oster_data);
    return rval;
 }
@@ -371,6 +388,13 @@ int wstable(MWSSgraphpnt graph, MWSSdatapnt data, osterdatapnt oster_data, int a
    info->n_subproblems++;
    info->n_sub_depth[depth]++;
 
+   if (parameters->cpu_limit >= 0 &&
+       info->n_subproblems % 100000) {
+      double    cpu = (double) (MWSSzeit() - info->start_time);
+      if (cpu > parameters->cpu_limit) {
+         goto CLEANUP;
+      }
+   }
    // Check if a larger stable set has been found.
 
    if (cur_z > data->best_z) {
@@ -549,7 +573,7 @@ void stable_sub_problem(MWSSdatapnt data, int adj_last_offset, int *branch, node
 //_________________________________________________________________________________________________
 
 void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt *active, nodepnt *active2, int adj_last_offset, nodepnt *branch_nodes,
-              int n_active, int *n_active2, MWISNW available_weight, int *n_branch_nodes, wstable_infopnt info, wstable_parameterspnt parameters)
+              int n_active, int *n_active2, MWISNW available_weight, int *n_branch_nodes, wstable_infopnt info , wstable_parameterspnt parameters)
 /*
    1. This routine finds a weighted clique cover for the nodes in active.
    2. The weight of the cliques in the cover is <= available_weight.
@@ -574,9 +598,9 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
    int      i, n_act2;
    MWISNW   min_weight;
    nodepnt  min_node, pntv;
-   clock_t  start_time;
+   double  start_time = -1.0;
 
-   start_time = clock();
+   /* start_time = MWSSzeit(); */
 
    graph->active_flag++;
    for(i = 1; i <= n_active; i++) {
@@ -632,7 +656,7 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
       }
     }
 
-   // Copy nodes into active2 and branch_nodes.
+   /* Copy nodes into active2 and branch_nodes. */
 
    n_act2 = 0;
    *n_branch_nodes = 0;
@@ -646,7 +670,9 @@ void weighted_clique_cover(MWSSgraphpnt graph, osterdatapnt oster_data, nodepnt 
    }
    *n_active2 = n_act2;
 
-   info->clique_cover_cpu += (double) (clock() - start_time) / CLOCKS_PER_SEC;
+   if (start_time >= 0.0) {
+      info->clique_cover_cpu += (double) (MWSSzeit() - start_time);
+   }
 }
 
 //_________________________________________________________________________________________________
@@ -1796,7 +1822,7 @@ void prn_stable(nodepnt *active, MWISNW best_z, MWISNW cur_z, nodepnt *branch_no
       ratio = (sum_w - sum_uncovered) / (best_z - cur_z);
       ratio2 = sum_w / (best_z - cur_z);
    }
-   cpu = (double) (clock() - info->start_time) / CLOCKS_PER_SEC;
+   cpu = (double) (MWSSzeit() - info->start_time);
    if(prn_level > 1) {
       printf("depth = %3d n_sub = %10lld  cpu = %10.0f cur_z = %10d best_z = %10d  sum_w = %10d n_active = %3d sum_covered = %10d n_branch_nodes = %3d  ratio = %5.2f  ratio2 = %5.2f\n",
               depth, info->n_subproblems, cpu, cur_z, best_z, sum_w, n_active, sum_w - sum_uncovered, n_branch_nodes, ratio, ratio2);

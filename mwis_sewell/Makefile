@@ -32,4 +32,3 @@ libsewell.a: wstable.c  mwss_ext.c mwss.h mwss_ext.h
 	$(CC) $(CFLAGS) -c mwss_ext.c -o mwss_ext.o
 	$(CC) $(CFLAGS) -c wstable.c -o wstable.o
 	$(AR) rcs libsewell.a wstable.o mwss_ext.o
-

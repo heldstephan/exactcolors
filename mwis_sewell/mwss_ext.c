@@ -20,7 +20,6 @@
 
 static const int MAX_NODES=10000;
 
-
 static int check_ncount(int ncount)
 {
    int rval = 0;
@@ -71,7 +70,7 @@ static int SEWELL_init_graph(MWSSgraphpnt graph,
    MWIScheck_rval(rval,"Failed in build_graph");
 
 
- CLEANUP:   
+ CLEANUP:
    return rval;
 }
 
@@ -82,6 +81,19 @@ int SEWELL_optimize(int ** newset,
                     NWT nweights[],
                     NWT lower_bound,
                     NWT goal)
+{
+   double cpu_limit = -1.0;
+   return SEWELL_heur (newset,nnewset,ncount,ecount,elist,
+                       nweights,lower_bound,goal,cpu_limit);
+}
+extern
+int SEWELL_heur(int ** newset,
+                                  int   *nnewset,
+                                  int ncount, int ecount, const int elist[],
+                                  NWT nweights[],
+                                  NWT lower_bound,
+                                  NWT goal,
+                                  double cpu_limit)
 {
    int rval = 0;
    wstable_info   info;
@@ -95,6 +107,8 @@ int SEWELL_optimize(int ** newset,
    if(check_ncount(ncount)) {goto CLEANUP;}
 
    default_parameters(&parms);
+   parms.cpu_limit = cpu_limit;
+
    if (density < 0.2) {
       parms.clique_cover = 2;
    }
@@ -107,7 +121,7 @@ int SEWELL_optimize(int ** newset,
 
    rval = initialize_max_wstable(&graph,&info);
    MWIScheck_rval(rval, "Failed in initialize_max_wstable");
-   
+
    rval = call_max_wstable(&graph,&data,&parms,&info, goal,lower_bound);
    MWIScheck_rval(rval, "Failed in call_max_wstable");
 
@@ -123,6 +137,14 @@ int SEWELL_optimize(int ** newset,
    for (i = 1; i <= data.n_best; ++i) {
       (*newset)[i - 1] = data.best_sol[i]->name - 1;
    }
+
+   if (parms.cpu_limit >= 0 && info.cpu > parms.cpu_limit) {
+      printf("cpu_limit of %f seconds exceeded: %f seconds. Solution may not optimum.\n", parms.cpu_limit,info.cpu);
+      rval = SEWELL_TIMEOUT;
+      goto CLEANUP;
+   }
+
+
 
  CLEANUP:
    free_max_wstable(&graph,&data, &info);

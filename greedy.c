@@ -410,7 +410,7 @@ int COLORtransform_into_coloring(int ncount, int *ncolors,
    }
 
    for (i = 0; i < ncount; i++) {
-      int c = node_color[i];
+      c = node_color[i];
       newcolors[c].members[newcolors[c].count] = i;
       newcolors[c].count++;
    }

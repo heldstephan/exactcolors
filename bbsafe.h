@@ -31,7 +31,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-extern int gethostname (char *, int);
 
 #define COLOR_SBUFFER_SIZE (4000)
 #define COLOR_SFNAME_SIZE (32)
