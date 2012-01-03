@@ -19,17 +19,19 @@
 
 typedef int NWT; /* node weight type */
 
+/* return value i fa timeout occured: */
+#define SEWELL_TIMEOUT 10
 
 /** Compute the maximum-weight stable set for a simple graph.
     @remark: it is required that the input graph is simple, i.e. does not contain parallel edges!
-    @param newset: when succeeding newset will point to the array 
+    @param newset: when succeeding newset will point to the array
                    of vertices of an maximum-weight stable set.
-    @param nnewset: when succeeding nnewset will point to the 
-                    number of vertices in the found maximum-weight 
+    @param nnewset: when succeeding nnewset will point to the
+                    number of vertices in the found maximum-weight
                     stable set.
     @param ncount: number of vertices in the input graph.
     @param ecount: number of edges in the input graph.
-    @param elist:  list of edges, given as vertex-pairs, of the input graph. 
+    @param elist:  list of edges, given as vertex-pairs, of the input graph.
                    This means that elist contains 2*ecount vertex-entries and
                     edge number i connects the vertices elist[2i] and elist[2i+1].
     @param nweights: weights of the vertices.
@@ -39,14 +41,30 @@ typedef int NWT; /* node weight type */
     @param goal: If a stable set of weight @c goal or greater is found the algorithm stops.
                  This parameter should be set to MWISNW_MAX if the maximum-weight stable
                  set should be found.
+    @return      0 iff function completed successfully,
+                 SEWELL_TIMEOUT if a timeout occured.
 */
-                  
+
 extern
 int SEWELL_optimize(int** newset,
                     int*  nnewset,
                     int   ncount, int ecount, const int elist[], NWT nweights[],
                     NWT   lower_bound,
                     NWT   goal);
+
+/** Same as SEWELL_optimize, but with the ability to limit the running time, thus
+    serving as a heuristic only.
+
+    @param cpu_limit limit for the number of cpu seconds spend in branch & bound.
+                     A negative value meand "no limit".
+*/
+extern
+int SEWELL_heur(int** newset,
+                int*  nnewset,
+                int   ncount, int ecount, const int elist[], NWT nweights[],
+                NWT   lower_bound,
+                NWT   goal,
+                double cpu_limit);
 
 extern
 int SEWELL_node_limit(void);

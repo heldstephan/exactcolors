@@ -28,7 +28,7 @@ static int node_id(int i, int j, int m)
 static void print_node_edges(int i, int j, int n, int m)
 {
    int k, l;
-   
+
    int v = node_id(i,j,m);
 
    /* go north-east */
@@ -36,7 +36,7 @@ static void print_node_edges(int i, int j, int n, int m)
       int w = node_id(i - k, j + k, m);
       printf("e %d %d\n", v, w);
    }
-   
+
 
    /* go east */
    for(l = j + 1; l <= m; ++l) {
@@ -93,20 +93,16 @@ int main(int argc, char** args)
       dcount += i * (i-1) * 2;
    }
    dcount +=  (maxdim - mindim + 1) * mindim * (mindim - 1);   /* diagonal edges */
-   
+
 
    ecount = dcount + pcount;
 /*    printf("%d = %d + %d\n",ecount, pcount,dcount); */
-      
+
    printf("p edges %d %d\n",ncount, ecount);
 
    for (i = 1; i <= n; ++i) {
       for (j = 1; j <= m; ++j) {
          print_node_edges(i,j,n,m);
       }
-   }
-   
-   if (argc > 1) {
-      n = atoi(args[1]);
    }
 }

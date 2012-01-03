@@ -189,9 +189,10 @@ CLEANUP:
 static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
 {
     int rval = 0;
-    stablecut *clist = (stablecut *) NULL;
+
     COLORset *gcset = (COLORset *) NULL;
-    int gwt = 0, setcount = 0, bestweight = 0;
+    int gwt = 0, bestweight = 0;
+
     COLORadjgraph G;
     pool P;
     prob *root = (prob *) NULL;
@@ -215,18 +216,22 @@ static int optimal_stable_set (int ncount, int ecount, int *elist, int *weights)
     rval = add_edges_to_lp (lp, ecount, elist);
     COLORcheck_rval (rval, "add_edges_to_lp");
 
+    /* { */
+    /*    stablecut *clist = (stablecut *) NULL; */
+    /*    int setcount = 0; */
 
-/*     rval = cover_edge_cliques (&G, ecount, elist, &clist, &setcount); */
-/*     COLORcheck_rval (rval, "cover_edge_cliques"); */
+    /*    rval = cover_edge_cliques (&G, ecount, elist, &clist, &setcount); */
+    /*    COLORcheck_rval (rval, "cover_edge_cliques"); */
 
-/*     rval = build_cut_pool (&P, setcount, G.ncount); */
-/*     COLORcheck_rval (rval, "build_cut_pool failed"); */
+    /*    rval = build_cut_pool (&P, setcount, G.ncount); */
+    /*    COLORcheck_rval (rval, "build_cut_pool failed"); */
 
-/*     rval = build_stable_prob (root, setcount, G.ncount); */
-/*     COLORcheck_rval (rval, "build_stable_prob failed"); */
+    /*    rval = build_stable_prob (root, setcount, G.ncount); */
+    /*    COLORcheck_rval (rval, "build_stable_prob failed"); */
 
-/*     rval = add_cuts (lp, &P, root, &clist); */
-/*     COLORcheck_rval (rval, "add_cuts failed"); */
+    /*    rval = add_cuts (lp, &P, root, &clist); */
+    /*    COLORcheck_rval (rval, "add_cuts failed"); */
+    /* } */
 
     x = COLOR_SAFE_MALLOC (ncount, double);
     COLORcheck_NULL (x, "out of memory for x");
@@ -654,7 +659,7 @@ static void free_stable_prob (prob *p)
     }
 }
 
-static int build_stable_prob (prob *p, int setcount, int ncount)
+COLOR_MAYBE_UNUSED static int build_stable_prob (prob *p, int setcount, int ncount)
 {
     int rval = 0;
 
@@ -684,7 +689,7 @@ CLEANUP:
     return rval;
 }
 
-static int build_cut_pool (pool *P, int setcount, int ncount)
+COLOR_MAYBE_UNUSED static int build_cut_pool (pool *P, int setcount, int ncount)
 {
     int i, rval = 0;
 
@@ -709,7 +714,7 @@ static void free_cut_pool (pool *P)
     COLOR_IFFREE (P->cuts, stablecut);
 }
 
-static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
+COLOR_MAYBE_UNUSED  static int cover_edge_cliques (COLORadjgraph *G, int ecount, int *elist,
         stablecut **pclist, int *setcount)
 {
     int rval = 0;

@@ -50,6 +50,7 @@ endif
 
 export CC=gcc
 export LD=gcc
+
 #CFLAGS+= -g
 CFLAGS+= -O3
 
@@ -74,7 +75,7 @@ SEWELL_DIR=mwis_sewell
 SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
 SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
 
-CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
+CFLAGS += -std=c99 -D_XOPEN_SOURCE=500 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
 export CFLAGS
 
 
@@ -90,6 +91,10 @@ PARTFILES=partition.o  $(OBJFILES)
 COMPFILES=complement.o  $(OBJFILES)
 
 all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement
+
+clang: *.[hc] mwis_sewell/*.[hc]
+	export CC=ccc-analyzer
+	scan-build -v -o clang make -j
 
 color: $(SEWELL_LIB) $(CBOSSFILES) color_worker
 	$(LD) $(CFLAGS) -o color $(CBOSSFILES) $(LPLIB) -lm -lpthread $(SEWELL_LDFLAG)
@@ -107,7 +112,7 @@ stable: $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread
 
 stable_grdy: $(STABGRDYFILES)
-	$(CC) $(CFLAGS) -o stable_gdry $(STABGRDYFILES) $(LPLIB) -lm -lpthread
+	$(CC) $(CFLAGS) -o stable_grdy $(STABGRDYFILES) $(LPLIB) -lm -lpthread
 
 partition: $(SEWELL_LIB) $(PARTFILES)
 	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(LPLIB) -lm -lpthread  $(SEWELL_LIB)
@@ -132,6 +137,7 @@ tags:
 	etags *.[hc]
 clean:
 	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h color_worker color_jobkiller queen complement
+	rm -rf clang
 	cd $(SEWELL_DIR) && $(MAKE) clean
 
 color_version.h: *.[hc]
