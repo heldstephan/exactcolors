@@ -148,6 +148,7 @@ static int mwis_init_model(MWISgrb_env** env,
 
       (*env)->dbl_nweights = (double *) COLOR_SAFE_MALLOC (ncount,double);
       COLORcheck_NULL((*env)->dbl_nweights, "out of memory for (*env)->dbl_nweights");
+      for (i = 0; i < ncount; i++) { (*env)->dbl_nweights[i] = 0.0; }
 
       (*env)->x_opt = (double *) COLOR_SAFE_MALLOC (ncount,double);
       COLORcheck_NULL((*env)->x_opt, "out of memory for (*env)->x_opt");
@@ -341,7 +342,7 @@ static int mwis_optimize_model(MWISgrb_env** env,
          fprintf (stderr, "out of memory for newset.members\n");
          rval = 1;  goto CLEANUP;
       }
-         
+
       if (COLORdbg_lvl() > 0) {
          printf("NEW SET ");
          for (i = 0, j = 0; i < ncount;++i) {
