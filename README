@@ -1,6 +1,6 @@
 In order to compile exactcolors you need an LP-solver. Either one of
-- Gurobi 3.0.0,
-- CPLEX  12.2, or
+- Gurobi [34].*.*
+- CPLEX  12.[23] , or
 - Qsopt
 will work.
 
@@ -9,14 +9,14 @@ will work.
  For Gurobi, the GUPATH variable in the Makefile has to point to
  to the os-dependent subdir in your Gurobi-installation. E.g.
  you set
- export GUROBI_HOME=<path-to-gurobi-installation>/gurobi300/linux64/ ,
+ export GUROBI_HOME=<path-to-gurobi-installation>/gurobi461/linux64/ ,
 uncomment the line
   GUPATH=$(GUROBI_HOME)
  in the Makefile and  comment out the lines were CPLEXPATH and QSPATH.
 
  For CPLEX, the CPLEXPATH variable needs to point to the cplex installation.
  E.g. you can set
- export CPLEX_HOME=<path-to-cplex-installation>/cplex/cplex122/cplex/
+ export CPLEX_HOME=<path-to-cplex-installation>/cplex/cplex123/cplex/
  and uncomment the line
  CPLEXPATH=$(CPLEX_HOME)
  in the Makefile and comment out the lines were GUPATH and QSPATH are defined.
