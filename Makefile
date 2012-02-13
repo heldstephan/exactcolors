@@ -136,7 +136,7 @@ test_tell: test_tell.o $(BOSSFILES)
 tags:
 	etags *.[hc]
 clean:
-	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h color_worker color_jobkiller queen complement
+	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h color_worker color_jobkiller queen complement stable_grdy
 	rm -rf clang
 	cd $(SEWELL_DIR) && $(MAKE) clean
 
