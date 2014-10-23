@@ -18,7 +18,7 @@
 # Please set the environment path and uncomment the lines correspondingly.
 # You might also need to adopt the  LPINCLUDE & LPLIB  paths further below.
 GUPATH=$(GUROBI_HOME)
-#CPLEXPATH=$(CPLEX_HOME)
+CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 ifneq ($(QSPATH),)
@@ -38,9 +38,9 @@ endif
 ifneq ($(CPLEXPATH),)
 PROCESSOR := $(shell uname -p)
 LPINCLUDE=$(CPLEXPATH)/include/ilcplex
-LPLIB=$(CPLEXPATH)/lib/x86-64_sles10_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/x86-64_linux/static_pic/libcplex.a
 ifeq ($(PROCESSOR), i686)
-LPLIB=$(CPLEXPATH)/lib/x86_sles10_4.1/static_pic/libcplex.a
+LPLIB=$(CPLEXPATH)/lib/x86_linux/static_pic/libcplex.a
 endif
 LPSOURCE=lpcplex.o
 GRBMWIS=
