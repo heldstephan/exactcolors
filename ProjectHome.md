@@ -1,0 +1,1 @@
+An implementation of the Mehrotra-Trick column-generation approach for graph coloring.  A focus is on the computation of optimal colorings, using safe LP bounds to avoid difficulties with inaccurate LP results.

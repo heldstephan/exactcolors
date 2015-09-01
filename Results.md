@@ -1,0 +1,1 @@
+[Stephan Held, William Cook, and Edward C. Sewell. 2011. Safe lower bounds for graph coloring. In Proceedings of the 15th international conference on Integer programming and combinatoral optimization (IPCO'11), Oktay Günlük and Gerhard J. Woeginger (Eds.). Springer-Verlag, Berlin, Heidelberg, 261-273. ](http://dl.acm.org/citation.cfm?id=2018179)
