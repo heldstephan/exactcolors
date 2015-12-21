@@ -30,6 +30,22 @@ int COLORstable_initenv(MWISenv** env, const char* pname,
 
 /* Fill newsets with independent sets of node weight larger than
    cutoff, or leave it empty, if no such independent set exists.
+
+   @param env: the stable set environment that needs to be initialized with COLORstable_initenv beforehand.
+   @param newsets: The collection of stable sets with weight > cutoff computed by the algorithm.
+   @param nnewsets: The number of stable sets in the collection 
+   @param ncount: number of vertices of the input graph
+   @param ecount: number of edges of the input graph
+   @param nweights: vertex weights of the input graph
+   @param cutoff: cutoff value for stable set weights. Only stable sets of weight > cutoff computed if exist.
+                  Stable sets with weight below the cutoff are irrelevant. E.g. in the context of column generation
+                  for graph coloring the cutoff is 1.0, because only such sets can improve the LP relaxation.
+   @param greedy_only: Run only fast greedy functions without guaranteeing to actually find a set of weight > cutoff.
+   @param force_rounding: round down all weights as much as possible without lowering the estimated lower bound,
+                   to make it more likely that the result will be below the cutoff.
+   @param rounding_strategy: Chose rounding strategy to be applied. The strategy is used to round down weights
+                 after one solution has been found to force detecting structurally different solutions while the
+                 algorithm continues. In particular the found solution is forced to have weight <=1.0 after rounding.                        		  
 */
 int COLORstable_wrapper(MWISenv** env,
                         COLORset** newsets, int* nnewsets,
