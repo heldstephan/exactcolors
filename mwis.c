@@ -600,12 +600,13 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
                           int            ncount)
 {
    int    i;
-   int current_rounding = fegetround();
+   int dummy_val;
+   int current_rounding = COLOR_get_rounding(&dummy_val);
 
-   fesetround(FE_DOWNWARD);
+   COLOR_set_round_down(&dummy_val);
    double div_multiplier = (double) divider;
 
-   fesetround(FE_UPWARD);
+   COLOR_set_round_up(&dummy_val);
    div_multiplier = 1 / div_multiplier;
 
    assert(divider > 0);
@@ -614,7 +615,7 @@ int COLOR_COLORNWT2double(double         dbl_nweights[],
       dbl_nweights[i] = ((double) nweights[i]) * div_multiplier + DBL_EPSILON;
    }
 
-   fesetround(current_rounding);
+   COLOR_set_rounding(current_rounding, &dummy_val);
 
    return 0;
 }

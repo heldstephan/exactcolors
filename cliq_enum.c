@@ -51,7 +51,7 @@
 #include <float.h>
 #include <getopt.h>
 #include <string.h>
-#include <fenv.h>
+
 
 #include "color.h"
 #include "lp.h"

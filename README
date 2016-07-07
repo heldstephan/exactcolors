@@ -40,10 +40,10 @@ uncomment the line
 
  This will build the programs:
   -  'color', the main B&P program for graph coloring
-  -  'stable',  can be used to cal Gurobi or Cplex as an MWSS-sovler.
+  -  'stable',  can be used to call Gurobi or Cplex as an MWSS-solver.
   -  'mwis_sewell/sewell' (Algorithm 1 in "Held, Cook, and Sewell:yes
         Safe Lower Bounds for Graph Coloring. IPCO2011"),
-        an adaption of Sewells combinatorial stable set algorithm.
+        an adaption of Sewell's combinatorial stable set algorithm.
   - 'complement' to construct the complement of a graph
   - 'partition' to find dense subgraphs with a given number of vertices.
 Special commands for the parallel B&P framework:
@@ -65,3 +65,26 @@ Special commands for the parallel B&P framework:
 3. Help
    For all programs if you just call the program without parameters you will get a help.
 
+4. Using exactcolors through the C API, which is located in color.h
+   Create a graph with ncount nodes, ecount vertices where edges are stored in an edge list, which
+   consists of 2*ecount entries and the i-th edge has endpoint elist[2*i] and elist[2*i+1].
+
+   REMARK: The graph has to be connected!
+   
+   Step 1: Call
+   int COLORproblem_init_with_graph(COLORproblem* problem, int ncount,int ecount, const int elist[]);
+
+   Step 2: Call					  
+   int COLORexact_coloring(COLORproblem* problem,
+   			int *ncolors,
+			COLORset **colorclasses);
+   to retrieve the number of colors (ncolors) and the actual coloring (colorclasses).
+
+   Step 3: Release all data
+      void COLORproblem_free(problem);
+      void COLORfree_sets (colorclasse, ncolors);
+
+5. Using the combinatorial stable set solver through the C API.
+   
+   The API & documentation can be found in mwis_sewell/mwss_ext.h.
+   The library is mwis_sewell/libsewell.a

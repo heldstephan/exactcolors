@@ -14,6 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 ****************************************************************************/
+#define UNUSED(x) (void)(x)
 
 /***  Interface for ILOG CPLEX 12.1  ***/
 
@@ -231,11 +232,12 @@ CLEANUP:
 }
 
 int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
-       char sense, double rhs, char *name)
+       char sense, double rhs, char * name)
 {
+    UNUSED(name);
     int rval = 0;
     char isense[1];
-    char *iname[1];
+    //    char *iname[1];
     double irhs[1];
     int matbeg[1];
 
@@ -253,7 +255,7 @@ int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
     }
 
     irhs[0] = rhs;
-    iname[0] = name;
+    //    iname[0] = name;
     matbeg[0] = 0;
 
     if (nzcount == 0) {
@@ -273,10 +275,11 @@ CLEANUP:
 int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
        double obj, double lb, double ub, char sense, char *name)
 {
+    UNUSED(name);
     int rval = 0;
     int matbeg[1];
     double iobj[1], ilb[1], iub[1];
-    char *iname[1];
+    //    char *iname[1];
     int ncolind = p->ncols;
 
     if (sense < 0) {
@@ -287,7 +290,7 @@ int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
     iobj[0] = obj;
     ilb[0] = lb;
     iub[0] = ub;
-    iname[0] = name;
+    //    iname[0] = name;
     matbeg[0] = 0;
 
     rval = CPXaddcols (p->cplex_env, p->cplex_lp, 1, nzcount, iobj, matbeg,

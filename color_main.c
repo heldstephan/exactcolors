@@ -189,8 +189,8 @@ static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
       (*newsets)[i].members = COLOR_SAFE_MALLOC(1,int);
       (*newsets)[i].members[0] = cliques[ncliques-1].members[i];
    }
- CLEANUP:
-   COLORfree_sets(&cliques,&ncliques);
+ CLEANUP: 
+  COLORfree_sets(&cliques,&ncliques);
    COLOR_IFFREE(all_one_nweights,int);
    return rval;
 }
@@ -199,7 +199,6 @@ static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
 int main (int ac, char **av)
 {
     int rval = 0;
-    int i;
     double  start_time = COLORcpu_time();
     double tot_rtime;
 
@@ -208,8 +207,11 @@ int main (int ac, char **av)
     COLORparms* parms = &(colorproblem.parms);
     colordata*  cd = &(colorproblem.root_cd);
 
+    int ncolors;
+    COLORset *colorclasses;
+
+
     COLORset*  debugcolors = (COLORset*) NULL;
-    int        ndebugcolors = 0;
 
     rval = COLORprogram_header (ac,av);
     COLORcheck_rval(rval, "Failed in COLORprogram_header");
@@ -250,91 +252,13 @@ int main (int ac, char **av)
     if (colorproblem.parms.backupdir) {
        recover_colordata(cd,&colorproblem);
     }
-    if (cd->status == initialized) {
 
-       /** Using a restricted CLIQUER to obtain an initial lower bound
-           for the chromatic number and a good starting solution for
-           DSATUR didn't pay off.
-
-           Though many maximum clique problems are solved within a
-           second, I could not find a deterministic bound for the
-           running time.  I don't want to impose a cpu time limit, as
-           this would be non-deterministic.
-
-           @author S. Held
-        */
-/*        rval = quick_lower_bound(&(cd->cclasses),&(cd->ccount), cd->ncount, */
-/*                                 cd->ecount, cd->elist, cd->upper_bound, &(cd->lower_bound)); */
-/*        COLORcheck_rval(rval, "Failed in quick_lower_bound"); */
-
-       cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
-       COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
-       for (i = 0; i < cd->ncount; ++i) { cd->orig_node_ids[i] = i; }
-
-
-       if (parms->cclasses_infile != (char*) NULL) {
-	 printf ("Reading initial stable set cover from %s.\n", 
-		 parms->cclasses_infile);
-          rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
-                                              cd->ncount,parms->cclasses_infile,cd->pname);
-          COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-
-          rval = COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
-                                cd->cclasses,cd->ccount);
-          COLORcheck_rval(rval,"Failed in COLORcopy_sets");
-
-          rval = COLORtransform_into_coloring(cd->ncount, &(cd->nbestcolors), &(cd->bestcolors));
-          COLORcheck_rval(rval,"Failed in COLORtransform_into_coloring");
-
-          rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
-                                     cd->ncount, cd->ecount, cd->elist);
-          COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
-
-	  printf ("Extracted an initial coloring from stable set cover in %s to obtain an upper bound of %d.\n", 
-		  parms->cclasses_infile, cd->nbestcolors);
-          
-       } else {
-          if (0) {
-             rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
-                                 &(cd->ccount), &(cd->cclasses));
-             COLORcheck_rval (rval, "COLORgreedy failed");
-          } else {
-             rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist,
-                                 &(cd->ccount), &(cd->cclasses));
-             COLORcheck_rval (rval, "COLORdsatur failed");
-          }
-
-          printf ("Greedy Colors: %d\n", cd->ccount); fflush (stdout);
-          print_colors(cd->cclasses,cd->ccount);
-          COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors),
-                         cd->cclasses,cd->ccount);
-          COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
-                              cd->ncount, cd->ecount, cd->elist);
-       }
-
-       if (parms->color_infile != (char*) NULL) {
-          rval = COLORstable_read_stable_sets(&debugcolors,&ndebugcolors,
-                                              cd->ncount,parms->color_infile,cd->pname);
-          COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
-          rval = COLORcheck_coloring(debugcolors,ndebugcolors,cd->ncount,
-                                     cd->ecount,cd->elist);
-          COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
-          cd->debugcolors = debugcolors;
-          cd->ndebugcolors = ndebugcolors;
-          cd->opt_track = 1;
-       }
-
-       cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
-       colorproblem.global_upper_bound = cd->upper_bound;
-       cd->gallocated = cd->ccount;
-    }
-
-    rval = compute_coloring(&colorproblem);
-    COLORcheck_rval(rval, "Failed to compute_coloring");
+    rval = COLORexact_coloring(&colorproblem,&ncolors, &colorclasses);
+    COLORcheck_rval(rval, "Failed to COLORexact_coloring");
 
     if (cd->nbestcolors == cd->upper_bound) {
        printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
-       print_colors(cd->bestcolors,cd->nbestcolors);
+       print_colors(colorclasses, ncolors);
     } else if (cd->lower_bound == parms->initial_upper_bound) {
        printf("Lower bound reached predefined upper bound %d.\n",
               parms->initial_upper_bound);
@@ -348,7 +272,9 @@ int main (int ac, char **av)
 
 
 CLEANUP:
+
     COLORproblem_free(&colorproblem);
+    COLORfree_sets(&colorclasses, &ncolors);
 
     COLOR_IFFREE(debugcolors,COLORset);
 

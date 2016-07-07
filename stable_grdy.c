@@ -21,7 +21,6 @@
 #include <float.h>
 #include <getopt.h>
 #include <string.h>
-#include <fenv.h>
 
 #include "color_defs.h"
 #include "color.h"

@@ -21,7 +21,7 @@
 #include <float.h>
 #include <getopt.h>
 #include <string.h>
-#include <fenv.h>
+
 #include <sys/resource.h>
 #include <time.h>
 #include <assert.h>

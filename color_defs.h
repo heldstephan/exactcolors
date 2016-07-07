@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <limits.h>
 #ifndef COMPILE_FOR_VALGRIND
-#include <fenv.h>
+#include "rounding_mode.h"
 #else 
 #include <float.h>
 #include <math.h>
@@ -133,16 +133,19 @@ COLOR_MAYBE_UNUSED static inline COLORNWT COLORNWTmin(COLORNWT a,COLORNWT b)
 COLOR_MAYBE_UNUSED static double COLORsafe_lower_dbl(COLORNWT numerator,COLORNWT denominator)
 {
    double result;
-   int    oldround = fegetround();
+   int dummy_val;
+
+   int    oldround = COLOR_get_rounding(&dummy_val);
    double denom_mult;
-   fesetround(FE_UPWARD);
+   COLOR_set_round_up(&dummy_val);
    denom_mult = denominator;
 
-   fesetround(FE_DOWNWARD);
+   COLOR_set_round_down(&dummy_val);
    denom_mult = 1 / denom_mult;
 
    result = (double) numerator * denom_mult;
-   fesetround(oldround);
+   COLOR_set_rounding(oldround,&dummy_val);
+
    return result;
 }
 #else

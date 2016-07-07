@@ -26,24 +26,34 @@ typedef struct COLORset {
     struct COLORset *next;
 } COLORset;
 
-
 typedef struct COLORproblem COLORproblem;
 
-#define COLOR_PRANDMAX 1000000007
-
-typedef struct COLORrandstate {
-    int a;
-    int b;
-    int arr[55];
-} COLORrandstate;
-
-
+/** Initialize @c problem. */
 void COLORproblem_init(COLORproblem* problem);
+
+/** Initialize @c problem with the graph specified by
+    @param ncount: number of nodes
+    @param ecount: number of edges
+    @param elist:  list of edges in following format: elist has 2*ecount entries.
+                   The end points of the i-th edge must be given by
+                   elist[2*i] and elist[2*i],
+*/
+int COLORproblem_init_with_graph(COLORproblem* problem, int ncount,int ecount, const int elist[]);
+
+/** Free all data allocated by @c problem.*/
 void COLORproblem_free(COLORproblem* problem);
 
-/* find a greedy coloring.*/
+
+/** Compute an optimum coloring exactly and store the solution in @c colorclasses. */
+int COLORexact_coloring(COLORproblem* problem,
+			int *ncolors,
+			COLORset **colorclasses);
+
+
+/* find a greedy coloring for the given graph.*/
 int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
                  COLORset **colorclasses);
+
 /* find a greedy coloring using the DSATUR algorithm.*/
 int COLORdsatur(int ncount, int ecount, int *elist, int *ncolors,
                 COLORset **colorclasses);
@@ -96,6 +106,15 @@ int  COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[]);
 /** Test whether (set,ncount) defines a feasible coloring for (ncount,elist,ecount).*/
 int  COLORcheck_coloring(COLORset* set, int ccount, int ncount, int ecount, const int elist[]);
 
+
+#define COLOR_PRANDMAX 1000000007
+
+typedef struct COLORrandstate {
+    int a;
+    int b;
+    int arr[55];
+} COLORrandstate;
+
 void COLORutil_sprand (int seed, COLORrandstate *r);
 int COLORutil_lprand (COLORrandstate *r);
 double COLORutil_zeit (void);
@@ -106,8 +125,6 @@ void COLORutil_perm_quicksort (int *perm, int *len, int n);
 void COLORset_quicksort (COLORset *cclasses, int ccount);
 
 int COLORprogram_header(int ac, char **av);
-
-
 
 
 #endif  /* __COLOR_H */
