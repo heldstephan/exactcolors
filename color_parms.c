@@ -31,7 +31,7 @@ void COLORparms_init(COLORparms* parms)
    parms->branch_with_same_sequence = 0;
    parms->initial_upper_bound       = INT_MAX;
    parms->parallel_branching        = 0;
-   parms->branching_strategy        = COLOR_min_lb_strategy;
+   parms->branching_strategy        = COLOR_dfs_strategy;
    parms->rounding_strategy         = COLOR_neighbor_rounding;
 
    parms->delete_elists             = 1;
