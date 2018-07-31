@@ -207,8 +207,8 @@ int main (int ac, char **av)
     COLORparms* parms = &(colorproblem.parms);
     colordata*  cd = &(colorproblem.root_cd);
 
-    int ncolors;
-    COLORset *colorclasses;
+    int ncolors = 0;
+    COLORset *colorclasses = (COLORset*) NULL;
 
 
     COLORset*  debugcolors = (COLORset*) NULL;
