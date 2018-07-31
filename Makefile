@@ -52,7 +52,7 @@ export CC=gcc
 export LD=gcc
 
 
-#CFLAGS+= -g
+CFLAGS+= -g
 CFLAGS+= -O3
 
 # For static code analysis with clang we use the clang compiler.
@@ -95,7 +95,7 @@ CKILLERFILES=color_jobkiller.o
 PARTFILES=partition.o  
 COMPFILES=complement.o 
 
-all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement
+all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement dsatur 
 
 clang: *.[hc] mwis_sewell/*.[hc]
 	export CC=ccc-analyzer
@@ -128,6 +128,8 @@ partition: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(PARTFILES)
 complement: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(COMPFILES)
 	$(CC) $(CFLAGS) -o complement $(COMPFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB) $(LPLIB)  
 
+dsatur: dsatur.o graph.o color.o rounding_mode.o $(EXACTCOLOR_LIB) $(SEWELL_LIB)
+	$(LD) $(CFLAGS) -o dsatur dsatur.o graph.o color.o color_parms.o rounding_mode.o -lm -lpthread $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) $(LPLIB)
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread  
@@ -160,6 +162,7 @@ color_backup.o: color_backup.c color_private.h color_defs.h
 color_parms.o: color_parms.c color_parms.h color_defs.h
 partition.o: partition.c  color.h graph.h color_defs.h
 complement.c:  color.h graph.h color_defs.h
+dsatur.o:    dsatur.c graph.h color_defs.h color.h color_private.h color_parms.h rounding_mode.h
 heap.o:      heap.c heap.h color_defs.h
 graph.o:     graph.c graph.h color_defs.h
 greedy.o:    greedy.c  color.h graph.h color_defs.h
