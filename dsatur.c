@@ -420,9 +420,8 @@ static int transfer_same_cclasses(colordata* cd,
    cd->gallocated = cd->ccount   =  parent_ccount + 1;
    cd->cclasses = (COLORset*) COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
    for (i = 0; i < parent_ccount; ++i) {
-      int j;
       int add_v1 = 1;
-
+      int j = 0;
       COLORinit_set(cd->cclasses + i);
 
       cd->cclasses[i].members = (int*) COLOR_SAFE_MALLOC(parent_cclasses[i].count,int);
@@ -748,7 +747,7 @@ void print_COLORproblem_edges(colordata *p){
   int i;
   printf("COLORproblem: n: %d, m: %d, Farbanzahl %d\n", p->ncount, p->ecount, p->ccount);
   for(i=0;i<p->ecount;i++){
-    printf("Kante %d: %d %d\n",i+1, p->elist[2*i], p->elist[2*i+1]);
+    printf("Edge %d: %d %d\n",i+1, p->elist[2*i], p->elist[2*i+1]);
   }
   fflush(stdout);
 }
@@ -760,7 +759,7 @@ void print_COLORadjgraph(COLORadjgraph *G)
     printf("COLORadjgraph: \nKnotenanzahl: %d, Kantenanzahl: %d \n", G->ncount, G->ecount);
     for (i = 0; i < G->ncount; i++)
     {
-        printf("Die %d Nachbarn des Knoten %d(Farbe: %d): [", G->nodelist[i].degree, i, G->nodelist[i].color);
+        printf("The %d neighbors of vertex %d(color: %d) are: [", G->nodelist[i].degree, i, G->nodelist[i].color);
         for (j = 0; j < G->nodelist[i].degree; j++)
         {
             printf("%d", G->nodelist[i].adj[j]);
@@ -1397,73 +1396,24 @@ int DSATUR_choose_and_compute_lower_bound(DSATURREC *dsat,int **clique, COLORadj
     COLORNWT *nweights = (int *) NULL;
     int nnewsets =0;
     double starttime = COLORcpu_time();
-    double density = ((double) G->ecount) * 2.0 / ((double) (G->ncount * (G->ncount - 1)));
+    //    double density = ((double) G->ecount) * 2.0 / ((double) (G->ncount * (G->ncount - 1)));
 
-/*	Wird nicht mehr verwendet, da Heuristik im Allgemeinen schneller als DSATUR_MaxClique ist
- *    if(density < 0.0){
-      //MaxCLiquealgorithmus nach Östergard für COLORadjgraph
-      rval = DSATUR_MaxClique(clique, G, &(dsat->global_lower_bound));
-      COLORcheck_rval(rval, "Failed to DSATUR_MaxClique");
-      //color_count und uncolored_nodes_number initialisieren
-      dsat->color_count = dsat->global_lower_bound;
-      printf("Zeit: %lf für lower_bound: %d mit MaxClique\n", COLORcpu_time()-starttime, dsat->global_lower_bound);
-    }*/
-    if(density < 0.8){
-        //Benutze COLORclique_ostergard als Heuristik
-        int ecountc;
-	int i;
-	int solutionweight = 1;
-	
-	nweights = COLOR_SAFE_MALLOC (G->ncount, int);
-        COLORcheck_NULL (nweights, "out of memory for nweights");
-        for (i = 0; i < G->ncount; ++i) {
-          nweights[i] = 1;
-        }
-
-        COLORadjgraph_extract_edgelist(&ecountc,&elistc,G);
-	
-	rval = COLORclique_ostergard(&newsets, &nnewsets, G->ncount, G->ecount, elistc, nweights, COLOR_MAXINT, &solutionweight, 100);
-	COLORcheck_rval(rval,"COLORclique_ostergard failed");
-	
-	if(newsets->count < 2){
-	  *clique = COLOR_SAFE_MALLOC(2, int);
-	  COLORcheck_NULL(*clique, "no memory allocated for clique");
-
-	  (*clique)[0] = 0;
-	  (*clique)[1] = G->nodelist[0].adj[0];
-
-	  dsat->color_count = 2;
-	}
-	else{
-	  dsat->color_count = newsets->count;
-	  *clique = COLOR_SAFE_MALLOC (newsets->count, int);
-	  COLORcheck_NULL (*clique, "out of memory for clique");
-	  
-	  for(i=0;i<dsat->color_count;i++)
-	  {
-	    (*clique)[i]=newsets->members[i];
-	  }
-	}
-	dsat->global_lower_bound = p->root_cd.lower_bound > dsat->color_count ? p->root_cd.lower_bound : dsat->color_count;
-	p->root_cd.lower_bound = dsat->global_lower_bound;
-	printf("Time for lower_bound: %lf seconds with COLORclique_ostergard and lower_bound %d\n", COLORcpu_time()-starttime, dsat->color_count);
-    } else{
-        //Benutze compute_lower_bound
+        //use compute_lower_bound
 	//compute_lower_bound berechnet die LB auf dem noch nicht vereinfachten Graphen
-        rval = compute_lower_bound(&(p->root_cd),p);
-        COLORcheck_rval(rval,"Failed to compute_lower_bound");
-	
-        dsat->global_lower_bound = p->root_cd.lower_bound;
+    rval = compute_lower_bound(&(p->root_cd),p);
+    COLORcheck_rval(rval,"Failed to compute_lower_bound");
+    
+    dsat->global_lower_bound = p->root_cd.lower_bound;
+    
+    *clique = COLOR_SAFE_MALLOC(2, int);
+    COLORcheck_NULL(*clique, "no memory allocated for clique");
+    
+    (*clique)[0] = 0;
+    (*clique)[1] = G->nodelist[0].adj[0];
+    
+    dsat->color_count = 2;
+    printf("Time for lower_bound: %lf seconds with compute_lower_bound and lower_bound %d\n", COLORcpu_time()-starttime, dsat->global_lower_bound);
 
-        *clique = COLOR_SAFE_MALLOC(2, int);
-        COLORcheck_NULL(*clique, "no memory allocated for clique");
-
-        (*clique)[0] = 0;
-        (*clique)[1] = G->nodelist[0].adj[0];
-
-        dsat->color_count = 2;
-	printf("Time for lower_bound: %lf seconds with compute_lower_bound and lower_bound %d\n", COLORcpu_time()-starttime, dsat->color_count);
-    }
     dsat->uncolored_nodes_number = G->ncount - dsat->color_count;
 CLEANUP:
     COLOR_IFFREE(nweights, COLORNWT);
@@ -1695,15 +1645,16 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
 
     rval = COLORcheck_coloring(*colorclasses, *ncolors, cd->ncount, cd->ecount, cd->elist);
     COLORcheck_rval(rval, "Failed to verify coloring in DSATUR");
+    print_colors(*colorclasses, *ncolors);
 	
     if (COLORdbg_lvl() > 0)
     {
-        printf("Farben in DSATUR G:\n");
-        for (i = 0; i < G.ncount; i++)
-        {
-            printf("Knoten %d hat Farbe %d\n", i, G.nodelist[i].color);
-        }
-        fflush(stdout);
+        /* printf("Farben in DSATUR G:\n"); */
+        /* for (i = 0; i < G.ncount; i++) */
+        /* { */
+        /*     printf("Knoten %d hat Farbe %d\n", i, G.nodelist[i].color); */
+        /* } */
+        /* fflush(stdout); */
     }
 
 CLEANUP:
@@ -1772,12 +1723,6 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
             COLORcheck_rval(rval, "Failed to compute lower bound");
             *lbzeit += COLORcpu_time() - starttime;
 
-            if (COLORdbg_lvl() > 1)
-            {
-                printf("Zeit für compute_lower_bound %lf\n", COLORcpu_time() - starttime);
-                printf("Für %d verwendete Farben berechnete fraktionale chromatische Zahl: %d\n", dsat->color_count, child_cd->lower_bound);
-		fflush(stdout);
-            }
             local_lower_bound = local_lower_bound > child_cd->lower_bound ? local_lower_bound : child_cd->lower_bound;
 
         }
