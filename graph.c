@@ -244,12 +244,8 @@ int COLORadjgraph_simplify(COLORadjgraph* G)
       }            
    }
 
-   /* Re-allocate graph to generate correct ecount.*/
-   if (tmp_adjlist) {
-      free(tmp_adjlist);
-      tmp_adjlist = (int*) NULL;
-   }
    ncount = G->ncount;
+   /* COLORadjgraph_extract_edgelist will reallocate tmp_adjlist.*/
    rval = COLORadjgraph_extract_edgelist(&ecount,&tmp_adjlist,G);
    COLORcheck_rval(rval, "Failed in COLORadjgraph_extract_edgelist");
 
