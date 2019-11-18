@@ -83,7 +83,7 @@ int COLORproblem_init_with_graph(COLORproblem* problem, int ncount,int ecount, c
    int rval = 0;
    COLORproblem_init(problem);
    colordata*    root_cd            = &(problem->root_cd);
-   
+
    root_cd->ncount = ncount;
    root_cd->ecount = ecount;
    root_cd->elist  = (int*) COLOR_SAFE_MALLOC(2* ecount, int);
@@ -643,7 +643,7 @@ static void make_pi_feasible(colordata* cd)
          colsum += cd->pi[cd->cclasses[c].members[i]];
       }
       if (colsum > 1.0) {
-	 COLOR_set_round_down(&dummy_val);
+         COLOR_set_round_down(&dummy_val);
 
 
          for (i = 0; i < cd->cclasses[c].count;++i) {
@@ -651,7 +651,7 @@ static void make_pi_feasible(colordata* cd)
             newcolsum += cd->pi[cd->cclasses[c].members[i]];
          }
          if (COLORdbg_lvl()> 1) {printf("Decreased column sum of %5d from  %30.20f to  %30.20f\n",c,colsum,newcolsum);}
-	 COLOR_set_round_up(&dummy_val);
+         COLOR_set_round_up(&dummy_val);
       }
       COLOR_set_rounding(current_rounding, &dummy_val);
    }
@@ -2197,6 +2197,7 @@ int create_branches(colordata* cd,COLORproblem* problem)
    if (COLORNWTheap_size(cand_heap) == 0) {
       double integrality_tolerance = 0.0; /* Here, we aren't tolerant!*/
       printf("LP returned integral solution.\n");
+
       rval = grab_integral_solution(cd,x,integrality_tolerance);
       COLORcheck_rval(rval, "Failed in grab_integral_solution");
       assert(cd->status = finished);
@@ -2609,8 +2610,8 @@ static int trigger_lb_changes(colordata* child,COLORproblem* problem)
 
             strftime(current_timestr,39,"%c",localtime(&current_time));
 
-            printf("Lower bound increased from %d to %d (%s). \n",
-                   cd->lower_bound,new_lower_bound,current_timestr);
+            printf("Lower bound improved: LB %d and UB %d  (old LB was %d) total time (%s). \n",
+                   new_lower_bound,cd->upper_bound, cd->lower_bound,current_timestr);
          }
          cd->lower_bound = new_lower_bound;
          rval = backup_colordata(cd,problem);
@@ -2728,14 +2729,14 @@ static int insert_into_branching_heap(colordata* cd,COLORproblem* problem)
    case COLOR_dfs_strategy:
    case COLOR_hybrid_strategy:
       heap_key = (COLORNWT) (cd->dbl_est_lower_bound)
-	 - cd->depth * 10000
-	 - cd->id % 2;
+         - cd->depth * 10000
+         - cd->id % 2;
       break;
    case COLOR_min_lb_strategy:
    default:
       heap_key = (COLORNWT) (cd->dbl_est_lower_bound * problem->key_mult)
-	 - cd->depth
-	 - cd->id % 2;
+         - cd->depth
+         - cd->id % 2;
    }
 
    if (COLORdbg_lvl()) {
@@ -2769,6 +2770,7 @@ static void adapt_global_upper_bound(COLORproblem* problem, COLORNWT new_upper_b
 {
    if (problem->global_upper_bound > new_upper_bound) {
       problem->global_upper_bound = new_upper_bound;
+      printf("Upper bound improved: LB %d and UB %d\n", problem->root_cd.lower_bound, problem->global_upper_bound);
       if (problem->parms.branching_strategy == COLOR_hybrid_strategy) {
          if (problem->global_upper_bound - problem->root_cd.lower_bound <= 1) {
             printf("Switching to minimum LB branching strategy.\n");
@@ -2830,7 +2832,7 @@ static int sequential_branching(COLORproblem* problem,
             COLORcheck_rval(rval,"Failed to write_colordata");
          }
 
-	 rval = backup_colordata(cd,problem);
+         rval = backup_colordata(cd,problem);
          COLORcheck_rval(rval,"Failed to write_colordata");
 
 
@@ -3189,30 +3191,30 @@ static int init_root_colordata (COLORproblem* colorproblem)
 
    int i;
    if (cd->status == initialized) {
-      
+
       /** Using a restricted CLIQUER to obtain an initial lower bound
-	  for the chromatic number and a good starting solution for
-	  DSATUR didn't pay off.
-	  
-	  Though many maximum clique problems are solved within a
-	  second, I could not find a deterministic bound for the
-	  running time.  I don't want to impose a cpu time limit, as
-	  this would be non-deterministic.
-	  
-	  @author S. Held
+          for the chromatic number and a good starting solution for
+          DSATUR didn't pay off.
+
+          Though many maximum clique problems are solved within a
+          second, I could not find a deterministic bound for the
+          running time.  I don't want to impose a cpu time limit, as
+          this would be non-deterministic.
+
+          @author S. Held
       */
       /*        rval = quick_lower_bound(&(cd->cclasses),&(cd->ccount), cd->ncount, */
       /*                                 cd->ecount, cd->elist, cd->upper_bound, &(cd->lower_bound)); */
       /*        COLORcheck_rval(rval, "Failed in quick_lower_bound"); */
-      
+
       cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
       COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
       for (i = 0; i < cd->ncount; ++i) { cd->orig_node_ids[i] = i; }
 
 
        if (parms->cclasses_infile != (char*) NULL) {
-	 printf ("Reading initial stable set cover from %s.\n", 
-		 parms->cclasses_infile);
+         printf ("Reading initial stable set cover from %s.\n",
+                 parms->cclasses_infile);
           rval = COLORstable_read_stable_sets(&(cd->cclasses),&(cd->ccount),
                                               cd->ncount,parms->cclasses_infile,cd->pname);
           COLORcheck_rval(rval,"Failed in COLORstable_read_stable_sets");
@@ -3228,9 +3230,9 @@ static int init_root_colordata (COLORproblem* colorproblem)
                                      cd->ncount, cd->ecount, cd->elist);
           COLORcheck_rval(rval,"Failed in COLORcheck_coloring");
 
-	  printf ("Extracted an initial coloring from stable set cover in %s to obtain an upper bound of %d.\n", 
-		  parms->cclasses_infile, cd->nbestcolors);
-          
+          printf ("Extracted an initial coloring from stable set cover in %s to obtain an upper bound of %d.\n",
+                  parms->cclasses_infile, cd->nbestcolors);
+
        } else {
           if (0) {
              rval = COLORgreedy (cd->ncount, cd->ecount, cd->elist,
@@ -3273,8 +3275,8 @@ CLEANUP:
 
 
 int COLORexact_coloring(COLORproblem* problem,
-			int *ncolors,
-			COLORset **colorclasses)
+                        int *ncolors,
+                        COLORset **colorclasses)
 {
    int           rval = 0;
    colordata*    root_cd            = &(problem->root_cd);
@@ -3289,7 +3291,7 @@ int COLORexact_coloring(COLORproblem* problem,
 
    problem->key_mult           = (double) (COLORNWT_MAX - 1) / root_cd->ncount;
 
-   init_root_colordata(problem); 
+   init_root_colordata(problem);
 
    if (root_cd->status >= LP_bound_computed) {
       rval = prefill_heap(root_cd,problem);
@@ -3331,6 +3333,10 @@ int COLORexact_coloring(COLORproblem* problem,
       }
    }
 
+   printf("Finished initial bounds: LB %d and UB %d in  %f seconds.\n",
+          root_cd->lower_bound, root_cd->upper_bound, init_lb_rtime);
+
+
    branching_rtime = -COLORwall_time();
 
    if (problem->parms.branching_strategy != COLOR_no_branching) {
@@ -3344,7 +3350,7 @@ int COLORexact_coloring(COLORproblem* problem,
    }
    branching_rtime += COLORwall_time();
 
-   printf("Compute_coloring finished with LB %d and UB  %d\n",
+   printf("Compute coloring finished: LB %d and UB %d\n",
           root_cd->lower_bound, problem->global_upper_bound);
 
    rval = COLORcopy_sets(colorclasses,ncolors,
@@ -3360,8 +3366,8 @@ int COLORexact_coloring(COLORproblem* problem,
    if (problem->parms.outfile != (char*) NULL && root_cd->nbestcolors) {
      printf("Writing coloring to file %s.\n", problem->parms.outfile);
      rval = COLORstable_write_stable_sets(root_cd->bestcolors,root_cd->nbestcolors,
-					  root_cd->ncount,
-					  problem->parms.outfile,root_cd->pname);
+                                          root_cd->ncount,
+                                          problem->parms.outfile,root_cd->pname);
      COLORcheck_rval(rval,"Failed in COLORstable_write_stable_sets");
    }
 
