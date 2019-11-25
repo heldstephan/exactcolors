@@ -21,6 +21,9 @@ GUPATH=$(GUROBI_HOME)
 CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
+USE_UBSAN=0
+
+
 ifneq ($(QSPATH),)
 LPINCLUDE=$(QSPATH)
 LPLIB=$(QSPATH)/qsopt.a
@@ -49,15 +52,15 @@ endif
 
 
 export CC=gcc
+# Alternative compiler, e.g. for static code analysis.
+#export CC=clang
+
 export LD=gcc
 
 
 CFLAGS+= -g
 CFLAGS+= -O3
 
-# For static code analysis with clang we use the clang compiler.
-# NOTE: You need to disable optimization otherwise
-#export CC=clang
 
 #
 # Valgrind does not support fegetround & fesetround. With following compile option
@@ -83,6 +86,10 @@ EXACTCOLOR_LIB= $(EXACTCOLOR_DIR)/libexactcolor.a
 CFLAGS += -std=c99 -D_XOPEN_SOURCE=500 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
 export CFLAGS
 
+# UBSAN
+ifeq ($(USE_UBSAN), 1)
+	CFLAGS += -fsanitize=undefined -fsanitize=float-divide-by-zero
+endif
 
 
 OBJFILES=color.o color_backup.o color_parms.o graph.o greedy.o $(LPSOURCE) mwis.o $(GRBMWIS) mwis_grdy.o plotting.o heap.o util.o cliq_enum.o bbsafe.o rounding_mode.o
@@ -90,18 +97,32 @@ STABFILES=stable.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o
 STABGRDYFILES=stable_grdy.o graph.o greedy.o util.o $(LPSOURCE) cliq_enum.o mwis.o mwis_grdy.o  heap.o $(SEWELL_LIB)
 BOSSFILES=graph.o bbsafe.o util.o rounding_mode.o
 CBOSSFILES=color_version.h color_main.o rounding_mode.o
-CWORKERFILES=color_worker.o 
+CWORKERFILES=color_worker.o
 CKILLERFILES=color_jobkiller.o
-PARTFILES=partition.o  
-COMPFILES=complement.o 
+PARTFILES=partition.o
+COMPFILES=complement.o
 
-all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement dsatur 
+all: color color_worker color_jobkiller stable stable_grdy queen test_boss test_worker test_tell partition complement dsatur
 
-clang: *.[hc] mwis_sewell/*.[hc]
+
+scan_build: *.[hc] mwis_sewell/*.[hc]
 	export CC=ccc-analyzer
 	scan-build -v -o clang make -j
 
-libexactcolor.a: $(OBJFILES)  
+
+testmyciel4:
+	./color test/instances/myciel4.col  |grep LB > test/myciel4.con
+	diff test/myciel4.con test/golden/myciel4.color.con
+
+testqueen8:
+	./color test/instances/queen8_8.col  |grep LB > test/queen8_8.con
+	diff test/queen8_8.con test/golden/queen8_8.color.con
+
+test: testmyciel4 testqueen8
+
+
+
+libexactcolor.a: $(OBJFILES)
 	$(AR) rcs libexactcolor.a $(OBJFILES)
 
 color: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(CBOSSFILES) color_worker
@@ -126,22 +147,22 @@ partition: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(PARTFILES)
 	$(CC) $(CFLAGS) -o partition $(PARTFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB)  $(LPLIB)
 
 complement: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(COMPFILES)
-	$(CC) $(CFLAGS) -o complement $(COMPFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB) $(LPLIB)  
+	$(CC) $(CFLAGS) -o complement $(COMPFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB) $(LPLIB)
 
 dsatur: dsatur.o graph.o color.o rounding_mode.o $(EXACTCOLOR_LIB) $(SEWELL_LIB)
 	$(LD) $(CFLAGS) -o dsatur dsatur.o graph.o color.o color_parms.o rounding_mode.o -lm -lpthread $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) $(LPLIB)
 
 queen: queen.c
-	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread  
+	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread
 
 test_boss: test_boss.o $(BOSSFILES)
-	$(CC) $(CFLAGS) -o test_boss test_boss.o $(BOSSFILES) -lm -lpthread  
+	$(CC) $(CFLAGS) -o test_boss test_boss.o $(BOSSFILES) -lm -lpthread
 
 test_worker: test_worker.o $(BOSSFILES)
 	$(CC) $(CFLAGS) -o test_worker test_worker.o $(BOSSFILES) -lm -lpthread
 
 test_tell: test_tell.o $(BOSSFILES)
-	$(CC) $(CFLAGS) -o test_tell test_tell.o $(BOSSFILES) -lm -lpthread  
+	$(CC) $(CFLAGS) -o test_tell test_tell.o $(BOSSFILES) -lm -lpthread
 
 tags:
 	etags *.[hc]
@@ -149,6 +170,7 @@ clean:
 	rm -f *.o color stable test_boss test_worker test_tell partition mwis_gurobi.log gurobi.log look.lp vg.log* color_version.h color_worker color_jobkiller queen complement stable_grdy libexactcolor.a
 	rm -rf clang
 	rm -f libexactcolor
+	rm -f test/*.con
 	cd $(SEWELL_DIR) && $(MAKE) clean
 
 SRCFILES=bbsafe.c color_backup.c  color.h color_parms.c  graph.c   heap.c     lpgurobi.c  mwis.c       mwis.h                  mwis_sewell/mwss_ext.h  partition.c  queen.c        test_boss.c    util.c bbsafe.h     color.c         color_jobkiller.c  color_parms.h    color_worker.c   graph.h   heap.h     lp.h        mwis_grb.c   mwis_sewell/mwss.c      mwis_sewell/mwss.h      plotting.c   stable.c       test_tell.c cliq_enum.c  color_defs.h    color_main.c       color_private.h  complement.c     greedy.c  lpcplex.c  lpqsopt.c   mwis_grdy.c  mwis_sewell/mwss_ext.c  mwis_sewell/wstable.c   plotting.h   stable_grdy.c  test_worker.c
