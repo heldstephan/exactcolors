@@ -328,8 +328,9 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
       for (i = 0; i < ncount; ++i) {
          int j;
          int free_node = 1;
-         if (color_incidence[i]) continue;
-         for (j = 0 ; j < G.nodelist[i].degree;++j) {
+         if (color_incidence[i]) {continue;}
+
+         for (j = 0 ; j < G.nodelist[i].degree; ++j) {
             if (color_incidence[G.nodelist[i].adj[j]]) {
                free_node = 0;
                j = G.nodelist[i].degree;

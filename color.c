@@ -3328,9 +3328,9 @@ int COLORexact_coloring(COLORproblem* problem,
       }
       init_lb_rtime += COLORwall_time();
 
-      colheur_rtime = -COLORwall_time();
-      ubhval =  heur_colors_with_stable_sets(root_cd);
-      colheur_rtime += COLORwall_time();
+      /* colheur_rtime = -COLORwall_time(); */
+      /* ubhval =  heur_colors_with_stable_sets(root_cd); */
+      /* colheur_rtime += COLORwall_time(); */
       if (!ubhval) {
          printf("Upper bound heuristic on root node took %f seconds.\n",colheur_rtime);
 

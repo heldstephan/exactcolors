@@ -22,6 +22,8 @@ CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 USE_UBSAN=0
+CFLAGS+= -g
+CFLAGS+= -O3
 
 
 ifneq ($(QSPATH),)
@@ -57,9 +59,6 @@ export CC=gcc
 
 export LD=gcc
 
-
-CFLAGS+= -g
-CFLAGS+= -O3
 
 
 #
@@ -113,10 +112,14 @@ scan_build: *.[hc] mwis_sewell/*.[hc]
 testmyciel4:
 	./color test/instances/myciel4.col  |grep LB > test/myciel4.con
 	diff test/myciel4.con test/golden/myciel4.color.con
+	./dsatur test/instances/myciel4.col  |grep LB > test/myciel4.con
+	diff test/myciel4.con test/golden/myciel4.dsatur.con
 
 testqueen8:
 	./color test/instances/queen8_8.col  |grep LB > test/queen8_8.con
 	diff test/queen8_8.con test/golden/queen8_8.color.con
+	./dsatur test/instances/queen8_8.col  |grep LB > test/queen8_8.con
+	diff test/queen8_8.con test/golden/queen8_8.dsatur.con
 
 test: testmyciel4 testqueen8
 

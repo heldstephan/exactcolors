@@ -1403,8 +1403,11 @@ int DSATUR_choose_and_compute_lower_bound(DSATURREC *dsat,int **clique, COLORadj
     rval = compute_lower_bound(&(p->root_cd),p);
     COLORcheck_rval(rval,"Failed to compute_lower_bound");
 
+
     dsat->global_lower_bound = p->root_cd.lower_bound;
 
+
+    /*** @todo find a better clique here with Ostergard for sparse graphs and with greedy otherwise! */
     *clique = COLOR_SAFE_MALLOC(2, int);
     COLORcheck_NULL(*clique, "no memory allocated for clique");
 
@@ -1499,8 +1502,8 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     int **clique = (int **)NULL;
     int *feasible_colors = (int *)NULL;
     int *colored_node_updated_neighbors = NULL;
-    double *lbzeit = NULL;
-    int *aufrufanzahl = NULL;
+    double lbzeit = 0;
+    int ncalls = 0;
 
     // Initialize pointers of dsat so that the CLEANUP works correctly if one of the next steps fails.
     dsat.id_in_child_cd = (int*)NULL;
@@ -1547,7 +1550,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     COLORcheck_rval(rval, "Failed in DSATUR_simplify");
 
     //Wählt geeignete untere Schranke und bestimmt mindestens eine 2-er clique
-    rval = DSATUR_choose_and_compute_lower_bound(&dsat, clique, &H, problem);
+    rval = DSATUR_choose_and_compute_lower_bound(&dsat, clique, &H, problem);            // @todo find better clique
     COLORcheck_rval(rval, "Failed in DSATUR_choose_and_compute_lower_bound");
 
     //Arrays in dsat initialisieren, die H.ncount brauchen
@@ -1609,18 +1612,17 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     COLORcheck_rval(rval, "Failed in DSATUR_new_COLORproblem");
 
     //Variablen zum Auslesen der Zeit und Aufrufanzahl
-    lbzeit = (double *)calloc(1, sizeof(double));
-    aufrufanzahl = (int *)malloc(sizeof(int));
-    *aufrufanzahl = 1;
+    lbzeit =  0;
+    ncalls = 1;
     double dsaturtime = COLORcpu_time();
 
     assert(dsat.color_count > 1);
     //Aufruf der rekursiven DSATUR-Funktion
-    rval = DSATUR_recursion(ncd, &new_problem, &H, &dsat, feasible_colors, aufrufanzahl, lbzeit, colored_node_updated_neighbors);
+    rval = DSATUR_recursion(ncd, &new_problem, &H, &dsat, feasible_colors, &ncalls, &lbzeit, colored_node_updated_neighbors);
     COLORcheck_rval(rval, "Failed in DSATUR_recursion");
 
-    printf("Time for DSATUR_recursion: %lf seconds of which time for compute_lower_bound: %lf seconds\n", COLORcpu_time() - dsaturtime, *lbzeit);
-    nodes += *aufrufanzahl;
+    printf("Time for DSATUR_recursion: %lf seconds of which time for compute_lower_bound: %lf seconds\n", COLORcpu_time() - dsaturtime, lbzeit);
+    nodes += ncalls;
 
     //in H gelöschte Knoten => jetzt färben in G
     //erst bereits Farben vorhandener Knoten kopieren, dazu wird node_mapping verwendet
@@ -1646,12 +1648,13 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     COLORcheck_rval(rval, "Failed to copy_colors in DSATUR");
 
     //Für Ausgabe in main aktualisiere cd->upper_bound und setze cd->lower_bound auf die globale untere Schranke
+    cd->nbestcolors = ncd->nbestcolors;
     cd->upper_bound = new_problem.global_upper_bound;
-    cd->lower_bound = dsat.global_lower_bound;
+    cd->lower_bound = ncd->nbestcolors;
 
     rval = COLORcheck_coloring(*colorclasses, *ncolors, cd->ncount, cd->ecount, cd->elist);
     COLORcheck_rval(rval, "Failed to verify coloring in DSATUR");
-    print_colors(*colorclasses, *ncolors);
+    //    print_colors(*colorclasses, *ncolors);
 
     if (COLORdbg_lvl() > 0)
     {
@@ -1665,7 +1668,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
 
 CLEANUP:
     COLORproblem_free(&new_problem);
-    COLORfree_sets(&cd->bestcolors, &cd->nbestcolors);
+
     if (clique) {
       COLOR_IFFREE(*clique, int);
     }
@@ -1677,8 +1680,6 @@ CLEANUP:
     COLOR_IFFREE(feasible_colors, int);
     COLOR_IFFREE(dsat.DSAT_value, int);
     COLOR_IFFREE(dsat.id_in_child_cd, int);
-    COLOR_IFFREE(aufrufanzahl, int);
-    COLOR_IFFREE(lbzeit, double);
 
     return rval;
 }
@@ -1951,7 +1952,8 @@ int main(int ac, char **av)
 
     if (cd->nbestcolors == cd->upper_bound)
     {
-        printf("Opt Colors: %d\n", cd->nbestcolors);
+        printf("Finished with LB %d and UB %d.\n",
+               cd->lower_bound, cd->upper_bound);
         fflush(stdout);
         print_colors(colorclasses, ncolors);
     }
@@ -1962,14 +1964,13 @@ int main(int ac, char **av)
     }
     else
     {
-        printf("Finished with LB %d and UB %d.\n",
-               cd->lower_bound, cd->upper_bound);
+      printf("Finished with LB %d and UB %d.\n",
+             cd->lower_bound, cd->upper_bound);
     }
     tot_rtime = COLORcpu_time() - start_time;
     printf("Computing coloring took %f seconds. colorcount = %d and nodes = %ld\n", tot_rtime, ncolors, nodes);
 
 CLEANUP:
-
     COLORproblem_free(&colorproblem);
     COLORfree_sets(&colorclasses, &ncolors);
     COLORlp_free_env();
