@@ -247,10 +247,10 @@ int max_wstable(MWSSgraphpnt graph, MWSSdatapnt data, nodepnt *best_stable, int 
    MWIScheck_rval(rval,"Failed in greedy_stable");
    if(greedy_weight > data->best_z) {
       printf("Greedy algorithm found  best_z %d.\n",
-	     greedy_weight);
+             greedy_weight);
       data->best_z = greedy_weight;
       if(parameters->prn_info) {
-	printf("Greedy best_z = %d\n", data->best_z);
+        printf("Greedy best_z = %d\n", data->best_z);
         fflush(stdout);
       }
    }
@@ -929,7 +929,7 @@ int check_cliq(MWSSgraphpnt graph, osterdatapnt oster_data, char clique_or_stabl
 /*
    1. This routine checks the clique (or stable set) found by oster_wlique.
       It does not verify that	it is a maximum clique (or stable set).
-	2. 1 is returned if everything is OK, o.w. 0 is returned.
+        2. 1 is returned if everything is OK, o.w. 0 is returned.
    3. Modified 3/5/10 to accept a pointer to the graph.
    4. Modified 3/12/10 to accept a pointer to the data structures required by oster_maximum_clique.
 */
@@ -939,16 +939,16 @@ int check_cliq(MWSSgraphpnt graph, osterdatapnt oster_data, char clique_or_stabl
    assert((clique_or_stable == 0) || (clique_or_stable == 1));
    assert((1 <= n_best) && (n_best <= graph->n_nodes));
 
-	for(i = 1; i <= n_best; i++) {
+        for(i = 1; i <= n_best; i++) {
       v = oster_data->oster_best_sol[i];
       assert((1 <= v) && (v <= graph->n_nodes));
-	   for(j = i+1; j <= n_best; j++) {
+           for(j = i+1; j <= n_best; j++) {
          if(graph->adj[v][oster_data->oster_best_sol[j]] != clique_or_stable) {
-				printf("oster_clique did not find a clique\n");
-				return(0);
-			}
-		}
-	}
+                                printf("oster_clique did not find a clique\n");
+                                return(0);
+                        }
+                }
+        }
    return(1);
 }
 
@@ -1357,7 +1357,7 @@ int greedy_wstable(MWSSgraphpnt graph, nodepnt *list, int n_list, nodepnt *stabl
 
       for(i = n_list; i > 0; i--) {
          pntv = list[i];
-	      for (ppnt = pntv->adj; (pntw = *ppnt) != NULL; ppnt++) {
+              for (ppnt = pntv->adj; (pntw = *ppnt) != NULL; ppnt++) {
             if( pntw->active == graph->active_flag ) {
                pntv->surplus += pntw->weight;
             }
@@ -1513,6 +1513,10 @@ int allocate_osterdata(osterdatapnt odata, int n_nodes)
    MWIScheck_NULL(odata->eligible, "Failed to allocate odata->eligible");
 
    for (i = 0; i <= n_nodes; ++i) {
+     odata->eligible[i] = (int*) NULL;
+   }
+
+   for (i = 0; i <= n_nodes; ++i) {
       MWIS_MALLOC(odata->eligible[i],n_nodes + 1, int);
       MWIScheck_NULL(odata->eligible[i], "Failed to allocate odata->eligible[i]");
    }
@@ -1541,9 +1545,10 @@ void free_osterdata(osterdatapnt odata)
 
    MWIS_IFFREE(odata->oster_cur_sol, int);
 
-
-   for (i = 0; odata->eligible && i <= odata->n_nodes; ++i) {
-      MWIS_IFFREE(odata->eligible[i], int);
+   if (odata->eligible) {
+     for (i = 0; i <= odata->n_nodes; ++i) {
+       MWIS_IFFREE( odata->eligible[i], int);
+     }
    }
    MWIS_IFFREE(odata->eligible, int*);
 
@@ -2121,7 +2126,7 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
          char* data = (char *) NULL;
          if (haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- two p lines\n");
-	    rval = 1;
+            rval = 1;
             goto CLEANUP;
          }
          haveprob = 1;
@@ -2130,7 +2135,7 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
          data = strtok(NULL,delim); /* get type */
          if ( strcmp(data,"edge") && strcmp(data,"edges") && strcmp(data,"col") && strcmp(data,"graph") ) {
             fprintf (stderr, "ERROR in Dimacs file -- not an edge file\n");
-	    rval = 1;
+            rval = 1;
             goto CLEANUP;
          }
          data = strtok(NULL,delim);
@@ -2142,6 +2147,12 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
 
          printf ("Number of Nodes: %d\n", graph->n_nodes);
          printf ("Number of Edges: %d\n", graph->n_edges);
+
+         if (graph->n_nodes <= 0) {
+           fprintf (stderr, "Graph has no vertices --- exiting.\n");
+            rval = 1;
+            goto CLEANUP;
+         }
 
          rval = allocate_graph (graph, graph->n_nodes);
          MWIScheck_rval(rval,"Failed in allocate_graph");
@@ -2179,31 +2190,37 @@ int read_dimacs (MWSSgraphpnt graph, char *f)
       } else if (p[0] == 'e') {
          if (!haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- e before p\n");
-	    rval = 1;
+            rval = 1;
             goto CLEANUP;
          }
          if (icount >= graph->n_edges) {
             fprintf (stderr, "ERROR in Dimacs file -- to many edges\n");
-	    rval = 1;
+            rval = 1;
             goto CLEANUP;
          }
          p++;
          sscanf (p, "%d %d", &v, &w);
+         if ( (v < 1 || w < 1) || (v >  graph->n_nodes) ||  (w > graph->n_nodes) ) {
+           fprintf (stderr, "ERROR: The edge %d -> %d specifies invalid nodes.\n",
+                    v, w);
+           rval = 1;
+           goto CLEANUP;
+         }
          graph->node_list[v].degree++;
          graph->node_list[w].degree++;
-	 if (graph->adj[v][w] || graph->adj[w][v]) {
-	    fprintf (stderr, "ERROR: The edge %d -> %d was specified at least twice."
-		     "This program tolerates only simple graphs without parallel edges as input.\n",
-		     v, w);
-	    rval = 1;
-	 }
+         if (graph->adj[v][w] || graph->adj[w][v]) {
+            fprintf (stderr, "ERROR: The edge %d -> %d was specified at least twice."
+                     "This program tolerates only simple graphs without parallel edges as input.\n",
+                     v, w);
+            rval = 1;
+         }
          graph->adj[v][w] = 1;
          graph->adj[w][v] = 1;
          icount++;
       } else if (p[0] == 'n') {
          if (!haveprob) {
             fprintf (stderr, "ERROR in Dimacs file -- n before p\n");
-	    rval = 1;
+            rval = 1;
             goto CLEANUP;
          }
          p++;

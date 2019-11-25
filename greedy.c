@@ -79,6 +79,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         }
     }
     k++;
+
     *ncolors = k;
     csets = (COLORset *) malloc (k * sizeof (COLORset));
     if (!csets) {
@@ -86,6 +87,7 @@ int COLORgreedy (int ncount, int ecount, int *elist, int *ncolors,
         rval = 1;  goto CLEANUP;
     }
 
+    assert (k > 0);
     for (i = 0; i < k; i++) {
         COLORinit_set (&csets[i]);
     }
@@ -213,18 +215,18 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
       }
    }
    k++;
+   assert (k > 0);
    *ncolors = k;
+
    csets = (COLORset *) malloc (k * sizeof (COLORset));
-   if (!csets) {
-      fprintf (stderr, "out of memory for csets\n");
-      rval = 1;  goto CLEANUP;
-   }
+   COLORcheck_NULL(csets,"COLORdsatur: Failed to allocate csets.");
+
 
    for (i = 0; i < k; i++) {
       COLORinit_set (&csets[i]);
    }
    for (i = 0; i < ncount; i++) {
-      csets[G.nodelist[i].color].count++;
+     csets[G.nodelist[i].color].count++;
    }
    for (i = 0; i < k; i++) {
       csets[i].members = (int *) malloc (csets[i].count * sizeof (int));

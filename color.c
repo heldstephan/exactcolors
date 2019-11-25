@@ -986,7 +986,7 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
 
    /* COLORlp_write (cd->lp, "lpheur.lp"); */
 
-   rval = COLORlp_setnodelimit(cd->lp,1);
+   rval = COLORlp_setnodelimit(cd->lp,10);
    COLORcheck_rval(rval,"COLORlp_setnodelimit failed");
 
    rval = COLORlp_optimize(cd->lp);
@@ -2610,8 +2610,9 @@ static int trigger_lb_changes(colordata* child,COLORproblem* problem)
 
             strftime(current_timestr,39,"%c",localtime(&current_time));
 
-            printf("Lower bound improved: LB %d and UB %d  (old LB was %d) total time (%s). \n",
-                   new_lower_bound,cd->upper_bound, cd->lower_bound,current_timestr);
+            printf("Lower bound improved: LB %d and UB %d  (old LB was %d). \n",
+                   new_lower_bound,cd->upper_bound,cd->lower_bound );
+            printf("\ttotal time (%s). \n", current_timestr);
          }
          cd->lower_bound = new_lower_bound;
          rval = backup_colordata(cd,problem);
@@ -3295,6 +3296,7 @@ int COLORexact_coloring(COLORproblem* problem,
 
    if (root_cd->status >= LP_bound_computed) {
       rval = prefill_heap(root_cd,problem);
+      COLORcheck_rval(rval,"Failed in prefill_heap");
    } else {
       int ubhval = 0;
       rval = compute_lower_bound(root_cd,problem);

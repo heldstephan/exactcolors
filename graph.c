@@ -39,32 +39,35 @@ int COLORadjgraph_build (COLORadjgraph* G, int ncount, int ecount, const int eli
     COLORcheck_NULL (G->nodelist, "out of memory for G->nodelist");
     nodelist = G->nodelist;
 
+    for (i = 0; i < ncount; i++) {
+      nodelist[i].degree = 0;
+      nodelist[i].adj    = NULL;
+    }
+
     if (G->ecount) {
         G->adjspace = COLOR_SAFE_MALLOC (2 * G->ecount, int);
         COLORcheck_NULL (G->adjspace, "out of memory for G->adjspace");
-    }
 
-    for (i = 0; i < ncount; i++) {
-        nodelist[i].degree = 0;
-    }
 
-    for (i = 0; i < ecount; i++) {
-        nodelist[elist[2*i]].degree++;
-        nodelist[elist[2*i+1]].degree++;
-    }
 
-    p = G->adjspace;
-    for (i = 0; i < ncount; i++) {
-        nodelist[i].adj = p;
-        p += nodelist[i].degree;
-        nodelist[i].degree = 0;
-    }
+        for (i = 0; i < ecount; i++) {
+          nodelist[elist[2*i]].degree++;
+          nodelist[elist[2*i+1]].degree++;
+        }
 
-    for (i = 0; i < ecount; i++) {
-        nodelist[elist[2*i]].adj[nodelist[elist[2*i]].degree++] =
-                                                         elist[2*i+1];
-        nodelist[elist[2*i+1]].adj[nodelist[elist[2*i+1]].degree++] =
-                                                         elist[2*i];
+        p = G->adjspace;
+        for (i = 0; i < ncount; i++) {
+          nodelist[i].adj = p;
+          p += nodelist[i].degree;
+          nodelist[i].degree = 0;
+        }
+
+        for (i = 0; i < ecount; i++) {
+          nodelist[elist[2*i]].adj[nodelist[elist[2*i]].degree++] =
+            elist[2*i+1];
+          nodelist[elist[2*i+1]].adj[nodelist[elist[2*i+1]].degree++] =
+            elist[2*i];
+        }
     }
 
 CLEANUP:
@@ -83,17 +86,17 @@ int  COLORadjgraph_copy(COLORadjgraph* Gdst, const COLORadjgraph* Gsrc)
    int rval = 0;
    int* elist = (int*) NULL;
    int ecount = 0;
-   
+
    rval = COLORadjgraph_extract_edgelist(&ecount,&elist,Gsrc);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_extract_edgelist");
-   
+
    rval = COLORadjgraph_build(Gdst,Gsrc->ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
-   
+
  CLEANUP:
    if (rval) COLORadjgraph_free(Gdst);
    if (elist) free(elist);
-   return rval;   
+   return rval;
 }
 
 int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
@@ -102,25 +105,25 @@ int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
    int v_i, a_i,na;
    int*  elist = (int*) NULL;
    int  ecount = 0, ecount_chk = 0;
-   
+
    rval = COLORadjgraph_copy(Gc, G);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_copy.");
 
    /* Simplify will also sort the adjaceny lists.*/
    rval = COLORadjgraph_simplify(Gc);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_simplify.");
-   
+
    ecount_chk = (Gc->ncount * (Gc->ncount - 1) )/ 2 - Gc->ecount;
-   
+
    if (ecount_chk) {
       elist = COLOR_SAFE_MALLOC (2*ecount_chk, int);
       COLORcheck_NULL(elist,"Failed to allocate elist.");
-   
-   
+
+
       for (v_i = 0; v_i < Gc->ncount; ++ v_i) {
          COLORadjnode* v = &(Gc->nodelist[v_i]);
          int           a = -1;
-         
+
       a_i  = 0;
       for (na = v_i + 1; na < Gc->ncount; ++ na) {
          while (a_i < v->degree && a < na) {
@@ -137,7 +140,7 @@ int  COLORadjgraph_build_complement(COLORadjgraph* Gc, const COLORadjgraph* G)
       assert(ecount == ecount_chk);
    }
    COLORadjgraph_free(Gc);
-   
+
    rval = COLORadjgraph_build(Gc, G->ncount,ecount,elist);
    COLORcheck_rval(rval,"Failed in COLORadjgraph_build");
  CLEANUP:
@@ -220,28 +223,30 @@ int COLORadjgraph_simplify(COLORadjgraph* G)
       int new_degree;
       int nloops = 0;
 
+      if (!G->nodelist[i].adj) {continue;}
+
       qsort(G->nodelist[i].adj,G->nodelist[i].degree,sizeof(int),comp_node_ids);
       new_degree = unify_adjlist(G->nodelist[i].adj,G->nodelist[i].degree,
                                  tmp_adjlist);
 
       if(COLORdbg_lvl()> 1 && new_degree != G->nodelist[i].degree) {
-         printf("Removed %d edge(s) from node %d.\n", 
+         printf("Removed %d edge(s) from node %d.\n",
                 G->nodelist[i].degree - new_degree, i);
       }
       G->nodelist[i].degree = new_degree;
-      
+
       for (j = 0; j < G->nodelist[i].degree; ++j) {
          if (G->nodelist[i].adj[j] == i) {
             nloops++;
-            swap_nodes( & (G->nodelist[i].adj[j]), 
-                        & (G->nodelist[i].adj[G->nodelist[i].degree - 1]) ); 
+            swap_nodes( & (G->nodelist[i].adj[j]),
+                        & (G->nodelist[i].adj[G->nodelist[i].degree - 1]) );
             --G->nodelist[i].degree;
             --j;
          }
       }
       if (COLORdbg_lvl()> 1 && nloops) {
          printf("Removed %d loop(s) from node %d.\n", nloops,i);
-      }            
+      }
    }
 
    ncount = G->ncount;
@@ -250,7 +255,7 @@ int COLORadjgraph_simplify(COLORadjgraph* G)
    COLORcheck_rval(rval, "Failed in COLORadjgraph_extract_edgelist");
 
    COLORadjgraph_free(G);
-   
+
    rval = COLORadjgraph_build(G, ncount,ecount,tmp_adjlist);
    COLORcheck_rval(rval, "Failed in COLORadjgraph_build");
  CLEANUP:
@@ -297,7 +302,7 @@ void COLORadjgraph_sort_adjlists_by_id(COLORadjgraph* G)
    }
 }
 
-int  COLORadjgraph_delete_unweighted(COLORadjgraph* G, 
+int  COLORadjgraph_delete_unweighted(COLORadjgraph* G,
                                      int** new_nweights,
                                      const int nweights[])
 {
@@ -321,7 +326,7 @@ int  COLORadjgraph_delete_unweighted(COLORadjgraph* G,
       } else {
          int a = 0;
          nmap[i] = ncount++;
-         
+
          for (a_i = 0; a_i < G->nodelist[i].degree && a < i; ++a_i) {
             a = G->nodelist[i].adj[a_i];
             if (a < i && nmap[a] != -1) {
@@ -341,7 +346,7 @@ int  COLORadjgraph_delete_unweighted(COLORadjgraph* G,
          (*new_nweights)[ni] = nweights[i];
       }
    }
-              
+
    COLORadjgraph_free(G);
 
    rval = COLORadjgraph_build(G,ncount,ecount,newelist);
@@ -352,7 +357,7 @@ int  COLORadjgraph_delete_unweighted(COLORadjgraph* G,
              ncount,ecount);
    }
 
-   
+
 
  CLEANUP:
    if (nmap) free(nmap);
@@ -391,9 +396,9 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
     while (fgets (buf, 254, in) != (char *) NULL) {
         p = buf;
         if (p[0] == 'c') {
-	   if (COLORdbg_lvl()) {
-	      printf ("Comment: %s", p+1);
-	   }
+           if (COLORdbg_lvl()) {
+              printf ("Comment: %s", p+1);
+           }
         } else if (p[0] == 'p') {
             const char* delim = " \t\n";
             char* data = (char *) NULL;
@@ -403,7 +408,7 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
             }
             haveprob = 1;
             strtok(p,delim); /* get 'p' */
-            
+
             data = strtok(NULL,delim); /* get type */
             if ( strcmp(data,"edge") && strcmp(data,"edges") &&
                                         strcmp(data,"col") ) {
@@ -415,10 +420,10 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
             data = strtok(NULL,delim);
             sscanf (data, "%d", &ecount);
 
-	    if (COLORdbg_lvl()) {
-	       printf ("Number of Nodes: %d\n", ncount);
-	       printf ("Number of Edges: %d\n", ecount);
-	    }
+            if (COLORdbg_lvl()) {
+               printf ("Number of Nodes: %d\n", ncount);
+               printf ("Number of Edges: %d\n", ecount);
+            }
             elist = COLOR_SAFE_MALLOC (2*ecount, int);
             COLORcheck_NULL (elist, "out of memory for elist");
             nweights = COLOR_SAFE_MALLOC (ncount, int);
@@ -449,21 +454,21 @@ int COLORread_dimacs (char *f, int *pncount, int *pecount, int **pelist,
             nnweights = 1;
         }
     }
-    
+
     if (!nnweights) {/* Initialize to default weights:*/
        for (i = 0; i < ncount; ++i) {
           nweights[i] = 1;
        }
     }
     rval = COLORadjgraph_build(&G, ncount,icount,elist);
-    COLORcheck_rval(rval,"COLORadjgraph_build failed");                                     
+    COLORcheck_rval(rval,"COLORadjgraph_build failed");
     rval = COLORadjgraph_simplify(&G);
-    COLORcheck_rval(rval,"COLORadjgraph_simplify failed");                                     
+    COLORcheck_rval(rval,"COLORadjgraph_simplify failed");
     COLORadjgraph_extract_edgelist(&icount, &elist,&G);
-    COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");                                     
+    COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist");
     *pncount = ncount;
     /* Some col-instances are buggy => reduce # edges to icount*/
-    *pecount = icount; 
+    *pecount = icount;
     *pelist = elist;
     if (pnweights) {
         *pnweights = nweights;
@@ -488,7 +493,7 @@ int COLORedge_stat(const COLORadjgraph* G)
    int rval = 0;
    int i;
    int* degreecnt = (int*) NULL;
-   
+
    degreecnt = COLOR_SAFE_MALLOC (G->ncount, int);
    COLORcheck_NULL(degreecnt,"Failed to allocate degreecnt");
 
@@ -505,7 +510,7 @@ int COLORedge_stat(const COLORadjgraph* G)
          printf("DEG %d NUM %d\n",i, degreecnt[i]);
       }
    }
-   
+
  CLEANUP:
    if (degreecnt) free(degreecnt);
    return rval;
@@ -542,30 +547,30 @@ int  COLORcheck_connectedness(const COLORadjgraph* G)
    while (stack_last > -1) {
       int v = node_stack[stack_last--];
       int j;
-      for (j = 0; j < G->nodelist[v].degree; ++j) { 
-	 int w = G->nodelist[v].adj[j];
-	 
-	 if (! reached[w]) {
-	    reached[w]               = 1;
-	    node_stack[++stack_last] = w;
-	    num_reached ++;
-	 }
+      for (j = 0; j < G->nodelist[v].degree; ++j) {
+         int w = G->nodelist[v].adj[j];
+
+         if (! reached[w]) {
+            reached[w]               = 1;
+            node_stack[++stack_last] = w;
+            num_reached ++;
+         }
       }
    }
 
    if (num_reached < G->ncount) {
       printf("c Graph is not connected: reached %d out of %d",
-	     num_reached, G->ncount);
+             num_reached, G->ncount);
    } else {
       printf("c Graph is connected: reached %d out of %d edges.\n",
-	     num_reached, G->ncount);
+             num_reached, G->ncount);
    }
-   
+
  CLEANUP:
 
    if (reached) free(reached);
    if (node_stack) free(node_stack);
 
    return rval;
-   
+
 }

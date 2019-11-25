@@ -182,6 +182,7 @@ CLEANUP:
 
     COLOR_IFFREE(elist,int);
     COLOR_IFFREE(wlen,int);
+    COLORlp_free_env();
     return rval;
 }
 
@@ -1297,7 +1298,6 @@ static int parseargs (int ac, char **av)
            lower_cutoff = atof(optarg);
            break;
         default:
-            usage (av[0]);
             rval = 1;  goto CLEANUP;
         }
     }

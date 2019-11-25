@@ -101,10 +101,13 @@ int main (int ac, char **av)
 
     rval =  COLORcheck_connectedness(&G);
     COLORcheck_rval (rval, "COLORcheck_connectedness failed");
-    
+
     rval = COLORadjgraph_build_complement(&Gc,&G);
     COLORcheck_rval (rval, "COLORadjgraph_build_complement failed");
-    
+
+    rval =  COLORadjgraph_simplify(&Gc);
+    COLORcheck_rval(rval,"COLORadjgraph_simplify");
+
     COLOR_IFFREE(elist,int);
     rval = COLORadjgraph_extract_edgelist(&ecount,&elist,&Gc);
     COLORcheck_rval (rval, "COLORadjgraph_extract_edgelist failed");
@@ -145,8 +148,8 @@ static int parseargs (int ac, char **av)
             outfile = optarg;
             break;
         default:
-            usage (av[0]);
-            rval = 1;  goto CLEANUP;
+            rval = 1;
+            goto CLEANUP;
         }
     }
 
@@ -158,7 +161,7 @@ static int parseargs (int ac, char **av)
 
 CLEANUP:
 
-    if (rval) usage (av[0]);
+    if (rval) { usage (av[0]);}
     return rval;
 }
 

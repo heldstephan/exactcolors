@@ -51,7 +51,6 @@ static int parseargs (int ac, char **av)
           cpu_limit = atof(optarg);
           break;
        default:
-          usage (av[0]);
           rval = 1;  goto CLEANUP;
        }
     }
@@ -64,7 +63,7 @@ static int parseargs (int ac, char **av)
 
 CLEANUP:
 
-    if (rval) usage (av[0]);
+    if (rval) {usage (av[0]);}
     return rval;
 }
 static int get_problem_name(char* pname,const char* efname)

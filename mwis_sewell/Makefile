@@ -26,7 +26,7 @@ clean:
 
 sewell: libsewell.a mwss.c
 	$(CC) $(CFLAGS) -c mwss.c -o mwss.o
-	$(CC) -o sewell mwss.o wstable.o -L. -lsewell
+	$(CC) -o sewell mwss.o wstable.o -L. -lsewell -lubsan
 
 libsewell.a: wstable.c  mwss_ext.c mwss.h mwss_ext.h
 	$(CC) $(CFLAGS) -c mwss_ext.c -o mwss_ext.o
