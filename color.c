@@ -986,7 +986,7 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
 
    /* COLORlp_write (cd->lp, "lpheur.lp"); */
 
-   rval = COLORlp_setnodelimit(cd->lp,10);
+   rval = COLORlp_setnodelimit(cd->lp,1);
    COLORcheck_rval(rval,"COLORlp_setnodelimit failed");
 
    rval = COLORlp_optimize(cd->lp);
@@ -1003,14 +1003,18 @@ COLOR_MAYBE_UNUSED static int heur_colors_with_stable_sets(colordata* cd)
    COLORlp_set_all_coltypes(cd->lp,COLORlp_CONTINUOUS);
    COLORcheck_rval (rval, "COLORlp_set_all_coltypes");
 
-   printf ("Found lower bound of %lld and upper bound of %g.\n",
-           (long long) cd->lower_bound, incumbent);
 
    rval = COLORcheck_coloring(cd->bestcolors,cd->nbestcolors,
                               cd->ncount, cd->ecount, cd->elist);
    COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
 
-   print_colors(cd->bestcolors,cd->nbestcolors);
+   if (incumbent < cd->upper_bound) {
+     printf ("Found lower bound of %lld and upper bound of %g.\n",
+             (long long) cd->lower_bound, incumbent);
+     print_colors(cd->bestcolors,cd->nbestcolors);
+   }
+
+
 
 CLEANUP:
    if (colsol) free(colsol);
@@ -1924,12 +1928,13 @@ static int grab_integral_solution(colordata* cd,
                               cd->ncount, cd->ecount, cd->elist);
    COLORcheck_rval(rval,"ERROR: An incorrect coloring was created.");
 
-   printf("Intermediate coloring:\n");
-   print_colors(cd->bestcolors,cd->nbestcolors);
    assert(fabs ((double)cd->nbestcolors -  test_incumbent) <=
           integral_incumbent_tolerance );
 
    if (cd->nbestcolors < cd->upper_bound) {
+     printf("Intermediate coloring:\n");
+     print_colors(cd->bestcolors,cd->nbestcolors);
+
       cd->upper_bound = cd->nbestcolors;
    }
    if ( cd->upper_bound == cd->lower_bound) {
