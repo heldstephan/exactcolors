@@ -559,7 +559,7 @@ int  COLORcheck_connectedness(const COLORadjgraph* G)
    }
 
    if (num_reached < G->ncount) {
-      printf("c Graph is not connected: reached %d out of %d",
+      printf("c Graph is not connected: reached %d out of %d.\n",
              num_reached, G->ncount);
    } else {
       printf("c Graph is connected: reached %d out of %d edges.\n",
