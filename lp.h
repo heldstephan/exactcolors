@@ -30,6 +30,9 @@ typedef struct COLORlp_warmstart {
 int  COLORlp_init (COLORlp **p, const char *name);
 void COLORlp_free (COLORlp **p);
 
+int  COLORlp_init_env(void);
+void COLORlp_free_env(void);
+
 #define COLORlp_CONTINUOUS 0
 #define COLORlp_BINARY     1
 #define COLORlp_INTEGER    2
