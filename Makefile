@@ -80,7 +80,7 @@ SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
 SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
 
 EXACTCOLOR_DIR=.
-EXACTCOLOR_LDFLAG=-L$(EXACTCOLOR_DIR) -lexactcolor
+EXACTCOLOR_LDFLAG=-L$(EXACTCOLOR_DIR) -lexactcolor -ldl
 EXACTCOLOR_LIB= $(EXACTCOLOR_DIR)/libexactcolor.a
 
 CFLAGS += -std=c99 -D_XOPEN_SOURCE=500 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
