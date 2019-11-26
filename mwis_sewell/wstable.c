@@ -1271,7 +1271,7 @@ int ascending_distrib_sort(nodepnt *list, int m, int n)
    MWIS_MALLOC(list2, m + 1, nodepnt);
    MWIScheck_NULL(list2,"Failed to allocate list2");
 
-   for(i = 0; i < m; i++) count[i] = 0;
+   for(i = 0; i < m; i++) { count[i] = 0; }
    for(i = 1; i <= n; i++) {
       list2[i] = list[i];
       count[list[i]->key]++;
@@ -1279,7 +1279,9 @@ int ascending_distrib_sort(nodepnt *list, int m, int n)
 
    sum = 0;
    i = 0;
+
    while(sum < n) {
+      assert (i < m);
       sum += count[i];
       count[i++] = sum;
    }
@@ -2061,40 +2063,6 @@ void free_data(MWSSdatapnt data)
    MWIS_IFFREE(data->n_act, int);
 
    MWIS_IFFREE(data->best_sol, nodepnt);
-}
-//_________________________________________________________________________________________________
-
-void free_reinitialize_graph(MWSSgraphpnt graph, MWSSdatapnt data)
-{
-   int      i, j;
-   free_graph(graph);
-   for(i = 1; i <= graph->n_nodes; i++) {
-      graph->node_list[i].active = 0;
-      graph->node_list[i].adj = NULL;
-      graph->node_list[i].adj2 = NULL;
-      graph->node_list[i].adjacent = NULL;
-      graph->node_list[i].adjv = 0;
-      graph->node_list[i].degree = 0;
-      graph->node_list[i].inverse = 0;
-      graph->node_list[i].key = 0;
-      graph->node_list[i].name = 0;
-      graph->node_list[i].remaining_weight = 0;
-      graph->node_list[i].surplus = 0;
-      graph->node_list[i].weight = 0;
-      graph->weight[i] = 0;
-
-      data->cur_sol[i] = NULL;
-      data->n_act[i] = 0;
-      data->best_z = 0;
-      data->best_sol[i] = NULL;
-      data->n_best = 0;
-   }
-
-   for(i = 1; i <= graph->n_nodes; i++) {
-      for(j = 1; j <= graph->n_nodes; j++) {
-         data->act[i][j] = NULL;
-      }
-   }
 }
 
 //_________________________________________________________________________________________________
