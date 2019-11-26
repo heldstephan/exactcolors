@@ -19,14 +19,22 @@
 # CFLAGS=  -g
 # CFLAGS += -std=c99 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings
 
+
+ifeq ($(USE_UBSAN), 1)
+	CFLAGS += -fsanitize=undefined -fsanitize=float-divide-by-zero
+	UBSANLDFLAGS = -lubsan
+endif
+
 all: libsewell.a sewell
+
 
 clean:
 	rm -f *.o *.a sewell
 
+
 sewell: libsewell.a mwss.c
 	$(CC) $(CFLAGS) -c mwss.c -o mwss.o
-	$(CC) -o sewell mwss.o wstable.o -L. -lsewell -lubsan
+	$(CC) -o sewell mwss.o wstable.o -L. -lsewell $(UBSANLDFLAGS)
 
 libsewell.a: wstable.c  mwss_ext.c mwss.h mwss_ext.h
 	$(CC) $(CFLAGS) -c mwss_ext.c -o mwss_ext.o

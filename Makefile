@@ -138,7 +138,7 @@ color_jobkiller:  $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(CKILLERFILES)
 	$(CC) $(CFLAGS) -o color_jobkiller $(CKILLERFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG)  $(LPLIB)
 
 $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
-	cd $(SEWELL_DIR) && $(MAKE)
+	cd $(SEWELL_DIR) && $(MAKE) USE_UBSAN=$(USE_UBSAN)
 
 stable: $(EXACTCOLOR_LIB) $(STABFILES)
 	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread  $(EXACTCOLOR_LDFLAG)
