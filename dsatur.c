@@ -463,7 +463,7 @@ static int transfer_same_cclasses(colordata* cd,
    if (!v1_covered) {
       /* Create the singular set v1 as last set, because we might not add
          v1 to any set: */
-      printf("Adding extra set %d\n", v1);
+      /* printf("Adding extra set %d\n", v1); */
       cd->cclasses[parent_ccount].count  = 1;
       cd->cclasses[parent_ccount].members = (int*) COLOR_SAFE_MALLOC(1,int);
       cd->cclasses[parent_ccount].members[0] = v1;
@@ -1611,6 +1611,8 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     rval = DSATUR_new_COLORproblem(&new_problem, problem, &H, dsat.color_count);
     COLORcheck_rval(rval, "Failed in DSATUR_new_COLORproblem");
 
+    printf("Initial bounds LB %d and UB %d.\n", dsat.global_lower_bound,new_problem.global_upper_bound);
+
     //Variablen zum Auslesen der Zeit und Aufrufanzahl
     lbzeit =  0;
     ncalls = 1;
@@ -1703,6 +1705,7 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
             rval = copy_colors(G, dsat->color_count, &cd->bestcolors, &cd->nbestcolors);
             COLORcheck_rval(rval, "Failed to copy colors");
             problem->global_upper_bound = dsat->color_count;
+	    printf("Improved solution LB %d and UB %d.\n", dsat->global_lower_bound,problem->global_upper_bound);
             if (cd->nbestcolors == dsat->global_lower_bound) //optimale Lösung wurde gefunden
             {
                 dsat->optimal = 1;
