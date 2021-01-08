@@ -333,7 +333,7 @@ int COLORtransform_into_maximal (int ncount, int ecount, int *elist, int ncolors
          for (j = 0 ; j < G.nodelist[i].degree; ++j) {
             if (color_incidence[G.nodelist[i].adj[j]]) {
                free_node = 0;
-               j = G.nodelist[i].degree;
+	       break;
             }
          }
          if (free_node) {

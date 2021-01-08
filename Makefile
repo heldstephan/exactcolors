@@ -22,7 +22,7 @@ CPLEXPATH=$(CPLEX_HOME)
 QSPATH=$(QSOPT_HOME)
 
 USE_UBSAN=0
-CFLAGS+= -g
+#CFLAGS+= -g
 CFLAGS+= -O3
 
 
@@ -79,8 +79,8 @@ SEWELL_LDFLAG=-L $(SEWELL_DIR) -lsewell
 SEWELL_LIB=$(SEWELL_DIR)/libsewell.a
 
 EXACTCOLOR_DIR=.
-EXACTCOLOR_LDFLAG=-L$(EXACTCOLOR_DIR) -lexactcolor -ldl
-EXACTCOLOR_LIB= $(EXACTCOLOR_DIR)/libexactcolor.a
+EXACTCOLOR_LDFLAG=-L$(EXACTCOLOR_DIR) -lexactcolor $(LPLIB)  -ldl -lm -lpthread
+EXACTCOLOR_LIB= $(EXACTCOLOR_DIR)/libexactcolor.a 
 
 CFLAGS += -std=c99 -D_XOPEN_SOURCE=500 -pedantic -Wall -Wshadow -W -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wnested-externs -Wundef -Wcast-qual -Wcast-align -Wwrite-strings -I$(LPINCLUDE)
 export CFLAGS
@@ -129,31 +129,31 @@ libexactcolor.a: $(OBJFILES)
 	$(AR) rcs libexactcolor.a $(OBJFILES)
 
 color: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(CBOSSFILES) color_worker
-	$(LD)  $(CFLAGS) -o color $(CBOSSFILES) -lm -lpthread $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) $(LPLIB)
+	$(LD)  $(CFLAGS)  -o color color_main.o $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG)  
 
 color_worker: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(CWORKERFILES)
-	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES)  -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) $(LPLIB)
+	$(CC) $(CFLAGS) -o color_worker $(CWORKERFILES)  $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) 
 
 color_jobkiller:  $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(CKILLERFILES)
-	$(CC) $(CFLAGS) -o color_jobkiller $(CKILLERFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG)  $(LPLIB)
+	$(CC) $(CFLAGS) -o color_jobkiller $(CKILLERFILES)  $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG)
 
 $(SEWELL_LIB): $(SEWELL_DIR)/*[hc] $(SEWELL_DIR)/Makefile
 	cd $(SEWELL_DIR) && $(MAKE) USE_UBSAN=$(USE_UBSAN)
 
 stable: $(EXACTCOLOR_LIB) $(STABFILES)
-	$(CC) $(CFLAGS) -o stable $(STABFILES) $(LPLIB) -lm -lpthread  $(EXACTCOLOR_LDFLAG)
+	$(CC) $(CFLAGS) -o stable $(STABFILES)  $(EXACTCOLOR_LDFLAG)
 
 stable_grdy: $(EXACTCOLOR_LIB) $(STABGRDYFILES)
-	$(CC) $(CFLAGS) -o stable_grdy $(STABGRDYFILES) $(LPLIB) -lm -lpthread  $(EXACTCOLOR_LDFLAG)
+	$(CC) $(CFLAGS) -o stable_grdy $(STABGRDYFILES)  $(EXACTCOLOR_LDFLAG)
 
 partition: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(PARTFILES)
-	$(CC) $(CFLAGS) -o partition $(PARTFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB)  $(LPLIB)
+	$(CC) $(CFLAGS) -o partition $(PARTFILES) $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB)
 
 complement: $(EXACTCOLOR_LIB) $(SEWELL_LIB) $(COMPFILES)
-	$(CC) $(CFLAGS) -o complement $(COMPFILES) -lm -lpthread  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB) $(LPLIB)
+	$(CC) $(CFLAGS) -o complement $(COMPFILES)  $(EXACTCOLOR_LDFLAG) $(SEWELL_LIB)
 
 dsatur: dsatur.o graph.o color.o rounding_mode.o $(EXACTCOLOR_LIB) $(SEWELL_LIB)
-	$(LD) $(CFLAGS) -o dsatur dsatur.o graph.o color.o color_parms.o rounding_mode.o -lm -lpthread $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG) $(LPLIB)
+	$(LD) $(CFLAGS) -o dsatur dsatur.o graph.o color.o color_parms.o rounding_mode.o $(EXACTCOLOR_LDFLAG) $(SEWELL_LDFLAG)
 
 queen: queen.c
 	$(CC) $(CFLAGS) -o queen queen.c -lm -lpthread

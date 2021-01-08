@@ -429,7 +429,7 @@ static int transfer_same_cclasses(colordata* cd,
       for (j = 0; j < parent_cclasses[i].count; ++j) {
          if (v2_neighbor_marker[parent_cclasses[i].members[j]] == 1) {
             add_v1 = 0;
-            j = parent_cclasses[i].count;/*break*/
+            break;
          }
       }
       for (j = 0; j < parent_cclasses[i].count; ++j) {
