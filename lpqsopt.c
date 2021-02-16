@@ -28,6 +28,15 @@ struct COLORlp {
 
 const double int_tolerance = 0.00001;
 
+int  COLORlp_init_env(void)
+{
+}
+
+void COLORlp_free_env(void)
+{
+}
+
+
 int COLORlp_init (COLORlp **p, const char *name)
 {
     int rval = 0;

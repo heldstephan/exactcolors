@@ -214,7 +214,6 @@ int testprobs(MWSSgraphpnt graph, MWSSdatapnt data, wstable_parameterspnt parms,
               int n, double density, double* dseed, wstable_infopnt info);
 double ggubfs(double *dseed);
 int randomi(int n, double *dseed);
-void free_reinitialize_graph(MWSSgraphpnt graph, MWSSdatapnt data);
 int read_dimacs (MWSSgraphpnt graph, char *f);
 
 #endif

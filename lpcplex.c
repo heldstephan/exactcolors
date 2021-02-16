@@ -26,8 +26,9 @@
 #include "color.h"
 #include <cplex.h>
 
+static CPXENVptr cplex_env = NULL;
 struct COLORlp {
-    CPXENVptr cplex_env;
+
     CPXLPptr  cplex_lp;
     int       noptcalls;
     int       ncols;
@@ -37,6 +38,34 @@ struct COLORlp {
 
 const double int_tolerance = 0.00001;
 
+
+int  COLORlp_init_env ()
+{
+  int rval = 0;
+
+  if (!cplex_env) {
+    cplex_env = CPXopenCPLEX (&rval);
+    if (rval) {
+      fprintf (stderr, "CPXopenCPLEX failed, return code %d\n", rval);
+      goto CLEANUP;
+    }
+  }
+ CLEANUP:
+  if (rval && cplex_env) {
+    CPXcloseCPLEX (&cplex_env);
+    cplex_env = NULL;
+  }
+  return rval;
+}
+
+void COLORlp_free_env ()
+{
+  if (cplex_env) {
+    CPXcloseCPLEX (&cplex_env);
+    cplex_env = NULL;
+  }
+}
+
 int COLORlp_init (COLORlp **p, const char *name)
 {
    int rval = 0;
@@ -44,6 +73,7 @@ int COLORlp_init (COLORlp **p, const char *name)
    if (COLORdbg_lvl() > 1) {
       cpx_dbglvl = CPX_ON;
    }
+   COLORlp_init_env();
 
     (*p) = COLOR_SAFE_MALLOC (1, COLORlp);
     if ((*p) == (COLORlp *) NULL) {
@@ -55,49 +85,42 @@ int COLORlp_init (COLORlp **p, const char *name)
     (*p)->ncols     = 0;
     (*p)->nintegers = 0;
     (*p)->dbl_cutoff = 0.0;
-    (*p)->cplex_env = (CPXENVptr) NULL;
     (*p)->cplex_lp = (CPXLPptr) NULL;
 
-    (*p)->cplex_env = CPXopenCPLEX (&rval);
-    if (rval) {
-        fprintf (stderr, "CPXopenCPLEX failed, return code %d\n", rval);
-        goto CLEANUP;
-    }
 
-
-    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_SCRIND,
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_SCRIND,
                            cpx_dbglvl);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_SCRIND failed");
 
 
-    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_ADVIND, 1);
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_ADVIND, 1);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_ADVIND failed");
 
-    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_DPRIIND,
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_DPRIIND,
                            CPX_DPRIIND_STEEP);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_DPRIIND failed");
 
-    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_PPRIIND,
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_PPRIIND,
                            CPX_PPRIIND_STEEP);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_PPRIIND failed");
 
     /* The following three parameters were set by Bix in TSP code */
 
-    rval = CPXsetdblparam ((*p)->cplex_env, CPX_PARAM_EPPER, 1.0E-6);
+    rval = CPXsetdblparam (cplex_env, CPX_PARAM_EPPER, 1.0E-6);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_EPPER failed");
 
-    rval = CPXsetdblparam ((*p)->cplex_env, CPX_PARAM_EPOPT, 1.0E-9);
+    rval = CPXsetdblparam (cplex_env, CPX_PARAM_EPOPT, 1.0E-9);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_EPOPT failed");
 
-    rval = CPXsetdblparam ((*p)->cplex_env, CPX_PARAM_EPRHS, 1.0E-9);
+    rval = CPXsetdblparam (cplex_env, CPX_PARAM_EPRHS, 1.0E-9);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_EPRHS failed");
 
-    rval = CPXsetintparam ((*p)->cplex_env, CPX_PARAM_THREADS,1);
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_THREADS,1);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_THREADS failed");
 
 
 
-    (*p)->cplex_lp = CPXcreateprob ((*p)->cplex_env, &rval, name);
+    (*p)->cplex_lp = CPXcreateprob (cplex_env, &rval, name);
     if (!(*p)->cplex_lp || rval) {
        fprintf (stderr, "CPXcreateprob failed, return code %d\n", rval);
        goto CLEANUP;
@@ -110,11 +133,10 @@ CLEANUP:
 void COLORlp_free (COLORlp **p)
 {
      if (*p) {
-        if ((*p)->cplex_env) {
+        if (cplex_env) {
             if ((*p)->cplex_lp) {
-                CPXfreeprob ((*p)->cplex_env, &((*p)->cplex_lp));
+                CPXfreeprob (cplex_env, &((*p)->cplex_lp));
             }
-            CPXcloseCPLEX (&((*p)->cplex_env));
         }
         COLOR_FREE (*p, COLORlp);
     }
@@ -127,10 +149,10 @@ int COLORmip_optimize (COLORlp *p)
    int status = 0;
    int solstat;
 
-   status = CPXmipopt (p->cplex_env, p->cplex_lp);
+   status = CPXmipopt (cplex_env, p->cplex_lp);
    COLORcheck_rval (status, "CPXmipopt failed");
 
-   solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
+   solstat = CPXgetstat (cplex_env, p->cplex_lp);
    if (solstat == CPX_STAT_INFEASIBLE) {
       printf ("Infeasible MIP\n");
       COLORlp_write (p, "joethelion.lp");
@@ -165,18 +187,18 @@ int COLORlp_optimize (COLORlp *p)
            only a few rows.
        */
        if (p->noptcalls == 0) {
-          int ncols = CPXgetnumcols (p->cplex_env, p->cplex_lp);
-          int nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
+          int ncols = CPXgetnumcols (cplex_env, p->cplex_lp);
+          int nrows = CPXgetnumrows (cplex_env, p->cplex_lp);
           if (ncols > 5 * nrows) {
-             rval = CPXbaropt (p->cplex_env, p->cplex_lp);
+             rval = CPXbaropt (cplex_env, p->cplex_lp);
              COLORcheck_rval (rval, "CPXbaropt failed");
           }
        }
-       rval = CPXdualopt (p->cplex_env, p->cplex_lp);
+       rval = CPXdualopt (cplex_env, p->cplex_lp);
        COLORcheck_rval (rval, "CPXdualopt failed");
 
 
-       solstat = CPXgetstat (p->cplex_env, p->cplex_lp);
+       solstat = CPXgetstat (cplex_env, p->cplex_lp);
        if (solstat == CPX_STAT_INFEASIBLE) {
           printf ("Infeasible LP\n");
           COLORlp_write (p, "joethelion.lp");
@@ -186,7 +208,7 @@ int COLORlp_optimize (COLORlp *p)
           fprintf (stderr, "Cplex optimization status %d\n", solstat);
           if (solstat == CPX_STAT_ABORT_IT_LIM) {
              int itlim;
-             rval = CPXgetintparam (p->cplex_env, CPX_PARAM_ITLIM, &itlim);
+             rval = CPXgetintparam (cplex_env, CPX_PARAM_ITLIM, &itlim);
              if (!rval) {
                 printf ("cplex iteration limit: %d\n", itlim);
                 fflush (stdout);
@@ -194,18 +216,19 @@ int COLORlp_optimize (COLORlp *p)
           }
           rval  = 1;  goto CLEANUP;
        }
+
     }
     (p->noptcalls)++;
 
-    CLEANUP:
-       return rval;
-    }
+ CLEANUP:
+    return rval;
+}
 
 int COLORlp_objval (COLORlp *p, double *obj)
 {
     int rval = 0;
 
-    rval = CPXgetobjval (p->cplex_env, p->cplex_lp, obj);
+    rval = CPXgetobjval (cplex_env, p->cplex_lp, obj);
     COLORcheck_rval (rval, "CPXgetobjval failed");
 
 CLEANUP:
@@ -223,7 +246,7 @@ int COLORlp_change_objective(COLORlp *p, int start, int len, double* values)
         indices[i] = start+i;
     }
 
-    rval = CPXchgobj (p->cplex_env, p->cplex_lp, len, indices, values);
+    rval = CPXchgobj (cplex_env, p->cplex_lp, len, indices, values);
     COLORcheck_rval (rval, "CPXchgobj failed");
 
 CLEANUP:
@@ -259,11 +282,11 @@ int COLORlp_addrow (COLORlp *p, int nzcount, int *cind, double *cval,
     matbeg[0] = 0;
 
     if (nzcount == 0) {
-        rval = CPXnewrows (p->cplex_env, p->cplex_lp, 1, irhs,
+        rval = CPXnewrows (cplex_env, p->cplex_lp, 1, irhs,
                        isense, (double *) NULL, (char **) NULL);
         COLORcheck_rval (rval, "CPXnewrows failed");
     } else {
-        rval = CPXaddrows (p->cplex_env, p->cplex_lp, 0, 1, nzcount, irhs,
+        rval = CPXaddrows (cplex_env, p->cplex_lp, 0, 1, nzcount, irhs,
                   isense, matbeg, cind, cval, (char **) NULL, (char **) NULL);
         COLORcheck_rval (rval, "CPXaddrows failed");
     }
@@ -293,18 +316,18 @@ int COLORlp_addcol (COLORlp *p, int nzcount, int *cind, double *cval,
     //    iname[0] = name;
     matbeg[0] = 0;
 
-    rval = CPXaddcols (p->cplex_env, p->cplex_lp, 1, nzcount, iobj, matbeg,
+    rval = CPXaddcols (cplex_env, p->cplex_lp, 1, nzcount, iobj, matbeg,
                        cind, cval, ilb, iub, (char **) NULL);
     p->ncols++;
     if (sense == COLORlp_BINARY) {
        char cpx_binary = CPX_BINARY;
-       rval = CPXchgctype (p->cplex_env, p->cplex_lp, 1, &ncolind, &cpx_binary);
+       rval = CPXchgctype (cplex_env, p->cplex_lp, 1, &ncolind, &cpx_binary);
        COLORcheck_rval (rval, "CPXchgctype failed");
        p->nintegers++;
     }
     if (sense == COLORlp_INTEGER) {
        char cpx_integer = CPX_INTEGER;
-       rval = CPXchgctype (p->cplex_env, p->cplex_lp, 1, &ncolind, &cpx_integer);
+       rval = CPXchgctype (cplex_env, p->cplex_lp, 1, &ncolind, &cpx_integer);
        COLORcheck_rval (rval, "CPXchgctype failed");
        p->nintegers++;
     }
@@ -319,7 +342,7 @@ int COLORlp_deletecols (COLORlp *p, int first_cind, int last_cind)
 {
     int rval = 0;
 
-    rval = CPXdelcols (p->cplex_env, p->cplex_lp, first_cind, last_cind);
+    rval = CPXdelcols (cplex_env, p->cplex_lp, first_cind, last_cind);
     COLORcheck_rval (rval, "CPXdelcols failed");
 
 CLEANUP:
@@ -332,8 +355,8 @@ int COLORlp_pi (COLORlp *p, double *pi)
     int rval = 0;
     int nrows;
 
-    nrows = CPXgetnumrows (p->cplex_env, p->cplex_lp);
-    rval = CPXgetpi (p->cplex_env, p->cplex_lp, pi, 0, nrows - 1);
+    nrows = CPXgetnumrows (cplex_env, p->cplex_lp);
+    rval = CPXgetpi (cplex_env, p->cplex_lp, pi, 0, nrows - 1);
     COLORcheck_rval (rval, "CPXgetpi failed");
 
 CLEANUP:
@@ -345,8 +368,8 @@ int COLORlp_x (COLORlp *p, double *x)
     int rval = 0;
     int ncols;
 
-    ncols = CPXgetnumcols (p->cplex_env, p->cplex_lp);
-    rval = CPXgetx (p->cplex_env, p->cplex_lp, x, 0, ncols - 1);
+    ncols = CPXgetnumcols (cplex_env, p->cplex_lp);
+    rval = CPXgetx (cplex_env, p->cplex_lp, x, 0, ncols - 1);
     COLORcheck_rval (rval, "CPXgetx failed");
 
 CLEANUP:
@@ -358,7 +381,7 @@ int COLORlp_basis_cols (COLORlp *p, int *cstat)
    int rval = 0;
    int* rstat = (int*) NULL;
 
-   rval =  CPXgetbase(p->cplex_env, p->cplex_lp, cstat, rstat);
+   rval =  CPXgetbase(cplex_env, p->cplex_lp, cstat, rstat);
    COLORcheck_rval (rval, "CPXgetbase failed");
 
  CLEANUP:
@@ -368,17 +391,53 @@ int COLORlp_basis_cols (COLORlp *p, int *cstat)
 int COLORlp_set_all_coltypes (COLORlp *p, char sense)
 {
    int rval = 0;
+   int ncols;
+   char isense;
 
    if (!p) {
-       printf ("COLORlp_set_all_coltypes called without an LP\n");
-       rval = 1;  goto CLEANUP;
+     printf ("COLORlp_set_all_coltypes called without an LP\n");
+     rval = 1;  goto CLEANUP;
    }
 
-   if (sense != COLORlp_CONTINUOUS) {
-       printf ("Not set up to parse integer variables\n");
-       rval = 1;  goto CLEANUP;
+   ncols = CPXgetnumcols (cplex_env, p->cplex_lp);
+
+   switch (sense) {
+   case COLORlp_CONTINUOUS:
+     isense = CPX_CONTINUOUS;
+     p->nintegers = 0;
+     break;
+   case COLORlp_BINARY:
+     isense = CPX_BINARY;
+     p->nintegers = ncols;
+     break;
+   case COLORlp_INTEGER:
+     isense = CPX_INTEGER;
+     p->nintegers = ncols;
+     break;
+   default:
+     fprintf (stderr, "unknown variable sense: %c\n", sense);
+     rval = 1;  goto CLEANUP;
    }
 
+   {
+     int i;
+
+     for (i = 0; i < ncols; i++) {
+       int cnt = 1;
+       rval = CPXchgctype(cplex_env,  p->cplex_lp,cnt, &i,&isense);
+       COLORcheck_rval (rval, "CPXchgctype  failed");
+     }
+     if ( p->nintegers == 0) {
+       rval = CPXchgprobtype(cplex_env,  p->cplex_lp,CPXPROB_LP);
+       COLORcheck_rval (rval, "CPXchgprobtype  failed");
+     }
+     {
+       char filename[256];
+       sprintf(filename,"COLORlp_set_all_coltypes.%c.lp", isense);
+       rval = COLORlp_write (p, filename);
+       COLORcheck_rval (rval, "COLORlp_write  failed");
+     }
+   }
 CLEANUP:
    return rval;
 }
@@ -391,7 +450,7 @@ int COLORlp_objective_sense (COLORlp *p, int sense)
     if (sense == COLORlp_MIN) isense = CPX_MIN;
     else                      isense = CPX_MAX;
 
-    CPXchgobjsen (p->cplex_env, p->cplex_lp, isense);
+    CPXchgobjsen (cplex_env, p->cplex_lp, isense);
 
     return rval;
 }
@@ -407,7 +466,7 @@ int COLORlp_setbound (COLORlp *p, int col, char lower_or_upper, double bnd)
     lu[0] = lower_or_upper;
     bd[0] = bnd;
 
-    rval = CPXchgbds (p->cplex_env, p->cplex_lp, 1, cindex, lu, bd);
+    rval = CPXchgbds (cplex_env, p->cplex_lp, 1, cindex, lu, bd);
     COLORcheck_rval (rval, "CPXchgbds failed");
 
 CLEANUP:
@@ -421,7 +480,11 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
     if (!p || mip_node_limit < 1) {
         printf ("called with empty limit data, not set up in cplex\n");
         rval = 1;
+    } else {
+      rval = CPXsetintparam (cplex_env, CPX_PARAM_NODELIM, mip_node_limit);
+      COLORcheck_rval(rval,"CPXsetintparam failed");
     }
+ CLEANUP:
     return rval;
 }
 
@@ -479,18 +542,18 @@ int COLORlp_set_cutoff (COLORlp *p, double cutoff)
    COLORcheck_rval (rval, "COLORlp_objective_sense CPX_PARAM_EPPER failed");
 
    if (objsens == COLORlp_MAX) {
-      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTLO, cutoff);
+      rval = CPXsetdblparam (cplex_env, CPX_PARAM_CUTLO, cutoff);
       COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
    }
 
    if (objsens == COLORlp_MIN) {
-      rval = CPXsetdblparam (p->cplex_env, CPX_PARAM_CUTUP, cutoff);
+      rval = CPXsetdblparam (cplex_env, CPX_PARAM_CUTUP, cutoff);
       COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_CUTLO failed");
    }
 
    if (cutoff > 0) {
       p->dbl_cutoff = cutoff;
-      rval = CPXsetmipcallbackfunc(p->cplex_env,intercept_cplex_incumbent_cb,
+      rval = CPXsetmipcallbackfunc(cplex_env,intercept_cplex_incumbent_cb,
                                    (void*) p);
       COLORcheck_rval (rval, "CPXsetmipcallbackfunc  failed");
    }
@@ -504,7 +567,7 @@ int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;
 
-    rval = CPXwriteprob (p->cplex_env, p->cplex_lp, fname, "RLP");
+    rval = CPXwriteprob (cplex_env, p->cplex_lp, fname, "RLP");
     COLORcheck_rval (rval, "CPXwriteprob failed");
 
 CLEANUP:

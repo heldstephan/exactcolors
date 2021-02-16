@@ -67,8 +67,8 @@ int main (int ac, char **av)
 
     rval = COLORprogram_header (ac,av);
     COLORcheck_rval(rval, "Failed in COLORprogram_header");
-    
-    
+
+
     if (ac != 2) {
         usage (av[0]);
         rval = 1;  goto CLEANUP;
@@ -85,10 +85,10 @@ int main (int ac, char **av)
 
     printf("Trying to remove job id = %d from color job on %s.\n",
            cd_id, my_hostname);
-      
+
     rval = open_connection(&s, my_hostname);
     COLORcheck_rval(rval,"open_connection failed.");
-       
+
     rval = COLORsafe_swrite_string (s, myname);
     COLORcheck_rval (rval, "COLORsafe_swrite_string failed (NAME)");
 
@@ -101,6 +101,7 @@ int main (int ac, char **av)
     COLORsafe_sclose (s);
 
  CLEANUP:
+    COLORlp_free_env();
 
     return rval;
 }

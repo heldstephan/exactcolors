@@ -180,6 +180,7 @@ int main (int ac, char **av)
 
  CLEANUP:
     COLORproblem_free(&colorproblem);
+    COLORlp_free_env();
 
     return rval;
 }

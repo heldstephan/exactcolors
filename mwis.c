@@ -329,7 +329,8 @@ int COLORstable_wrapper(MWISenv** env,
    if (!*env) {
       const char* default_pname = "COLOR";
       int default_write_mwis    = 0;
-      COLORstable_initenv(env,default_pname,default_write_mwis);
+      rval = COLORstable_initenv(env,default_pname,default_write_mwis);
+      COLORcheck_rval(rval,"Failed in COLORstable_initenv");
    }
 
    if (( *env)->ngreedy_fails ==  max_ngreedy_fails && COLORdbg_lvl() > 0) {
@@ -342,11 +343,11 @@ int COLORstable_wrapper(MWISenv** env,
          printf("Enforced rounding!\n");
       }
       if (!(*env)->ls_env) {
-	 rval = COLORstable_init_LS(&((*env)->ls_env),
-				    ncount,
-				    ecount, elist,
+         rval = COLORstable_init_LS(&((*env)->ls_env),
+                                    ncount,
+                                    ecount, elist,
                                        nweights,cutoff);
-	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
+         COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
       }
 
       rval = COLORstable_round_down_weights((*env)->ls_env,
@@ -377,11 +378,11 @@ int COLORstable_wrapper(MWISenv** env,
       ++(( *env)->ngreedy_fails);
 
       if (!(*env)->ls_env) {
-	 rval = COLORstable_init_LS(&((*env)->ls_env),
-				    ncount,
-				    ecount, elist,
+         rval = COLORstable_init_LS(&((*env)->ls_env),
+                                    ncount,
+                                    ecount, elist,
                                        nweights,cutoff);
-	 COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
+         COLORcheck_rval(rval,"Failed in COLORstable_init_LS");
       }
 
       if (rounding_strategy == COLOR_neighbor_rounding) {

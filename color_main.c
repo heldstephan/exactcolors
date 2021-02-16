@@ -42,8 +42,8 @@ static void usage (char *f)
     fprintf (stderr, "   -p     start boss of parallel coloring\n");
     fprintf (stderr, "   -u int initial upper bound\n");
     fprintf (stderr, "   -a     use B&B as coloring heuristic for upper bouns.\n");
-    fprintf (stderr, "   -s int Branching strategy: 0 = none, 1 = minimum lower bound (default),"
-             " 2 = DFS, 3 = hybrid (2 followed by 1).\n");
+    fprintf (stderr, "   -s int Branching strategy: 0 = none, 1 = minimum lower bound,"
+             " 2 = DFS  (default), 3 = hybrid (2 followed by 1).\n");
     fprintf (stderr, "   -R int rounding style: 0 = neighbor (default), 1 = uniform, 2 = none\n");
     fprintf (stderr, "   -l dbl cpu time limit for branching.\n");
 
@@ -94,25 +94,25 @@ static int parseargs (int ac, char **av, COLORparms* parms)
            rval = COLORparms_set_parallel(parms,1);
            COLORcheck_rval(rval,"Failed in COLORparms_set_initial_upper_bound");
            break;
-	case 'b':
+        case 'b':
            rval = COLORparms_set_backupdir(parms,optarg);
            COLORcheck_rval(rval,"Failed in COLORparms_set_backupdir");
-	   break;
-	case 'l':
+           break;
+        case 'l':
            rval = COLORparms_set_branching_cpu_limit(parms,atof(optarg));
            COLORcheck_rval(rval,"Failed in COLORparms_set_branching_cpu_limit");
-	   break;
-	case 's':
+           break;
+        case 's':
            rval = COLORparms_set_branching_strategy(parms,atoi(optarg));
            COLORcheck_rval(rval,"Failed in COLORparms_set_branching_strategy");
-	   break;
-	case 'R':
+           break;
+        case 'R':
            rval = COLORparms_set_rounding_strategy(parms,atoi(optarg));
            COLORcheck_rval(rval,"Failed in COLORparms_set_rounding_strategy");
-	   break;
+           break;
         default:
-           usage (av[0]);
-           rval = 1;  goto CLEANUP;
+          rval = 1;
+           goto CLEANUP;
         }
     }
 
@@ -125,8 +125,8 @@ static int parseargs (int ac, char **av, COLORparms* parms)
 
 CLEANUP:
 
-    if (rval) usage (av[0]);
-return  (rval);
+    if (rval) {usage (av[0]);}
+    return  (rval);
 }
 
  static int get_problem_name(char* pname,const char* efname)
@@ -189,7 +189,7 @@ static int quick_lower_bound(COLORset **newsets, int *nnewsets, int ncount,
       (*newsets)[i].members = COLOR_SAFE_MALLOC(1,int);
       (*newsets)[i].members[0] = cliques[ncliques-1].members[i];
    }
- CLEANUP: 
+ CLEANUP:
   COLORfree_sets(&cliques,&ncliques);
    COLOR_IFFREE(all_one_nweights,int);
    return rval;
@@ -277,6 +277,7 @@ CLEANUP:
     COLORfree_sets(&colorclasses, &ncolors);
 
     COLOR_IFFREE(debugcolors,COLORset);
+    COLORlp_free_env();
 
     return rval;
 }

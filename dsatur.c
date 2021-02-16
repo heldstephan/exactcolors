@@ -23,7 +23,7 @@
  * der die fraktionale chromatische Zahl verwendet, um die lower_bound zu verbessern.
  * DSATUR_recursion ist die zugehörige Rekursionsfunktion
  * Alle Funktionen mit DSATUR_ am Anfang sind selbstgeschriebene/abgewandelte Hilfsfunktionen für DSATUR oder DSATUR_recursion
- * print_COLORproblem_edges, print_COLORadjgraph, copy_colors sind auch selbstgeschrieben 
+ * print_COLORproblem_edges, print_COLORadjgraph, copy_colors sind auch selbstgeschrieben
  * restliche Funktionen sind kopierte Funktionen, die nicht in header-Dateien gelistet sind, deshalb in der Datei stehen
  * Kompilieren mit dem dsaturMakefile
  */
@@ -182,7 +182,6 @@ static int parseargs(int ac, char **av, COLORparms *parms)
             COLORcheck_rval(rval, "Failed in COLORparms_set_rounding_strategy");
             break;
         default:
-            usage(av[0]);
             rval = 1;
             goto CLEANUP;
         }
@@ -201,8 +200,9 @@ static int parseargs(int ac, char **av, COLORparms *parms)
 
 CLEANUP:
 
-    if (rval)
+    if (rval) {
         usage(av[0]);
+    }
     return (rval);
 }
 
@@ -421,7 +421,6 @@ static int transfer_same_cclasses(colordata* cd,
    cd->cclasses = (COLORset*) COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
    for (i = 0; i < parent_ccount; ++i) {
       int add_v1 = 1;
-      int j = 0;
       COLORinit_set(cd->cclasses + i);
 
       cd->cclasses[i].members = (int*) COLOR_SAFE_MALLOC(parent_cclasses[i].count,int);
@@ -429,7 +428,7 @@ static int transfer_same_cclasses(colordata* cd,
       for (j = 0; j < parent_cclasses[i].count; ++j) {
          if (v2_neighbor_marker[parent_cclasses[i].members[j]] == 1) {
             add_v1 = 0;
-            j = parent_cclasses[i].count;/*break*/
+            break;
          }
       }
       for (j = 0; j < parent_cclasses[i].count; ++j) {
@@ -463,7 +462,7 @@ static int transfer_same_cclasses(colordata* cd,
    if (!v1_covered) {
       /* Create the singular set v1 as last set, because we might not add
          v1 to any set: */
-      printf("Adding extra set %d\n", v1);
+      /* printf("Adding extra set %d\n", v1); */
       cd->cclasses[parent_ccount].count  = 1;
       cd->cclasses[parent_ccount].members = (int*) COLOR_SAFE_MALLOC(1,int);
       cd->cclasses[parent_ccount].members[0] = v1;
@@ -584,7 +583,7 @@ static int DSATUR_create_differ(colordata* parent_cd, int v1, int v2)
    if(v1 != v2){
       cd->elist[ 2 * (cd->ecount - 1)] = v1;
       cd->elist[ 2 * (cd->ecount - 1) + 1] = v2;
-    
+
       rval = COLORadjgraph_build(&G, cd->ncount,cd->ecount,cd->elist);
       COLORcheck_rval(rval,"COLORadjgraph_build failed");
 
@@ -592,15 +591,15 @@ static int DSATUR_create_differ(colordata* parent_cd, int v1, int v2)
 
       COLORadjgraph_extract_edgelist(&cd->ecount, &cd->elist,&G);
       COLORcheck_rval(rval,"COLORadjgraph_extract_edgelist failed");
-   
+
       /* END: Create  graph with extra edge (v1,v2) */
 
       if (COLORdbg_lvl() > 1) {
-	  printf("DSATUR_create_differ created following graph:\n");
-	  COLORgraph_print(cd->ecount,cd->elist);
+          printf("DSATUR_create_differ created following graph:\n");
+          COLORgraph_print(cd->ecount,cd->elist);
       }
    }
-   
+
    cd->orig_node_ids = (int*) COLOR_SAFE_MALLOC(cd->ncount,int);
    COLORcheck_NULL(cd->orig_node_ids,"Failed to allocate cd->orig_node_ids");
    for (i = 0; i < cd->ncount; ++i) {
@@ -609,7 +608,7 @@ static int DSATUR_create_differ(colordata* parent_cd, int v1, int v2)
    cd->parent = parent_cd;
    cd->debugcolors = parent_cd->debugcolors;
    cd->ndebugcolors = parent_cd->ndebugcolors;
-   
+
    /* Transfer independent sets by removing v2 if both v1 and v2 are currently contained: */
    cd->gallocated = cd->ccount   =  parent_cd->ccount + 1;
    cd->cclasses = (COLORset*) COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
@@ -627,51 +626,51 @@ static int DSATUR_create_differ(colordata* parent_cd, int v1, int v2)
       cd->cclasses[i].count = 0;
 
       if(v1 < v2){
-	  for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
-	    int current_elm = parent_cd->cclasses[i].members[j];
-	    if (current_elm ==  v1) {
-		v1_found = 1;
-	    }
-	    if (current_elm ==  v2) {
-		if (v1_found) {
-		  continue;
-		} else {
-		  v2_covered = 1;
-		}
-	    }
-	    cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
-	    (cd->cclasses[i].count)++;
-	  }
-      }  
+          for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
+            int current_elm = parent_cd->cclasses[i].members[j];
+            if (current_elm ==  v1) {
+                v1_found = 1;
+            }
+            if (current_elm ==  v2) {
+                if (v1_found) {
+                  continue;
+                } else {
+                  v2_covered = 1;
+                }
+            }
+            cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
+            (cd->cclasses[i].count)++;
+          }
+      }
       else if(v1 > v2){
-	  for(j = 1; j < parent_cd->cclasses[i].count;++j){
-	      if(parent_cd->cclasses[i].members[j] ==  v1) {
-		  v1_found = 1;
-		  break;
-	      }
-	  }
-	  for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
-	    int current_elm = parent_cd->cclasses[i].members[j];
-	    if (current_elm ==  v2) {
-		if (v1_found) {
-		  continue;
-		} else {
-		  v2_covered = 1;
-		}
-	    }
-	    cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
-	    (cd->cclasses[i].count)++;
-	  }
+          for(j = 1; j < parent_cd->cclasses[i].count;++j){
+              if(parent_cd->cclasses[i].members[j] ==  v1) {
+                  v1_found = 1;
+                  break;
+              }
+          }
+          for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
+            int current_elm = parent_cd->cclasses[i].members[j];
+            if (current_elm ==  v2) {
+                if (v1_found) {
+                  continue;
+                } else {
+                  v2_covered = 1;
+                }
+            }
+            cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
+            (cd->cclasses[i].count)++;
+          }
       }
       else{
-	  for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
-	    int current_elm = parent_cd->cclasses[i].members[j];
-	    if (current_elm ==  v2) {
-		v2_covered = 1;
-	    }
-	    cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
-	    (cd->cclasses[i].count)++;
-	  }
+          for (j = 0; j < parent_cd->cclasses[i].count; ++j) {
+            int current_elm = parent_cd->cclasses[i].members[j];
+            if (current_elm ==  v2) {
+                v2_covered = 1;
+            }
+            cd->cclasses[i].members[cd->cclasses[i].count] = current_elm;
+            (cd->cclasses[i].count)++;
+          }
       }
       if(COLORdbg_lvl() > 1 ) {
          printf("PARENT SET ");
@@ -731,8 +730,8 @@ int DSATURREC_init(DSATURREC *dsat, int lowerbound)
         dsat->color_count = 0;
         dsat->global_lower_bound = lowerbound;
         dsat->uncolored_nodes_number = 0;
-	dsat->optimal=0;
-	dsat->id_in_child_cd = (int*)NULL;
+        dsat->optimal=0;
+        dsat->id_in_child_cd = (int*)NULL;
         dsat->DSAT_value = (int*)NULL;
     }
     else
@@ -931,7 +930,7 @@ int copy_colors(COLORadjgraph *G, int color_count, COLORset **sets, int *count)
     COLORcheck_NULL(G, "G is NULL in copy_colors");
     COLORcheck_NULL(sets, "sets is NULL in copy_colors");
     COLORcheck_NULL(count, "count is NULL in copy_colors");
-    
+
     if (COLORdbg_lvl() > 1){
       printf("In copy_colors: Farbanzahl: %d und Farben:\n", color_count);
       for (i = 0; i < G->ncount; i++)
@@ -940,12 +939,12 @@ int copy_colors(COLORadjgraph *G, int color_count, COLORset **sets, int *count)
          }
       fflush(stdout);
     }
-    
+
     //wenn schon mal Farben gespeichert wurden, wurde schonmal Speicher allokiert und muss freigegeben werden
     if(*count >0){
       COLORfree_sets(sets, count);
     }
-    
+
     if (color_count == 0)
     {
         (*sets) = NULL;
@@ -958,7 +957,7 @@ int copy_colors(COLORadjgraph *G, int color_count, COLORset **sets, int *count)
     {
         COLORinit_set(&(*sets)[i]);
     }
-    
+
     //Bestimme Anzahl Knoten in Farbklassen für Speicher allokieren
     for (i = 0; i < G->ncount; i++)
     {
@@ -967,7 +966,7 @@ int copy_colors(COLORadjgraph *G, int color_count, COLORset **sets, int *count)
         ((*sets)[c]).count++;
       }
     }
-    
+
     //Speicher allokieren für Farbklassen
     for (i = 0; i < color_count; i++)
     {
@@ -976,18 +975,18 @@ int copy_colors(COLORadjgraph *G, int color_count, COLORset **sets, int *count)
 
         ((*sets)[i]).count = 0; //wieder auf 0 setzen für Indexierung beim Speichern der members
     }
-    
+
     //alles ist gefärbt, also aktualisiere colorclasses(member + count)
     for (i = 0; i < G->ncount; i++)
     {
         int c = G->nodelist[i].color;
-	if(c > -1){
-	  ((*sets)[c]).members[((*sets)[c]).count] = i;
-	  ((*sets)[c]).count++;
-	}
+        if(c > -1){
+          ((*sets)[c]).members[((*sets)[c]).count] = i;
+          ((*sets)[c]).count++;
+        }
     }
-    
-    *count = color_count;  
+
+    *count = color_count;
 CLEANUP:
     return rval;
 }
@@ -995,7 +994,7 @@ CLEANUP:
 //Hilfsfunktion für die dsat-Werte der Nachbarn des neu gefärbten Knoten in DSATUR_recursion
 //Aktualisiert dsat-Werte der Nachbarn, des neu gefärbten Knoten colored_node und speichert welche Nachbarn aktualisiert wurden in updated_neighbors
 //In Stelle colored_node*G->ncount steht Anzahl aktualisierter Nachbarn und danach Indizes dieser Nachbarn in der Nachbarschaftsliste von colored_node
-//feasible_colors hat 0, wenn farbe zulässig ist und 1, wenn nicht  
+//feasible_colors hat 0, wenn farbe zulässig ist und 1, wenn nicht
 void DSATUR_update_dsat_value_for_neighbors(DSATURREC *dsat, int colored_node, COLORadjgraph *G,int *feasible_colors, int *updated_neighbors)
 {
     int i;
@@ -1006,8 +1005,8 @@ void DSATUR_update_dsat_value_for_neighbors(DSATURREC *dsat, int colored_node, C
         if(!feasible_colors[node->adj[i]*G->ncount+node->color])
         {
             feasible_colors[node->adj[i]*G->ncount+node->color]=1;
-	    dsat->DSAT_value[node->adj[i]]++;
-	    updated_neighbors[colored_node*G->ncount]++;
+            dsat->DSAT_value[node->adj[i]]++;
+            updated_neighbors[colored_node*G->ncount]++;
             updated_neighbors[colored_node*G->ncount+updated_neighbors[colored_node*G->ncount]]=i;
         }
     }
@@ -1021,13 +1020,13 @@ int DSATUR_create_branch(colordata *cd, COLORproblem *problem, COLORadjgraph *G,
     int rval = 0;
     if (!cd->ccount)
         compute_lower_bound(cd, problem);
-    
+
     if(COLORdbg_lvl()> 1){
-	printf("In create_branch v1= %d (G: %d)Farbe %d, v2= %d (G: %d) Farbe %d\n",
-	       v1,cd->orig_node_ids[v1],G->nodelist[cd->orig_node_ids[v1]].color,v2,cd->orig_node_ids[v2],G->nodelist[cd->orig_node_ids[v2]].color);
-	fflush(stdout);
+        printf("In create_branch v1= %d (G: %d)Farbe %d, v2= %d (G: %d) Farbe %d\n",
+               v1,cd->orig_node_ids[v1],G->nodelist[cd->orig_node_ids[v1]].color,v2,cd->orig_node_ids[v2],G->nodelist[cd->orig_node_ids[v2]].color);
+        fflush(stdout);
     }
-    
+
     //create differ(modifiziert), wenn v1,v2 unterschiedlichen Farben haben oder gleich sind(gleich um neue Farbe zu erstellen)
     if(G->nodelist[cd->orig_node_ids[v1]].color != G->nodelist[cd->orig_node_ids[v2]].color || v1 == v2)
     {
@@ -1041,20 +1040,20 @@ int DSATUR_create_branch(colordata *cd, COLORproblem *problem, COLORadjgraph *G,
     {
         rval = create_same(cd, v1, v2);
         COLORcheck_rval(rval, "Failed in create_same");
-	
+
         rval = set_id_and_name(cd->same_children, problem->ncolordata++, cd->pname);
         COLORcheck_rval(rval, "Failure in set_id_and_name");
     }
-    
+
 CLEANUP:
     if(rval){
-	if(cd->same_children){
-	  cd->nsame=1;
-	}
-	if(cd->diff_children){
-	  cd->ndiff=1;
-	}
-	free_children_data(cd);
+        if(cd->same_children){
+          cd->nsame=1;
+        }
+        if(cd->diff_children){
+          cd->ndiff=1;
+        }
+        free_children_data(cd);
     }
     return rval;
 }
@@ -1150,7 +1149,7 @@ int DSATUR_sort_vertices_by_degree(COLORadjgraph *G, int **node_mapping, int n, 
     COLORadjgraph_free(G);
     rval = COLORadjgraph_build(G, n, k, new_elist);
     COLORcheck_rval(rval, "Failed to build graph");
-	
+
     //Sortiere Nachbarschaftsliste nach ID
     for (i = 0; i < G->ncount; i++)
     {
@@ -1332,8 +1331,8 @@ int DSATUR_MaxClique(int **clique, COLORadjgraph *G, int *lower_bound)
         found = 0;
         marked_nodes[i] = 1;
 
-        //Finden der Schnittmenge zwischen S_i(alle Knoten >=i) und Nachbarn von i 
-	//Nachbarn sind aufsteigend nach ID sortiert, daher braucht man nur Index in Nachbarschaftsliste speichern
+        //Finden der Schnittmenge zwischen S_i(alle Knoten >=i) und Nachbarn von i
+        //Nachbarn sind aufsteigend nach ID sortiert, daher braucht man nur Index in Nachbarschaftsliste speichern
         set_size = 0;
         for (j = 0; j < G->nodelist[i].degree; j++)
         {
@@ -1399,12 +1398,15 @@ int DSATUR_choose_and_compute_lower_bound(DSATURREC *dsat,int **clique, COLORadj
     //    double density = ((double) G->ecount) * 2.0 / ((double) (G->ncount * (G->ncount - 1)));
 
         //use compute_lower_bound
-	//compute_lower_bound berechnet die LB auf dem noch nicht vereinfachten Graphen
+        //compute_lower_bound berechnet die LB auf dem noch nicht vereinfachten Graphen
     rval = compute_lower_bound(&(p->root_cd),p);
     COLORcheck_rval(rval,"Failed to compute_lower_bound");
-    
+
+
     dsat->global_lower_bound = p->root_cd.lower_bound;
     
+
+    /*** @todo find a better clique here with Ostergard for sparse graphs and with greedy otherwise! */
     *clique = COLOR_SAFE_MALLOC(2, int);
     COLORcheck_NULL(*clique, "no memory allocated for clique");
     
@@ -1447,7 +1449,7 @@ int DSATUR_new_COLORproblem(COLORproblem *new_problem, COLORproblem *problem, CO
 
     cd->upper_bound = old_cd->upper_bound;
     cd->lower_bound = old_cd->lower_bound;
-    
+
     //speichern der cliquesets in cclasses
     cd->cclasses = COLOR_SAFE_MALLOC(color_count, COLORset);
     COLORcheck_NULL(cd->cclasses, "Failed to allocate cclasses");
@@ -1462,12 +1464,12 @@ int DSATUR_new_COLORproblem(COLORproblem *new_problem, COLORproblem *problem, CO
       COLORcheck_NULL((cd->cclasses[i]).members, "Failed to allocate sets[i] in DSATUR_new_COLORproblem");
       cd->cclasses[i].members[0] = i;
     }
-	
+
     rval = COLORdsatur (cd->ncount, cd->ecount, cd->elist, &(cd->ccount), &(cd->cclasses));
     COLORcheck_rval (rval, "COLORdsatur failed");
     COLORcopy_sets(&(cd->bestcolors),&(cd->nbestcolors), cd->cclasses,cd->ccount);
     COLORcheck_coloring(cd->bestcolors,cd->nbestcolors, cd->ncount, cd->ecount, cd->elist);
-    
+
     cd->upper_bound = cd->nbestcolors < cd->upper_bound ? cd->nbestcolors : cd->upper_bound;
     new_problem->global_upper_bound = cd->upper_bound;
     cd->gallocated = cd->ccount;
@@ -1499,12 +1501,18 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     int **clique = (int **)NULL;
     int *feasible_colors = (int *)NULL;
     int *colored_node_updated_neighbors = NULL;
-    double *lbzeit = NULL;
-    int *aufrufanzahl = NULL;
+    double lbzeit = 0;
+    int ncalls = 0;
+
+    // Initialize pointers of dsat so that the CLEANUP works correctly if one of the next steps fails.
+    dsat.id_in_child_cd = (int*)NULL;
+    dsat.DSAT_value = (int*)NULL;
 
     COLORcheck_NULL(problem, "problem is NULL in DSATUR");
     COLORcheck_NULL(ncolors, "ncolors is NULL in DSATUR");
     COLORcheck_NULL(colorclasses, "colorclasses is NULL in DSATUR");
+
+
 
     clique = COLOR_SAFE_MALLOC(1, int *);
     COLORcheck_NULL(clique, "Failed to allocate clique");
@@ -1541,7 +1549,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     COLORcheck_rval(rval, "Failed in DSATUR_simplify");
 
     //Wählt geeignete untere Schranke und bestimmt mindestens eine 2-er clique
-    rval = DSATUR_choose_and_compute_lower_bound(&dsat, clique, &H, problem);
+    rval = DSATUR_choose_and_compute_lower_bound(&dsat, clique, &H, problem);            // @todo find better clique
     COLORcheck_rval(rval, "Failed in DSATUR_choose_and_compute_lower_bound");
 
     //Arrays in dsat initialisieren, die H.ncount brauchen
@@ -1549,7 +1557,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     COLORcheck_NULL(dsat.DSAT_value, "Failed to allocate DSAT_value");
     dsat.id_in_child_cd = COLOR_SAFE_MALLOC(H.ncount, int);
     COLORcheck_NULL(dsat.id_in_child_cd, "Failed to allocate id_in_child_cd");
-    
+
     for(i=0;i<H.ncount;i++){
       dsat.DSAT_value[i]=0;
       dsat.id_in_child_cd[i]=-1;
@@ -1568,7 +1576,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     for (i = 0; i < dsat.color_count; i++)
     {
         H.nodelist[i].color = i;
-	dsat.id_in_child_cd[i] = i;
+        dsat.id_in_child_cd[i] = i;
         for (j = 0; j < H.nodelist[i].degree; j++)
         {
             feasible_colors[H.nodelist[i].adj[j] * H.ncount + i] = 1;
@@ -1580,7 +1588,7 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     {
         H.nodelist[i].color = -1;
     }
-    
+
     if (COLORdbg_lvl() > 0)
     {
         printf("%d Cliqueknoten:\t", dsat.color_count);
@@ -1602,20 +1610,21 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
     rval = DSATUR_new_COLORproblem(&new_problem, problem, &H, dsat.color_count);
     COLORcheck_rval(rval, "Failed in DSATUR_new_COLORproblem");
 
+    printf("Initial bounds LB %d and UB %d.\n", dsat.global_lower_bound,new_problem.global_upper_bound);
+
     //Variablen zum Auslesen der Zeit und Aufrufanzahl
-    lbzeit = (double *)calloc(1, sizeof(double));
-    aufrufanzahl = (int *)malloc(sizeof(int));
-    *aufrufanzahl = 1;
+    lbzeit =  0;
+    ncalls = 1;
     double dsaturtime = COLORcpu_time();
-    
+
     assert(dsat.color_count > 1);
     //Aufruf der rekursiven DSATUR-Funktion
-    rval = DSATUR_recursion(ncd, &new_problem, &H, &dsat, feasible_colors, aufrufanzahl, lbzeit, colored_node_updated_neighbors);
+    rval = DSATUR_recursion(ncd, &new_problem, &H, &dsat, feasible_colors, &ncalls, &lbzeit, colored_node_updated_neighbors);
     COLORcheck_rval(rval, "Failed in DSATUR_recursion");
 
-    printf("Time for DSATUR_recursion: %lf seconds of which time for compute_lower_bound: %lf seconds\n", COLORcpu_time() - dsaturtime, *lbzeit);
-    nodes += *aufrufanzahl;
-    
+    printf("Time for DSATUR_recursion: %lf seconds of which time for compute_lower_bound: %lf seconds\n", COLORcpu_time() - dsaturtime, lbzeit);
+    nodes += ncalls;
+
     //in H gelöschte Knoten => jetzt färben in G
     //erst bereits Farben vorhandener Knoten kopieren, dazu wird node_mapping verwendet
     for (i = 0; i < ncd->nbestcolors; i++)
@@ -1634,19 +1643,20 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
                 color_node(&G, i);
         }
     }
-    
+
     //Speichere Farben neu in colorclasses und ncolors, damit id der Knoten von G und nicht von H verwendet werden
     rval = copy_colors(&G, ncd->nbestcolors, colorclasses, ncolors);
     COLORcheck_rval(rval, "Failed to copy_colors in DSATUR");
 
     //Für Ausgabe in main aktualisiere cd->upper_bound und setze cd->lower_bound auf die globale untere Schranke
+    cd->nbestcolors = ncd->nbestcolors;
     cd->upper_bound = new_problem.global_upper_bound;
-    cd->lower_bound = dsat.global_lower_bound;
+    cd->lower_bound = ncd->nbestcolors;
 
     rval = COLORcheck_coloring(*colorclasses, *ncolors, cd->ncount, cd->ecount, cd->elist);
     COLORcheck_rval(rval, "Failed to verify coloring in DSATUR");
-    print_colors(*colorclasses, *ncolors);
-	
+    //    print_colors(*colorclasses, *ncolors);
+
     if (COLORdbg_lvl() > 0)
     {
         /* printf("Farben in DSATUR G:\n"); */
@@ -1659,8 +1669,10 @@ int DSATUR(COLORproblem *problem, int *ncolors, COLORset **colorclasses)
 
 CLEANUP:
     COLORproblem_free(&new_problem);
-    COLORfree_sets(&cd->bestcolors, &cd->nbestcolors);
-    COLOR_IFFREE(*clique, int);
+
+    if (clique) {
+      COLOR_IFFREE(*clique, int);
+    }
     COLOR_IFFREE(clique, int *);
     COLORadjgraph_free(&G);
     COLORadjgraph_free(&H);
@@ -1669,8 +1681,6 @@ CLEANUP:
     COLOR_IFFREE(feasible_colors, int);
     COLOR_IFFREE(dsat.DSAT_value, int);
     COLOR_IFFREE(dsat.id_in_child_cd, int);
-    COLOR_IFFREE(aufrufanzahl, int);
-    COLOR_IFFREE(lbzeit, double);
 
     return rval;
 }
@@ -1685,7 +1695,7 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
     colordata *cd = &(problem->root_cd);
     int local_lower_bound;
     int colored_node = 0;
-    
+
     //Sind alle Knoten gefärbt?
     if (dsat->uncolored_nodes_number == 0)
     {
@@ -1694,6 +1704,7 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
             rval = copy_colors(G, dsat->color_count, &cd->bestcolors, &cd->nbestcolors);
             COLORcheck_rval(rval, "Failed to copy colors");
             problem->global_upper_bound = dsat->color_count;
+	    printf("Improved solution LB %d and UB %d.\n", dsat->global_lower_bound,problem->global_upper_bound);
             if (cd->nbestcolors == dsat->global_lower_bound) //optimale Lösung wurde gefunden
             {
                 dsat->optimal = 1;
@@ -1704,20 +1715,20 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
     {
         local_lower_bound = dsat->global_lower_bound > dsat->color_count ? dsat->global_lower_bound : dsat->color_count;
         child_cd->lower_bound = child_cd->lower_bound > local_lower_bound? child_cd->lower_bound : local_lower_bound;
-	
+
         if (child_cd->parent)
         { //Berechne neue lokale untere Schranke mit compute_lower_bound
 
-	    //build_lp damit optimize benutzt werden kann
-	    if (!child_cd->lp)
-	    {
-		rval = build_lp(child_cd);
-		COLORcheck_rval(rval, "build_lp failed");
-	    }
+            //build_lp damit optimize benutzt werden kann
+            if (!child_cd->lp)
+            {
+                rval = build_lp(child_cd);
+                COLORcheck_rval(rval, "build_lp failed");
+            }
 
-	    rval = COLORlp_optimize(child_cd->lp);
-	    COLORcheck_rval(rval, "COLORlp_optimize failed");
-	  
+            rval = COLORlp_optimize(child_cd->lp);
+            COLORcheck_rval(rval, "COLORlp_optimize failed");
+
             double starttime = COLORcpu_time();
             rval = compute_lower_bound(child_cd, problem);
             COLORcheck_rval(rval, "Failed to compute lower bound");
@@ -1757,14 +1768,14 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
                 maxsatdegree = dsat->DSAT_value[i];
             }
         }
-        
+
         //Bestimme id von colored_node in child_cd; child_cd hat vielleicht weniger Knoten
         int colored_node_in_cd = colored_node < child_cd->ncount ? colored_node : child_cd->ncount - 1;
         while (child_cd->orig_node_ids[colored_node_in_cd] != colored_node)
         {
             colored_node_in_cd--;
         }
-        //Speichert für neue Farbe in was_colored die letzte Farbe, in der colored_node gefärbt war 
+        //Speichert für neue Farbe in was_colored die letzte Farbe, in der colored_node gefärbt war
         int was_colored = -1;
         int old_color_count = dsat->color_count;
         //Färbe colored_node mit jeder zulässigen Farbe
@@ -1781,40 +1792,40 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
                 if (dsat->color_count < problem->global_upper_bound)
                 {
                     dsat->uncolored_nodes_number--;
-		    //Aktualisiere dsat-Werte der Nachbarn von colored_node
+                    //Aktualisiere dsat-Werte der Nachbarn von colored_node
                     DSATUR_update_dsat_value_for_neighbors(dsat, colored_node, G, feasible_colors, colored_node_updated_neighbors);
-		    
-		    *aufrufanzahl += 1;
-		    int node_of_old_color = -1;
-		    int tmp = -1;
+
+                    *aufrufanzahl += 1;
+                    int node_of_old_color = -1;
+                    int tmp = -1;
                     //erstelle für compute_lower_bound den farbkomprimierten Graphen
                     if (dsat->uncolored_nodes_number) //sonst wird im nächsten schritt nur die Färbung gespeichert
                     {
                         //Wenn es die neue Farbe ist, kann ein nicht benachbarter gefärbter Knoten gewählt werden
                         if (dsat->color_count > old_color_count)
                         {
-			  if(was_colored > -1){//was_colored ist die nicht-benachbarte Farbe
-			    //Bestimme Knoten, der entsprechend gefärbt ist, in child_cd
-			    node_of_old_color = dsat->id_in_child_cd[was_colored];
-			  }
-			  else{
-			  //Wenn es keine unbenachbarte Farbe gibt, muss die neue Farbe hinzugefügt werden
-			  //dafür benutze DSATUR_create_differ mit v1=v2
-			    node_of_old_color = colored_node_in_cd;
-			  }
-			  //id_in_child_cd gibt die id der Farbe in child_cd an
-			  dsat->id_in_child_cd[i]= colored_node_in_cd;
+                          if(was_colored > -1){//was_colored ist die nicht-benachbarte Farbe
+                            //Bestimme Knoten, der entsprechend gefärbt ist, in child_cd
+                            node_of_old_color = dsat->id_in_child_cd[was_colored];
+                          }
+                          else{
+                          //Wenn es keine unbenachbarte Farbe gibt, muss die neue Farbe hinzugefügt werden
+                          //dafür benutze DSATUR_create_differ mit v1=v2
+                            node_of_old_color = colored_node_in_cd;
+                          }
+                          //id_in_child_cd gibt die id der Farbe in child_cd an
+                          dsat->id_in_child_cd[i]= colored_node_in_cd;
                         }
                         else
                         {
-			  //wähle Knoten aus Farbklasse der gewählten Farbe
-			    node_of_old_color = dsat->id_in_child_cd[i];
-			    tmp = node_of_old_color;
-			    //v1>v2 erzeugt Probleme beim shiften der Indices in create_same
-			    if(node_of_old_color > colored_node_in_cd){//Tausche die Knoten
-			      node_of_old_color = colored_node_in_cd;
-			      colored_node_in_cd = tmp;
-			    }
+                          //wähle Knoten aus Farbklasse der gewählten Farbe
+                            node_of_old_color = dsat->id_in_child_cd[i];
+                            tmp = node_of_old_color;
+                            //v1>v2 erzeugt Probleme beim shiften der Indices in create_same
+                            if(node_of_old_color > colored_node_in_cd){//Tausche die Knoten
+                              node_of_old_color = colored_node_in_cd;
+                              colored_node_in_cd = tmp;
+                            }
                         }
                         rval = DSATUR_create_branch(child_cd, problem, G, node_of_old_color, colored_node_in_cd);
                         COLORcheck_rval(rval, "Failed in DSATUR_create_branch");
@@ -1822,39 +1833,39 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
                     //Aktualisiere Datenstruktur für nächsten Rekursionsaufruf und setze es danach wie vorher
                     if (child_cd->nsame)
                     {//Fall 1: Farbe existierte schon
-			dsat->id_in_child_cd[i] = node_of_old_color;
-			for(j=0;j<old_color_count;j++){
-			  if(dsat->id_in_child_cd[j] > colored_node_in_cd){
-			    dsat->id_in_child_cd[j]--;
-			  }
-			}
-		      
+                        dsat->id_in_child_cd[i] = node_of_old_color;
+                        for(j=0;j<old_color_count;j++){
+                          if(dsat->id_in_child_cd[j] > colored_node_in_cd){
+                            dsat->id_in_child_cd[j]--;
+                          }
+                        }
+
                         rval = DSATUR_recursion(child_cd->same_children, problem, G, dsat, feasible_colors, aufrufanzahl, lbzeit, colored_node_updated_neighbors);
-			
-			for(j=0;j<old_color_count;j++){
-			  if(dsat->id_in_child_cd[j] >= colored_node_in_cd){
-			    dsat->id_in_child_cd[j]++;
-			  }
-			}
-			dsat->id_in_child_cd[i] = tmp;
-			colored_node_in_cd = node_of_old_color == tmp? colored_node_in_cd : node_of_old_color;
-		    }else if(child_cd->ndiff){//Fall 2: neue Farbe wurde benutzt
+
+                        for(j=0;j<old_color_count;j++){
+                          if(dsat->id_in_child_cd[j] >= colored_node_in_cd){
+                            dsat->id_in_child_cd[j]++;
+                          }
+                        }
+                        dsat->id_in_child_cd[i] = tmp;
+                        colored_node_in_cd = node_of_old_color == tmp? colored_node_in_cd : node_of_old_color;
+                    }else if(child_cd->ndiff){//Fall 2: neue Farbe wurde benutzt
                         rval = DSATUR_recursion(child_cd->diff_children, problem, G, dsat, feasible_colors, aufrufanzahl, lbzeit, colored_node_updated_neighbors);
-                    
-			dsat->id_in_child_cd[i] = -1;
-		    }
+
+                        dsat->id_in_child_cd[i] = -1;
+                    }
                     else
                     {//Fall 3: DSATUR_create_branch wurde nicht aufgerufen, da im nächsten Schritt nur die Färbung gespeichert wird
                         rval = DSATUR_recursion(child_cd, problem, G, dsat, feasible_colors, aufrufanzahl, lbzeit, colored_node_updated_neighbors);
                     }
                     COLORcheck_rval(rval, "Failed in DSATUR_recursion");
-		    
-		    //Damit in der nächsten Iteration der for-Schleife wieder ein child generiert werden kann
+
+                    //Damit in der nächsten Iteration der for-Schleife wieder ein child generiert werden kann
                     free_children_data(child_cd);
-		    
+
                     if (dsat->optimal == 1)
                         return rval;
-		    
+
                     //Knoten wieder "entfärben"
                     dsat->uncolored_nodes_number++;
                     //dsat_value der Nachbarn wieder zurücksetzen mithilfe von colored_node_updated_neighbors
@@ -1866,7 +1877,7 @@ int DSATUR_recursion(colordata *child_cd, COLORproblem *problem, COLORadjgraph *
                     }
                 }
                 G->nodelist[colored_node].color = -1;
-		was_colored = i;
+                was_colored = i;
             }
         }
         dsat->color_count--;
@@ -1883,7 +1894,7 @@ int main(int ac, char **av)
     int rval = 0;
     double start_time = COLORcpu_time();
     double tot_rtime;
-    
+
     COLORproblem colorproblem;
     COLORparms *parms = &(colorproblem.parms);
     colordata *cd = &(colorproblem.root_cd);
@@ -1937,13 +1948,14 @@ int main(int ac, char **av)
     {
         recover_colordata(cd, &colorproblem);
     }
-    
+
     rval = DSATUR(&colorproblem, &ncolors, &colorclasses);
     COLORcheck_rval(rval, "Failed in DSATUR");
-    
+
     if (cd->nbestcolors == cd->upper_bound)
     {
-        printf("Opt Colors: %d\n", cd->nbestcolors);
+        printf("Finished with LB %d and UB %d.\n",
+               cd->lower_bound, cd->upper_bound);
         fflush(stdout);
         print_colors(colorclasses, ncolors);
     }
@@ -1954,16 +1966,16 @@ int main(int ac, char **av)
     }
     else
     {
-        printf("Finished with LB %d and UB %d.\n",
-               cd->lower_bound, cd->upper_bound);
+      printf("Finished with LB %d and UB %d.\n",
+             cd->lower_bound, cd->upper_bound);
     }
     tot_rtime = COLORcpu_time() - start_time;
     printf("Computing coloring took %f seconds. colorcount = %d and nodes = %ld\n", tot_rtime, ncolors, nodes);
-    
-CLEANUP:
 
+CLEANUP:
     COLORproblem_free(&colorproblem);
     COLORfree_sets(&colorclasses, &ncolors);
+    COLORlp_free_env();
 
     return rval;
 }

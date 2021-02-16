@@ -193,8 +193,8 @@ static int parseargs (int ac, char **av)
            ++debug;
             break;
         default:
-            usage (av[0]);
-            rval = 1;  goto CLEANUP;
+            rval = 1;
+            goto CLEANUP;
         }
     }
 
@@ -206,7 +206,7 @@ static int parseargs (int ac, char **av)
 
 CLEANUP:
 
-    if (rval) usage (av[0]);
+    if (rval) { usage (av[0]); }
     return rval;
 }
 

@@ -63,12 +63,17 @@ static int COLORclasses_expand(COLORclasses* classes)
    int rval = 0;
 
    COLORset* oldsets = classes->sets;
+
+   assert(oldsets || !classes->allocnt);
+
    classes->allocnt = 1.5 * classes->allocnt + 1;
 
    classes->sets = (COLORset*) COLOR_SAFE_MALLOC(classes->allocnt,COLORset);
    COLORcheck_NULL(classes->sets,"Failed to allocatete classes->sets");
 
-   memcpy(classes->sets,oldsets,classes->cnt * sizeof(COLORset));
+   if (oldsets) {
+     memcpy(classes->sets,oldsets,classes->cnt * sizeof(COLORset));
+   }
 
  CLEANUP:
    if (oldsets) free(oldsets);
@@ -131,6 +136,9 @@ static void set_ptrs_to_zero(soldata* sol);
 
 
 static void clean_soldata(soldata* sol) {
+
+   assert(sol != NULL);
+
    if (sol->nperm)       free(sol->nperm);
    if (sol->inperm)      free(sol->inperm);
    if (sol->tightness)   free(sol->tightness);
@@ -145,6 +153,7 @@ static void clean_soldata(soldata* sol) {
       COLORNWTheap_free(sol->heap);
 
    set_ptrs_to_zero(sol);
+
 }
 
 
@@ -1045,6 +1054,8 @@ int COLORcheck_set(COLORset* set, int ncount, int ecount, const int elist[])
    int i;
    int* coloring = (int*) COLOR_SAFE_MALLOC(ncount,int);
    COLORcheck_NULL(coloring,"Could not allocate *newsets");
+
+   COLORcheck_NULL(set,"COLORcheck_set received NULL pointer set");
 
    for (i = 0; i < ncount;++i) {
       coloring[i] = 0;

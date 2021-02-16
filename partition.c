@@ -33,7 +33,7 @@ static void usage (char *f);
 static int get_problem_name(char* pname,const char* efname);
 
 static int COLORadjgraph_isolate_vertex(COLORadjgraph* G, int v_i,
-				 COLORNWTHeap* heap, int href[])
+                                 COLORNWTHeap* heap, int href[])
 {
    int rval = 0;
    int j;
@@ -43,18 +43,18 @@ static int COLORadjgraph_isolate_vertex(COLORadjgraph* G, int v_i,
       COLORadjnode* w = G->nodelist + v->adj[j];
       int k;
       if (heap) {
-	 COLORNWTheap_decrease_key(heap,href[v->adj[j]],w->degree -1);
+         COLORNWTheap_decrease_key(heap,href[v->adj[j]],w->degree -1);
       }
       for (k = 0; k < w->degree; ++k) {
-	 if (w->adj[k] == v_i) {
-	    printf("c Deleting %d %d\n", v_i + 1, v->adj[j] + 1);
-	    if (k + 1 < w->degree) {
-	       memmove(w->adj + k , w->adj + k + 1,
-		       (w->degree - k -1) * sizeof(int));
-	    }
-	    w->degree--;
-	    k = w->degree;
-	 }
+         if (w->adj[k] == v_i) {
+            printf("c Deleting %d %d\n", v_i + 1, v->adj[j] + 1);
+            if (k + 1 < w->degree) {
+               memmove(w->adj + k , w->adj + k + 1,
+                       (w->degree - k -1) * sizeof(int));
+            }
+            w->degree--;
+            k = w->degree;
+         }
       }
    }
 
@@ -65,9 +65,9 @@ static int COLORadjgraph_isolate_vertex(COLORadjgraph* G, int v_i,
 
 COLOR_MAYBE_UNUSED
 static
-int COLORadjgraph_incr_deled_smallest_degree_vertex(COLORadjgraph* Gd, 
-						    const COLORadjgraph* Gs, 
-						    int lpartitionsize)
+int COLORadjgraph_incr_deled_smallest_degree_vertex(COLORadjgraph* Gd,
+                                                    const COLORadjgraph* Gs,
+                                                    int lpartitionsize)
 {
    int           rval = 0;
    int*          heapref = (int*) NULL;
@@ -105,14 +105,14 @@ int COLORadjgraph_incr_deled_smallest_degree_vertex(COLORadjgraph* Gd,
       nodeindices[i] = i;
       COLORNWTheap_insert(heap, pos,key,nodeindices + i);
    }
-   
+
    while ( (ndeletednodes < ndelete) &&(i_ptr = (int*) COLORNWTheap_min(heap) ) ) {
       i = *i_ptr;
       ndeletednodes++;
       ndeletededges += Gd->nodelist[i].degree;
       rval = COLORadjgraph_isolate_vertex(Gd,i,heap,heapref);
       COLORcheck_rval(rval, "Failed in COLORadjgraph_isolate_vertex");
-      
+
       /* rval = COLORadjgraph_extract_edgelist(&ecount, &elist, Gd); */
       /* COLORcheck_rval(rval,"Failed in COLORadjgraph_extract_edgelist"); */
       /* printf("edgelist after isolating %d.\n",i); */
@@ -129,9 +129,9 @@ int COLORadjgraph_incr_deled_smallest_degree_vertex(COLORadjgraph* Gd,
 
 COLOR_MAYBE_UNUSED
 static
-int COLORadjgraph_greedy_partition_1(COLORadjgraph* Gd, 
-				     const COLORadjgraph* Gs, 
-				     int lpartitionsize)
+int COLORadjgraph_greedy_partition_1(COLORadjgraph* Gd,
+                                     const COLORadjgraph* Gs,
+                                     int lpartitionsize)
 {
    int rval = 0;
    int* perm = (int*) NULL;
@@ -153,7 +153,7 @@ int COLORadjgraph_greedy_partition_1(COLORadjgraph* Gd,
 
    len = COLOR_SAFE_MALLOC(ncount,int);
    COLORcheck_NULL(len,"Failed to allocate len.\n");
-   
+
    for (i=0; i < ncount; ++i) {
       perm[i] = i;
       len[i] = Gd->nodelist[i].degree;
@@ -169,14 +169,14 @@ int COLORadjgraph_greedy_partition_1(COLORadjgraph* Gd,
       int j;
       len[perm[i]] = 0;
       for (j = 0; j < w->degree; ++j) {
-	 int k = w->adj[j];
-	 if (iperm[k] > nremaining) {
-	    len[perm[i]]++;
-	 }
+         int k = w->adj[j];
+         if (iperm[k] > nremaining) {
+            len[perm[i]]++;
+         }
       }
    }
    COLORutil_perm_quicksort (perm,len,nremaining);
-      
+
    for (i=0; i < nremaining; ++i) {
       iperm[perm[i]] = i;
    }
@@ -198,17 +198,17 @@ static int parseargs (int ac, char **av)
     while ((c = getopt (ac, av, "dp:")) != EOF) {
         switch (c) {
         case 'd':
-	   COLORset_dbg_lvl(COLORdbg_lvl() + 1);
+           COLORset_dbg_lvl(COLORdbg_lvl() + 1);
             break;
         case 'p':
-	   partitionsize = atoi(optarg);
+           partitionsize = atoi(optarg);
             break;
         default:
-            usage (av[0]);
-            rval = 1;  goto CLEANUP;
+            rval = 1;
+            goto CLEANUP;
         }
     }
-    
+
     if (ac <= optind) {
         rval = 1; goto CLEANUP;
     } else {
@@ -242,7 +242,7 @@ static int get_problem_name(char* pname,const char* efname)
     } else {
         fname++;
     }
-   
+
     if (lastdot) {
        len = lastdot - fname + 1;
     } else {
@@ -271,7 +271,7 @@ int main (int ac, char **av)
     int *elist = (int *) NULL;
     int *wlen = (int *) NULL;
     int *new_ids = (int *) NULL;
-    
+
     int ndelete;
     COLORadjgraph G1, G2;
     int i, new_ncount;
@@ -282,7 +282,7 @@ int main (int ac, char **av)
     get_problem_name (pname, graphfile);
 
     printf("c Graph generated from %s with <= %d non-isolated vertices.\n",
-	   pname, partitionsize);
+           pname, partitionsize);
 
     rval = COLORread_dimacs (graphfile, &ncount, &ecount, &elist, &wlen);
     COLORcheck_rval (rval, "COLORread_dimacs failed");
@@ -301,17 +301,17 @@ int main (int ac, char **av)
 /*        rval = COLORadjgraph_greedy_partition_1 (&G2, &G1,partitionsize); */
 /*        COLORcheck_rval (rval, "COLORadjgraph_build failed"); */
 
-       COLORadjgraph_incr_deled_smallest_degree_vertex(&G2, 
+       COLORadjgraph_incr_deled_smallest_degree_vertex(&G2,
                                                        &G1,
                                                        partitionsize);
 
 
        rval = COLORadjgraph_extract_edgelist(&ecount, &elist, &G2);
        COLORcheck_rval(rval,"Failed in COLORadjgraph_extract_edgelist");
-    
+
 
        new_ncount = 0;
-       for (i = 0; i < ncount; ++i) { 
+       for (i = 0; i < ncount; ++i) {
           COLORadjnode* v = G2.nodelist + i;
           if (v->degree){
              new_ids[i] = new_ncount++;
