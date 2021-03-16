@@ -13,7 +13,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with exactcolors.  If not, see <http://www.gnu.org/licenses/>.
 
-git log --pretty=format:"%H" -1 | gawk '
+git log --pretty=format:"%H" -1 | awk '
 BEGIN{
    print "#ifndef __COLOR_VERSION_H";
    print "#define __COLOR_VERSION_H";
