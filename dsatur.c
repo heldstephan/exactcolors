@@ -420,6 +420,7 @@ static int transfer_same_cclasses(colordata* cd,
    cd->gallocated = cd->ccount   =  parent_ccount + 1;
    cd->cclasses = (COLORset*) COLOR_SAFE_MALLOC(cd->gallocated,COLORset);
    for (i = 0; i < parent_ccount; ++i) {
+      int j;
       int add_v1 = 1;
       COLORinit_set(cd->cclasses + i);
 
@@ -1404,15 +1405,15 @@ int DSATUR_choose_and_compute_lower_bound(DSATURREC *dsat,int **clique, COLORadj
 
 
     dsat->global_lower_bound = p->root_cd.lower_bound;
-    
+
 
     /*** @todo find a better clique here with Ostergard for sparse graphs and with greedy otherwise! */
     *clique = COLOR_SAFE_MALLOC(2, int);
     COLORcheck_NULL(*clique, "no memory allocated for clique");
-    
+
     (*clique)[0] = 0;
     (*clique)[1] = G->nodelist[0].adj[0];
-    
+
     dsat->color_count = 2;
     printf("Time for lower_bound: %lf seconds with compute_lower_bound and lower_bound %d\n", COLORcpu_time()-starttime, dsat->global_lower_bound);
 
