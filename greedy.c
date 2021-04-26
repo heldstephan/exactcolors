@@ -137,7 +137,7 @@ int COLORdsatur (int ncount, int ecount, int *elist, int *ncolors,
    COLORadjgraph G;
    COLORset *csets = (COLORset *) NULL;
 
-   printf ("COLORgreedy(%d,%d) ...\n", ncount, ecount);
+   printf ("COLORdsatur(%d,%d) ...\n", ncount, ecount);
    fflush (stdout);
 
    rval = COLORadjgraph_build (&G, ncount, ecount, elist);
