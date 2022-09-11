@@ -1252,7 +1252,7 @@ static int transfer_same_cclasses(colordata* cd,
       for (j = 0; (int) j < parent_cclasses[i].count; ++j) {
          if (v2_neighbor_marker[parent_cclasses[i].members[j]] == 1) {
             add_v1 = 0;
-	    break;
+            break;
          }
       }
       for (j = 0; j < parent_cclasses[i].count; ++j) {
@@ -1932,9 +1932,6 @@ static int grab_integral_solution(colordata* cd,
           integral_incumbent_tolerance );
 
    if (cd->nbestcolors < cd->upper_bound) {
-     printf("Intermediate coloring:\n");
-     print_colors(cd->bestcolors,cd->nbestcolors);
-
       cd->upper_bound = cd->nbestcolors;
    }
    if ( cd->upper_bound == cd->lower_bound) {
