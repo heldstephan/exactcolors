@@ -256,7 +256,8 @@ int main (int ac, char **av)
     rval = COLORexact_coloring(&colorproblem,&ncolors, &colorclasses);
     COLORcheck_rval(rval, "Failed to COLORexact_coloring");
 
-    if (cd->nbestcolors == cd->upper_bound) {
+    /* @todo: print best coloring if time limit was reached.*/
+    if (cd->lower_bound == cd->upper_bound) {
        printf ("Opt Colors: %d\n", cd->nbestcolors); fflush (stdout);
        print_colors(colorclasses, ncolors);
     } else if (cd->lower_bound == parms->initial_upper_bound) {
