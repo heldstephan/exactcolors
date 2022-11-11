@@ -335,6 +335,25 @@ int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit)
     return rval;
 }
 
+
+int COLORlp_set_emphasis(COLORlp *p, int emphasis)
+{
+  int rval = 0;
+  printf("WARNING: QSopt does not support COLORlp_set_emphasis.");
+ CLEANUP:
+    return rval;
+}
+
+int COLORlp_set_threads(COLORlp *p, int num_threads){
+    int rval = 0;
+
+    printf("WARNING: QSopt does not support COLORlp_set_cores.");
+
+CLEANUP:
+    return rval;
+}
+
+
 int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;

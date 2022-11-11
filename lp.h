@@ -46,6 +46,11 @@ void COLORlp_free_env(void);
 #define COLORlp_UPPER      2
 #define COLORlp_FREE       3
 
+#define COLORlp_MIP_EMPH_BALANCED    0
+#define COLORlp_MIP_EMPH_FEASIBILITY 1
+#define COLORlp_MIP_EMPH_OPTIMALITY  2
+#define COLORlp_MIP_EMPH_BESTBOUND   3
+
 #define COLORlp_MIN  1
 #define COLORlp_MAX -1
 
@@ -72,6 +77,8 @@ int COLORlp_objective_sense (COLORlp *p, int sense);
 int COLORlp_setbound (COLORlp *p, int col, char lower_or_upper, double bnd);
 int COLORlp_setnodelimit (COLORlp *p, int mip_node_limit);
 int COLORlp_set_cutoff (COLORlp *p, double cutoff);
+int COLORlp_set_emphasis(COLORlp *p, int emphasis);
+int COLORlp_set_threads(COLORlp *p, int num_threads);
 
 
 int COLORlp_write (COLORlp *p, const char *fname);

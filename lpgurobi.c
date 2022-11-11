@@ -487,6 +487,27 @@ CLEANUP:
    return rval;
 }
 
+
+
+int COLORlp_set_emphasis(COLORlp *p, int emphasis)
+{
+    int rval = 0;
+    rval = GRBsetintparam (p->model, GRB_INT_PAR_MIPFOCUS , emphasis);
+    COLORcheck_rval (rval, "GRBsetintparam GRB_INT_PAR_MIPFOCUS failed");
+CLEANUP:
+    return rval;
+}
+
+int COLORlp_set_cores(COLORlp *p, int num_cores){
+    int rval = 0;
+    rval = GRBsetintparam (p->model, GRB_INT_PAR_THREADS,num_cores);
+    COLORcheck_rval (rval, "GRBsetintparam GRB_INT_PAR_THREADS failed");
+
+CLEANUP:
+    return rval;
+}
+
+
 int COLORlp_write (COLORlp *p, const char *fname)
 {
     int rval = 0;

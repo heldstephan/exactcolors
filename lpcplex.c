@@ -118,8 +118,6 @@ int COLORlp_init (COLORlp **p, const char *name)
     rval = CPXsetintparam (cplex_env, CPX_PARAM_THREADS,1);
     COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_THREADS failed");
 
-
-
     (*p)->cplex_lp = CPXcreateprob (cplex_env, &rval, name);
     if (!(*p)->cplex_lp || rval) {
        fprintf (stderr, "CPXcreateprob failed, return code %d\n", rval);
@@ -560,6 +558,35 @@ int COLORlp_set_cutoff (COLORlp *p, double cutoff)
 
 CLEANUP:
    return rval;
+}
+
+
+int COLORlp_set_emphasis(COLORlp* p, int emphasis)
+{
+    int rval = 0;
+
+    /* Avoid unsued parameter warning.*/
+    (void) p;
+
+    rval = CPXsetintparam (cplex_env, CPXPARAM_Emphasis_MIP, emphasis);
+    COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_MIPEMPHASIS failed");
+CLEANUP:
+    return rval;
+}
+
+int COLORlp_set_threads(COLORlp*  p, int num_threads){
+    int rval = 0;
+
+    /* Avoid unsued parameter warning.*/
+    (void) p;
+
+    rval = CPXsetintparam (cplex_env, CPX_PARAM_THREADS,num_threads);
+    COLORcheck_rval (rval, "CPXsetintparam CPX_PARAM_THREADS failed");
+    rval = CPXsetintparam (cplex_env, CPXPARAM_Parallel,-1);
+    COLORcheck_rval (rval, "CPXsetintparam CPXPARAM_Parallel failed");
+
+CLEANUP:
+    return rval;
 }
 
 
