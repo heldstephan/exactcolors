@@ -126,7 +126,10 @@ int receive_colordata(COLOR_SFILE *s, colordata* cd,
                       int adopt_id,int include_best,
                       COLORproblem* problem);
 
-int  compute_lower_bound(colordata* cd, COLORproblem* problem);
+int compute_lower_bound(colordata* cd, COLORproblem* problem);
+int create_same(colordata* parent_cd, int v1, int v2);
+int create_differ(colordata* parent_cd, int v1, int v2);
+
 
 int print_colors(COLORset* cclasses, int ccount);
 

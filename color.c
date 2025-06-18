@@ -1304,8 +1304,8 @@ static int transfer_same_cclasses(colordata* cd,
    return rval;
 }
 
-static int create_same (colordata* parent_cd,
-                        int v1, int v2)
+int create_same (colordata* parent_cd,
+   int v1, int v2)
 {
    int rval = 0;
    colordata*    cd = (colordata*) NULL;
@@ -1369,8 +1369,8 @@ static int create_same (colordata* parent_cd,
 }
 
 
-static int create_differ(colordata* parent_cd,
-                         int v1, int v2)
+int create_differ(colordata* parent_cd,
+   int v1, int v2)
 {
    int rval = 0;
    int i;
